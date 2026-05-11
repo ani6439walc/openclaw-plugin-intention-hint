@@ -191,18 +191,16 @@ If all candidate dates are `MISSING_RAW_DIARY`:
 
 ## Tools Used
 
-All CLI commands below are executed via the **`exec` tool**.
+All CLI commands below are executed via the **`exec` tool** (`action: exec` or `action: bash`).
 
 | CLI Command | Purpose | When to Use | exec Parameters |
 |---|---|---|---|
-| `rg` (ripgrep) | Fast full-text search in raw markdown diaries | **Primary tool** for all search rounds | `command: "rg -in ..."` |
-| `stat` | Check file existence and size | Step 1, before any search | `command: "stat --format=%s ..."` |
-| `ls` | List candidate files | Step 1, when determining date range | `command: "ls memory/YYYY-MM-DD.md ..."` |
+| `memory_search` | Vector search per time segment | Step 1 — run 3 times (start/middle/end) |
+| `memory_get` | Read specific file excerpts | After search to extract dated events |
 
 ## Skills Referenced
 
 | Skill | Purpose | When to Use |
 |---|---|---|
+| `obsidian-cli` | Vault search and link traversal | **NOT recommended** for Fast Path — `obsidian search` has poor CJK support and only returns filenames. Use only when `rg` completely fails and Obsidian's native index is the last resort |
 | `treemd` | Survey structure of large diary files before extracting | Optional, when a hit file is very large and you need to locate the relevant section |
-| `obsidian-cli` | Vault navigation and backlink traversal | **NOT recommended** for Fast Path — `obsidian search` has poor CJK support and only returns filenames |
-| `memory_search` | Vector semantic search across long-term memory | **NOT used** in Fast Path; reserved for `MEMORY_STANDARD` / `MEMORY_CHRONOLOGY` / `MEMORY_EMOTIONAL` intents |

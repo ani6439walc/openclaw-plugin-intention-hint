@@ -88,8 +88,6 @@ intent: <id> (<name>)
 reason: <brief reason for classification>
 goal: <what the user likely wants to achieve>
 suggestion: <optional correction or recommendation>
-suggestedTools: <optional comma-separated tool names>
-suggestionSkills: <optional comma-separated skill names>
 
 If you cannot decide, default to:
 ${fallbackText}
