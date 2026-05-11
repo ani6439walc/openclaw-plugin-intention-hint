@@ -253,6 +253,32 @@ Use the memory family to route memory questions into the smallest retrieval stra
 
 Use the smallest matching memory intent. If a query primarily asks about recent events, emotion, change over time, or comparison, prefer that specialized intent over `MEMORY_LOOKUP`.
 
+### Memory Escalation Rules
+
+Use escalation to keep memory retrieval rich enough to be useful, but small enough to stay fast.
+
+1. **Reformulate first**
+   - Turn the latest user message into a self-contained retrieval target.
+   - Distill a few high-value keywords before searching.
+   - For subjective or ambiguous questions, consider multiple retrieval angles instead of relying on a single literal phrasing.
+
+2. **Start with the smallest intent-matched retrieval**
+   - Use the narrowest matching memory intent first.
+   - Prefer direct recent-file search for `MEMORY_RECENT`.
+   - Prefer regular `memory_search` for broader `MEMORY_LOOKUP`.
+
+3. **Stop when results are already sufficient**
+   - Do not expand retrieval just because more related memory might exist.
+   - If the current hits are already strong, relevant, and enough to answer the latest user message, stop there.
+
+4. **Escalate only when cross-note context is needed**
+   - If the initial hits are sparse, fragmented, or clearly incomplete, use structural expansion as a second stage.
+   - Use tags, linked notes, backlinks, or hub notes as enrichment after promising initial hits.
+
+5. **Optimize for adequacy, not exhaustiveness**
+   - The goal is not to retrieve every related memory.
+   - The goal is to retrieve enough high-confidence context to materially improve the final answer.
+
 ### Injection Format
 
 When the classifier matches an intent, the plugin injects the following structure as untrusted context:
