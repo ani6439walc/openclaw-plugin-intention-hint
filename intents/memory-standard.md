@@ -14,7 +14,7 @@ examples:
 - "What was my previous laptop setup?"
 ---
 
-Detected "general memory" intent. Use vector-based memory retrieval (`memory_search` + `memory_get`) to find relevant long-term memories. This is the fallback intent for queries that do not fit recent, chronology, comparison, emotional, or meta categories.
+Detected "general memory" intent. Use vector-based memory retrieval (`memory_search` + `memory_get`) to find relevant long-term memories. This intent handles broad historical queries without specific time constraints, emotional focus, or system/meta context.
 
 ## ⚠️ CRITICAL SAFETY RULES (apply to ALL steps)
 
@@ -91,7 +91,7 @@ Evaluate each result against the **latest user message only** (not the broader c
 ### ❶ Temporal Recency
 **Trigger**: User uses words like "today", "yesterday", "just now", "this morning", "recently".
 **Detection**: The query explicitly references a date within the last 48 hours.
-**Patch**: Switch to `MEMORY_RECENT` Fast Path (`rg` on raw daily notes). Do **not** use `memory_search`.
+**Patch**: Use `rg` on raw daily notes instead of `memory_search`. Follow the Fast Path protocol: infer time window, list candidate files, run `rg`, and return results directly.
 
 ### ❷ Sparse Occurrence
 **Trigger**: User asks for a specific ID, URL, ticket number, or exact phrase that appears rarely.
@@ -120,26 +120,26 @@ No specific records found for "{topic}". The memory may not exist yet.
 ### ❺ Long-Term Path Discovery
 **Trigger**: User asks about evolution, changes, or journey over a long timespan ("from...to...", "how has it changed").
 **Detection**: The query implies a duration > 30 days, or uses words like "心路歷程", "演變", "progress".
-**Patch**: Switch to `MEMORY_CHRONOLOGY` temporal clustering. Split search into "start → middle → end" segments and aggregate results chronologically.
+**Patch**: Use temporal clustering within this intent. Split the query into "start → middle → end" time segments, run `memory_search` for each segment separately, then aggregate results chronologically. Flag memory gaps (> 7 days between hits).
 
 ### ❻ Comparison / Contrast
 **Trigger**: User compares two or more things, time periods, or approaches ("vs", "difference", "compared to").
 **Detection**: The query contains comparative structures or explicitly names two subjects.
-**Patch**: Switch to `MEMORY_COMPARE`. Retrieve memories for **each subject separately**, then align fields for comparison. Do **not** conflate the two.
+**Patch**: Use dual retrieval within this intent. Extract Subject A and Subject B from the query, run independent `memory_search` for each, then align common fields (time, location, cost, outcome, emotional tone) for comparison. Do **not** conflate the two subjects.
 
 ### ❼ Meta-Memory
 **Trigger**: User asks about the system itself, SOPs, memory structure, or improvement suggestions ("system", "SOP", "plugin", "workflow").
 **Detection**: Query contains meta-vocabulary and no personal-life keywords ("diary", "yesterday", "travel", "ate").
-**Patch**: Switch to `MEMORY_META`. Change search scope to **System Corpus** (`darling/projects/`, `AGENTS.md`, `TOOLS.md`, etc.) and use `rg` instead of `memory_search`.
+**Patch**: Change search scope to **System Corpus** (`darling/projects/`, `AGENTS.md`, `TOOLS.md`, etc.) and use `rg` instead of `memory_search`. Do not search personal diaries (`memory/YYYY-MM-DD.md`).
 
 ### ❽ Emotion Buried in Technical Context
 **Trigger**: User asks about feelings, mood, or emotional states, but memory is dominated by technical tags.
 **Detection**: `memory_search` returns mostly technical results (#error, #architecture) with zero emotional tags (#shy, #trembling, #happy).
-**Patch**: Switch to `MEMORY_EMOTIONAL`. Run a secondary `rg` for emotional tags:
+**Patch**: Run a secondary `rg` for emotional tags within the same result set:
 ```bash
 rg -i "#害羞|#顫抖|#失落|#開心|#煩躁|#挫折" memory/YYYY-MM-DD.md
 ```
-Weight emotionally dense segments higher (emotional tags → score × 1.5).
+Re-rank results by emotional density (emotional tags → score × 1.5, technical-only → score × 0.8).
 
 ---
 

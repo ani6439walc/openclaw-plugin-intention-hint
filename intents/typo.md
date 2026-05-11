@@ -66,14 +66,9 @@ If the typo is completely unrecoverable (garbled/random):
 "Sorry, I couldn't quite understand that. Could you rephrase?"
 ```
 
-## Step 4 — Proceed with Corrected Intent
+## Step 4 — Proceed with Corrected Query
 
-After correction, route to the appropriate intent:
-- "openclaw 怎麼用" → `RESEARCH`
-- "昨天說的那個" → `MEMORY_RECENT`
-- "這段 code 有沒有問題" → `CODE_REVIEW`
-
-Do **not** mention the typo correction in the final response unless the user explicitly asks.
+After correction, proceed with the user's intended request using the corrected query. Do **not** mention the typo correction in the final response unless the user explicitly asks.
 
 ## Tools Used
 
