@@ -122,10 +122,6 @@ export function parseIntentionResult(
       result.goal = value || undefined;
     } else if (key === "suggestion") {
       if (value) result.suggestion = value;
-    } else if (key === "suggestedtools") {
-      if (value) result.suggestedTools = value;
-    } else if (key === "suggestionskills") {
-      if (value) result.suggestionSkills = value;
     }
   }
 
@@ -146,10 +142,6 @@ export function parseIntentionResult(
     reason: result.reason!,
     goal: result.goal!,
     ...(result.suggestion ? { suggestion: result.suggestion } : {}),
-    ...(result.suggestedTools ? { suggestedTools: result.suggestedTools } : {}),
-    ...(result.suggestionSkills
-      ? { suggestionSkills: result.suggestionSkills }
-      : {}),
   };
 }
 
@@ -164,10 +156,6 @@ export function buildPromptPrefix(
   lines.push(`reason: ${result.reason}`);
   lines.push(`goal: ${result.goal}`);
   if (result.suggestion) lines.push(`suggestion: ${result.suggestion}`);
-  if (result.suggestedTools)
-    lines.push(`suggestedTools: ${result.suggestedTools}`);
-  if (result.suggestionSkills)
-    lines.push(`suggestionSkills: ${result.suggestionSkills}`);
   lines.push("");
   lines.push(effectiveDef.prompt);
 

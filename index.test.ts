@@ -464,17 +464,15 @@ describe("parseIntentionResult", () => {
     expect(result).toBeUndefined();
   });
 
-  it("parses all fields including optional ones", () => {
+  it("parses required fields and optional suggestion", () => {
     const result = parseIntentionResult(
-      "intent: research (研究查詢)\nreason: need data\ngoal: check news\nsuggestion: try news\nsuggestedTools: web_search\nsuggestionSkills: skill_search",
+      "intent: research (研究查詢)\nreason: need data\ngoal: check news\nsuggestion: try news",
       ["research", "other"],
     );
     expect(result?.intent).toBe("research");
     expect(result?.reason).toBe("need data");
     expect(result?.goal).toBe("check news");
     expect(result?.suggestion).toBe("try news");
-    expect(result?.suggestedTools).toBe("web_search");
-    expect(result?.suggestionSkills).toBe("skill_search");
   });
 
   it("falls back to other when intent not in valid list", () => {
@@ -521,13 +519,11 @@ describe("parseIntentionResult", () => {
 
   it("skips empty optional fields", () => {
     const result = parseIntentionResult(
-      "intent: CHAT\nreason: greeting\ngoal: social\nsuggestion: \nsuggestedTools: \nsuggestionSkills: ",
+      "intent: CHAT\nreason: greeting\ngoal: social\nsuggestion: ",
       ["CHAT", "OTHER"],
     );
     expect(result?.intent).toBe("CHAT");
     expect(result?.suggestion).toBeUndefined();
-    expect(result?.suggestedTools).toBeUndefined();
-    expect(result?.suggestionSkills).toBeUndefined();
   });
 });
 
@@ -583,22 +579,18 @@ describe("buildPromptPrefix", () => {
     expect(reasonIdx).toBeLessThan(bodyIdx);
   });
 
-  it("includes optional fields when present", () => {
+  it("includes optional suggestion when present", () => {
     const result = buildPromptPrefix(
       {
         intent: "RESEARCH_GENERAL",
         reason: "test",
         goal: "search",
         suggestion: "try web_search",
-        suggestedTools: "web_search",
-        suggestionSkills: "source-driven-development",
       },
       mockIntents,
     );
     expect(result).toBeDefined();
     expect(result).toContain("suggestion: try web_search");
-    expect(result).toContain("suggestedTools: web_search");
-    expect(result).toContain("suggestionSkills: source-driven-development");
   });
 
   it("omits optional fields when absent", () => {
@@ -608,8 +600,6 @@ describe("buildPromptPrefix", () => {
     );
     expect(result).toBeDefined();
     expect(result).not.toContain("suggestion:");
-    expect(result).not.toContain("suggestedTools:");
-    expect(result).not.toContain("suggestionSkills:");
   });
 
   it("uses hard-coded fallback for unknown intent", () => {

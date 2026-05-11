@@ -15,15 +15,13 @@ An OpenClaw plugin that pre-scans user intent before main-agent replies and inje
    - `enabled` — whether the intent is active
    - `triggers` — natural-language descriptions that guide the classifier
    - `examples` — few-shot examples for the classifier
-   - Markdown body — the injection prompt template (supports `{{goal}}`, `{{suggestion}}`, `{{suggestedTools}}`, `{{suggestionSkills}}`, `{{reason}}`)
+   - Markdown body — the injection prompt body shown to the main agent after classification
 4. **Structured Output** — The classifier returns a key-value format:
    ```
    intent: <id> (<name>)
    reason: <brief reason for classification>
    goal: <what the user likely wants to achieve>
    suggestion: <optional correction or recommendation>
-   suggestedTools: <optional comma-separated tool names>
-   suggestionSkills: <optional comma-separated skill names>
    ```
    The plugin parses this into an `IntentionResult` and injects the matching intent's body as untrusted context.
 5. **Recent Context Support** — In `queryMode: "recent"`, the plugin extracts recent `user` / `assistant` turns from `event.messages`, strips previously injected plugin metadata blocks, and builds a recent conversation tail for the classifier.
@@ -288,14 +286,11 @@ When the classifier matches an intent, the plugin injects the following structur
 reason: <brief reason for classification>
 goal: <what the user likely wants to achieve>
 suggestion: <optional correction or recommendation>
-suggestedTools: <optional comma-separated tool names>
-suggestionSkills: <optional comma-separated skill names>
-
 [Intent Hint] <the Markdown body from the matched intent definition>
 </intention_hint_plugin>
 ```
 
-The subagent output fields (`reason`, `goal`, `suggestion`, `suggestedTools`, `suggestionSkills`) are placed **above** the intent's Markdown body. The body itself is injected as-is without any template substitution.
+The subagent output fields (`reason`, `goal`, `suggestion`) are placed **above** the intent's Markdown body. The body itself is injected as-is without any template substitution.
 
 ## Default Intents
 

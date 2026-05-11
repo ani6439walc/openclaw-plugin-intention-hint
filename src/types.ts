@@ -40,8 +40,6 @@ export type IntentionResult = {
   reason: string;
   goal: string;
   suggestion?: string;
-  suggestedTools?: string;
-  suggestionSkills?: string;
 };
 
 export type RecentTurn = {
