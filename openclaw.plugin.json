@@ -1,0 +1,91 @@
+{
+  "id": "intention-hint",
+  "name": "Intention Hint",
+  "description": "Pre-scans user intent before replies and injects routing hints via before_prompt_build hook.",
+  "activation": {
+    "onStartup": true
+  },
+  "uiHints": {
+    "model": {
+      "label": "Scanner Model",
+      "help": "Lightweight model for the intention scanner (e.g. google/gemini-3-flash). Leave empty to use the agent's default model."
+    },
+    "timeoutMs": {
+      "label": "Scanner Timeout",
+      "help": "Budget in milliseconds for the intention scanner sub-agent."
+    }
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "agents": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Agent IDs eligible for intention scanning.",
+        "default": ["main"]
+      },
+      "model": {
+        "type": "string",
+        "description": "Lightweight model for the intention scanner (e.g. google/gemini-3-flash). If null, falls back to the agent's default model.",
+        "default": null
+      },
+      "modelFallback": {
+        "type": "string",
+        "description": "Fallback model when config.model cannot be resolved.",
+        "default": null
+      },
+      "allowedChatTypes": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": ["direct", "group", "channel", "explicit"]
+        },
+        "description": "Which chat types are eligible.",
+        "default": ["direct"]
+      },
+      "allowedChatIds": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Allow-list of chat IDs.",
+        "default": []
+      },
+      "deniedChatIds": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Deny-list of chat IDs.",
+        "default": []
+      },
+      "timeoutMs": {
+        "type": "integer",
+        "minimum": 250,
+        "maximum": 120000,
+        "description": "Budget in milliseconds for the intention scanner sub-agent.",
+        "default": 10000
+      },
+      "queryMode": {
+        "type": "string",
+        "enum": ["message", "recent", "full"],
+        "description": "Context sent to scanner: latest message only, recent turns, or full history.",
+        "default": "recent"
+      },
+      "intentsDir": {
+        "type": "string",
+        "description": "Directory containing dynamic intent definitions (.md files with YAML frontmatter).",
+        "default": "./intents"
+      },
+      "intentsHotReload": {
+        "type": "boolean",
+        "description": "Automatically reload intent definitions from intentsDir when changed.",
+        "default": true
+      },
+      "intentsHotReloadIntervalMs": {
+        "type": "integer",
+        "minimum": 1000,
+        "maximum": 300000,
+        "description": "Interval in milliseconds for checking intent definition changes.",
+        "default": 180000
+      }
+    }
+  }
+}
