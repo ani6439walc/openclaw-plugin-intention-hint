@@ -6,7 +6,8 @@
     "dist",
     "package.json",
     "openclaw.plugin.json",
-    "README.md"
+    "README.md",
+    "skills/**"
   ],
   "openclaw": {
     "extensions": [

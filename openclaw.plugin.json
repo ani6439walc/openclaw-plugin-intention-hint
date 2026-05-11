@@ -5,6 +5,7 @@
   "activation": {
     "onStartup": true
   },
+  "skills": ["./skills"],
   "uiHints": {
     "model": {
       "label": "Scanner Model",
