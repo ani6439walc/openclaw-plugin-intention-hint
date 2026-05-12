@@ -80,8 +80,14 @@ Another model is preparing the final user-facing answer.
 Your job is to analyze the user's intent and return a structured hint.
 Do not answer the user directly.
 
-Classify into ONE of these categories:
+Classify the LATEST USER MESSAGE into ONE of these categories:
 ${intentDescriptions}
+
+IMPORTANT CLASSIFICATION RULES:
+1. Use the conversation history to understand the latest message in context — pronouns, implicit references, and topic continuations all depend on prior turns.
+2. If the latest message is a follow-up to an ongoing topic (e.g., discussing design then asking to create a related file), classify based on the OVERALL conversational goal, not just the surface action.
+3. When in doubt, prefer the intent that best explains WHY the user said this given what came before.
+4. DO NOT FORCE a classification. If you are not highly confident in any single intent, default to OTHER. A correct "other" is better than a wrong specific label.
 
 Return exactly in this format (one key per line, with NO markdown code blocks or xml tags):
 intent: <id> (<name>)
@@ -92,7 +98,6 @@ suggestion: <optional correction or recommendation>
 If you cannot decide, default to:
 ${fallbackText}
 
-Conversation context:
 <CONVERSATION>
 ${params.query}
 </CONVERSATION>`;

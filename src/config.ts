@@ -1,4 +1,11 @@
-import { DEFAULT_QUERY_MODE, DEFAULT_TIMEOUT_MS } from "./constants.js";
+import {
+  DEFAULT_QUERY_MODE,
+  DEFAULT_TIMEOUT_MS,
+  DEFAULT_RECENT_USER_TURNS,
+  DEFAULT_RECENT_ASSISTANT_TURNS,
+  DEFAULT_RECENT_USER_CHARS,
+  DEFAULT_RECENT_ASSISTANT_CHARS,
+} from "./constants.js";
 import type { ResolvedIntentionHintPluginConfig } from "./types.js";
 
 export function clampInt(
@@ -43,6 +50,30 @@ export function normalizePluginConfig(
       queryMode === "recent" || queryMode === "full"
         ? queryMode
         : DEFAULT_QUERY_MODE,
+    recentUserTurns: clampInt(
+      cfg.recentUserTurns as number | undefined,
+      DEFAULT_RECENT_USER_TURNS,
+      0,
+      20,
+    ),
+    recentAssistantTurns: clampInt(
+      cfg.recentAssistantTurns as number | undefined,
+      DEFAULT_RECENT_ASSISTANT_TURNS,
+      0,
+      10,
+    ),
+    recentUserChars: clampInt(
+      cfg.recentUserChars as number | undefined,
+      DEFAULT_RECENT_USER_CHARS,
+      40,
+      1000,
+    ),
+    recentAssistantChars: clampInt(
+      cfg.recentAssistantChars as number | undefined,
+      DEFAULT_RECENT_ASSISTANT_CHARS,
+      40,
+      1000,
+    ),
     timeoutMs: clampInt(
       cfg.timeoutMs as number | undefined,
       DEFAULT_TIMEOUT_MS,

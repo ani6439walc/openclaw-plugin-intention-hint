@@ -132,6 +132,10 @@ export function createPlugin(api: OpenClawPluginApi) {
               latestUserMessage: event.prompt ?? "",
               recentTurns: extractRecentTurns(event.messages),
               queryMode: config.queryMode,
+              recentUserTurns: config.recentUserTurns,
+              recentAssistantTurns: config.recentAssistantTurns,
+              recentUserChars: config.recentUserChars,
+              recentAssistantChars: config.recentAssistantChars,
             });
 
             const modelRef = getModelRef(api, effectiveAgentId, config, {

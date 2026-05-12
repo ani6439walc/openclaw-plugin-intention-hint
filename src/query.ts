@@ -9,6 +9,10 @@ export function buildQuery(params: {
   latestUserMessage: string;
   recentTurns?: RecentTurn[];
   queryMode: "message" | "recent" | "full";
+  recentUserTurns?: number;
+  recentAssistantTurns?: number;
+  recentUserChars?: number;
+  recentAssistantChars?: number;
 }): string {
   const latest = params.latestUserMessage.trim();
   if (params.queryMode === "message") {
@@ -28,16 +32,50 @@ export function buildQuery(params: {
     ].join("\n");
   }
 
-  const recentTurns = (params.recentTurns ?? [])
-    .map((turn) => ({
-      role: turn.role,
-      text: turn.text.trim().replace(/\s+/g, " "),
-    }))
-    .filter((turn) => turn.text.length > 0);
-  if (recentTurns.length === 0) return latest;
+  // recent mode: bounded turns with per-turn char caps
+  const maxUserTurns = params.recentUserTurns ?? 5;
+  const maxAssistantTurns = params.recentAssistantTurns ?? 5;
+  const userCharLimit = params.recentUserChars ?? 220;
+  const assistantCharLimit = params.recentAssistantChars ?? 180;
+
+  const allTurns = (params.recentTurns ?? []).filter(
+    (turn) => turn.text.trim().length > 0,
+  );
+
+  // Walk backwards, picking up to maxUserTurns user + maxAssistantTurns assistant
+  let remainingUser = maxUserTurns;
+  let remainingAssistant = maxAssistantTurns;
+  const picked: { role: string; text: string }[] = [];
+  for (let i = allTurns.length - 1; i >= 0; i--) {
+    const turn = allTurns[i];
+    if (turn.role === "user" && remainingUser > 0) {
+      remainingUser--;
+      const cleaned = turn.text.trim().replace(/\s+/g, " ");
+      picked.unshift({
+        role: turn.role,
+        text:
+          cleaned.length > userCharLimit
+            ? cleaned.slice(0, userCharLimit) + " (truncated...)"
+            : cleaned,
+      });
+    } else if (turn.role === "assistant" && remainingAssistant > 0) {
+      remainingAssistant--;
+      const cleaned = turn.text.trim().replace(/\s+/g, " ");
+      picked.unshift({
+        role: turn.role,
+        text:
+          cleaned.length > assistantCharLimit
+            ? cleaned.slice(0, assistantCharLimit) + " (truncated...)"
+            : cleaned,
+      });
+    }
+    if (remainingUser === 0 && remainingAssistant === 0) break;
+  }
+
+  if (picked.length === 0) return latest;
   return [
     "Recent conversation tail:",
-    ...recentTurns.map((turn) => `${turn.role}: ${turn.text}`),
+    ...picked.map((turn) => `${turn.role}: ${turn.text}`),
     "",
     "Latest user message:",
     latest,

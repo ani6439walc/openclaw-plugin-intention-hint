@@ -6,6 +6,10 @@ export type IntentionHintPluginConfig = {
   allowedChatIds?: string[];
   deniedChatIds?: string[];
   queryMode?: string;
+  recentUserTurns?: number;
+  recentAssistantTurns?: number;
+  recentUserChars?: number;
+  recentAssistantChars?: number;
   timeoutMs?: number;
   intentsDir?: string;
   intentsHotReload?: boolean;
@@ -20,6 +24,10 @@ export type ResolvedIntentionHintPluginConfig = {
   allowedChatIds: string[];
   deniedChatIds: string[];
   queryMode: "message" | "recent" | "full";
+  recentUserTurns: number;
+  recentAssistantTurns: number;
+  recentUserChars: number;
+  recentAssistantChars: number;
   timeoutMs: number;
   intentsDir: string | undefined;
   intentsHotReload: boolean;
