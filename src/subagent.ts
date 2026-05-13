@@ -273,6 +273,7 @@ export function buildIntentionEmbeddedRunParams(params: {
     trigger: "manual" as const,
     modelRun: true,
     promptMode: "none" as const,
+    toolsAllow: [],
     disableTools: true,
     disableMessageTool: true,
     allowGatewaySubagentBinding: true,
