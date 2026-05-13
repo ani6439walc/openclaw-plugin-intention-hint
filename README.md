@@ -21,6 +21,8 @@ An OpenClaw plugin that pre-scans user intent before main-agent replies and inje
    intent: <id> (<name>)
    reason: <brief reason for classification>
    goal: <what the user likely wants to achieve>
+   confidence: <low | medium | high>
+   complexity: <simple | moderate | complex>
    suggestion: <optional correction or recommendation>
    ```
    The plugin parses this into an `IntentionResult` and injects the matching intent's body as untrusted context.

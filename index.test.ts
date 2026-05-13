@@ -525,6 +525,72 @@ describe("parseIntentionResult", () => {
     expect(result?.intent).toBe("CHAT");
     expect(result?.suggestion).toBeUndefined();
   });
+
+  it("parses confidence when valid", () => {
+    const result = parseIntentionResult(
+      "intent: CHAT\nreason: test\ngoal: social\nconfidence: high",
+      ["CHAT", "OTHER"],
+    );
+    expect(result?.confidence).toBe("high");
+  });
+
+  it("parses complexity when valid", () => {
+    const result = parseIntentionResult(
+      "intent: CHAT\nreason: test\ngoal: social\ncomplexity: simple",
+      ["CHAT", "OTHER"],
+    );
+    expect(result?.complexity).toBe("simple");
+  });
+
+  it("omits confidence when absent", () => {
+    const result = parseIntentionResult(
+      "intent: CHAT\nreason: test\ngoal: social",
+      ["CHAT", "OTHER"],
+    );
+    expect(result?.confidence).toBeUndefined();
+  });
+
+  it("omits complexity when absent", () => {
+    const result = parseIntentionResult(
+      "intent: CHAT\nreason: test\ngoal: social",
+      ["CHAT", "OTHER"],
+    );
+    expect(result?.complexity).toBeUndefined();
+  });
+
+  it("normalizes confidence to undefined when invalid", () => {
+    const result = parseIntentionResult(
+      "intent: CHAT\nreason: test\ngoal: social\nconfidence: unsure",
+      ["CHAT", "OTHER"],
+    );
+    expect(result?.confidence).toBeUndefined();
+  });
+
+  it("normalizes complexity to undefined when invalid", () => {
+    const result = parseIntentionResult(
+      "intent: CHAT\nreason: test\ngoal: social\ncomplexity: hard",
+      ["CHAT", "OTHER"],
+    );
+    expect(result?.complexity).toBeUndefined();
+  });
+
+  it("parses both confidence and complexity when both valid", () => {
+    const result = parseIntentionResult(
+      "intent: CHAT\nreason: test\ngoal: social\nconfidence: medium\ncomplexity: moderate",
+      ["CHAT", "OTHER"],
+    );
+    expect(result?.confidence).toBe("medium");
+    expect(result?.complexity).toBe("moderate");
+  });
+
+  it("parses mixed valid/invalid — valid included, invalid excluded", () => {
+    const result = parseIntentionResult(
+      "intent: CHAT\nreason: test\ngoal: social\nconfidence: high\ncomplexity: weird",
+      ["CHAT", "OTHER"],
+    );
+    expect(result?.confidence).toBe("high");
+    expect(result?.complexity).toBeUndefined();
+  });
 });
 
 /* ── Build Prompt Prefix ────────────── */
@@ -577,6 +643,40 @@ describe("buildPromptPrefix", () => {
     const reasonIdx = result!.indexOf("reason: test-reason");
     const bodyIdx = result!.indexOf("Reply naturally.");
     expect(reasonIdx).toBeLessThan(bodyIdx);
+  });
+
+  it("includes confidence and complexity when present", () => {
+    const result = buildPromptPrefix(
+      {
+        intent: "CHAT",
+        reason: "test",
+        goal: "social",
+        confidence: "high",
+        complexity: "simple",
+      },
+      mockIntents,
+    );
+    expect(result).toBeDefined();
+    expect(result).toContain("confidence: high");
+    expect(result).toContain("complexity: simple");
+  });
+
+  it("defaults confidence to medium when absent", () => {
+    const result = buildPromptPrefix(
+      { intent: "CHAT", reason: "test", goal: "social" },
+      mockIntents,
+    );
+    expect(result).toBeDefined();
+    expect(result).toContain("confidence: medium");
+  });
+
+  it("defaults complexity to moderate when absent", () => {
+    const result = buildPromptPrefix(
+      { intent: "CHAT", reason: "test", goal: "social" },
+      mockIntents,
+    );
+    expect(result).toBeDefined();
+    expect(result).toContain("complexity: moderate");
   });
 
   it("includes optional suggestion when present", () => {
@@ -655,7 +755,7 @@ describe("buildIntentionEmbeddedRunParams", () => {
     expect(result.modelRun).toBe(true);
     expect(result.promptMode).toBe("none");
     expect(result.disableTools).toBe(true);
-    expect(result).not.toHaveProperty("toolsAllow");
+    expect(result.toolsAllow).toBe([]);
     expect(result.disableMessageTool).toBe(true);
     expect(result.sessionFile).toBe("/tmp/session.jsonl");
     expect(result.workspaceDir).toBe("/tmp");

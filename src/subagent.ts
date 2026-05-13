@@ -89,18 +89,29 @@ IMPORTANT CLASSIFICATION RULES:
 3. When in doubt, prefer the intent that best explains WHY the user said this given what came before.
 4. DO NOT FORCE a classification. If you are not highly confident in any single intent, default to OTHER. A correct "other" is better than a wrong specific label.
 
+CONFIDENCE & COMPLEXITY CLASSIFICATION:
+- confidence: "high" — clear intent match, unambiguous language, obvious topic
+- confidence: "medium" — reasonably clear but some ambiguity or mixed signals
+- confidence: "low" — ambiguous, unclear, or multiple conflicting intents possible
+- complexity: "simple" — single-step, well-defined, trivial (Trivial + Explicit in OmO terms)
+- complexity: "moderate" — some investigation needed, bounded scope (Exploratory in OmO terms)
+- complexity: "complex" — open-ended, multi-step, ambiguous scope, needs clarification (Open-ended + Ambiguous in OmO terms)
+
 Return exactly in this format (one key per line, with NO markdown code blocks or xml tags):
 intent: <id> (<name>)
 reason: <brief reason for classification>
 goal: <what the user likely wants to achieve>
 suggestion: <optional correction or recommendation>
+confidence: <low | medium | high — how certain you are about the classification>
+complexity: <simple | moderate | complex — how complex the task is>
 
-If you cannot decide, default to:
+FALLBACK:
+If none of the provided intents confidently fit, return:
 ${fallbackText}
 
-<CONVERSATION>
+CONVERSATIONS:
 ${params.query}
-</CONVERSATION>`;
+`;
 }
 
 export function parseIntentionResult(
@@ -127,6 +138,16 @@ export function parseIntentionResult(
       result.goal = value || undefined;
     } else if (key === "suggestion") {
       if (value) result.suggestion = value;
+    } else if (key === "confidence") {
+      const normalized = value.trim().toLowerCase();
+      if (["low", "medium", "high"].includes(normalized)) {
+        result.confidence = normalized;
+      }
+    } else if (key === "complexity") {
+      const normalized = value.trim().toLowerCase();
+      if (["simple", "moderate", "complex"].includes(normalized)) {
+        result.complexity = normalized;
+      }
     }
   }
 
@@ -147,6 +168,8 @@ export function parseIntentionResult(
     reason: result.reason!,
     goal: result.goal!,
     ...(result.suggestion ? { suggestion: result.suggestion } : {}),
+    ...(result.confidence ? { confidence: result.confidence } : {}),
+    ...(result.complexity ? { complexity: result.complexity } : {}),
   };
 }
 
@@ -161,6 +184,8 @@ export function buildPromptPrefix(
   lines.push(`reason: ${result.reason}`);
   lines.push(`goal: ${result.goal}`);
   if (result.suggestion) lines.push(`suggestion: ${result.suggestion}`);
+  lines.push(`confidence: ${result.confidence ?? "medium"}`);
+  lines.push(`complexity: ${result.complexity ?? "moderate"}`);
   lines.push("");
   lines.push(effectiveDef.prompt);
 
@@ -229,6 +254,8 @@ export async function runIntentionSubagent(params: {
         intent: fallbackIntent,
         reason: "Parse failed",
         goal: "Fallback",
+        confidence: "low",
+        complexity: "complex",
       }
     );
   } catch {
@@ -240,6 +267,8 @@ export async function runIntentionSubagent(params: {
       intent: fallbackIntent,
       reason: "Subagent error",
       goal: "Fallback",
+      confidence: "low",
+      complexity: "complex",
     };
   }
 }
