@@ -156,9 +156,8 @@ export function parseIntentionResult(
       result.reason = value || undefined;
     } else if (key === "goal") {
       result.goal = value || undefined;
-    } else if (key === "suggestion") {
-      const trimmed = value?.trim();
-      if (trimmed) result.suggestion = trimmed;
+    } else if (key === "suggestion" && value) {
+      result.suggestion = value;
     } else if (key === "confidence") {
       // Expecting 0.0-1.0 numerical scale per prompt definition
       const num = parseFloat(value);
