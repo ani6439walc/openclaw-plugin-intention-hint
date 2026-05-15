@@ -1,6 +1,6 @@
 import {
-  createSubsystemLogger,
   definePluginEntry,
+  logger,
   type OpenClawConfig,
   type OpenClawPluginApi,
 } from "../api.js";
@@ -36,7 +36,6 @@ export function createPlugin(api: OpenClawPluginApi) {
     description:
       "Pre-scans user intent before replies and injects routing hints via before_prompt_build hook.",
     register() {
-      const logger = createSubsystemLogger("plugins/intention-hint");
       let config = normalizePluginConfig(api.pluginConfig);
 
       const refreshLiveConfigFromRuntime = () => {
@@ -180,9 +179,8 @@ export function createPlugin(api: OpenClawPluginApi) {
 
       logger.debug("registering intention-hint before_prompt_build hook");
 
-      api.on("unregister", () => {
-        stopHotReload();
-      });
+
+
     },
   });
 }

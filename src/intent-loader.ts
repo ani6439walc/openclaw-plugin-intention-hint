@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import matter from "gray-matter";
 import type { IntentDefinition } from "./types.js";
+import { logger } from "../api.js";
 
 export function loadIntents(intentsDir: string): IntentDefinition[] {
   const result: IntentDefinition[] = [];
@@ -35,9 +36,7 @@ export function loadIntents(intentsDir: string): IntentDefinition[] {
       : [];
 
     if (!id || !triggers.length) {
-      console.warn(
-        `[intention-hint] Skipping invalid intent file: ${entry} (missing id or triggers)`,
-      );
+      logger.warn(`Skipping invalid intent file: ${entry} (missing id or triggers)`);
       continue;
     }
 
