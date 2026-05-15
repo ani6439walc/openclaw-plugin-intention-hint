@@ -93,7 +93,7 @@ Three input types are provided:
 1. Use conversation history to understand context
 2. Classify based on overall conversational goal
 3. Prefer intent that explains WHY user said this
-4. DO NOT FORCE classification - default to OTHER (FALLBACK) if uncertain
+4. DO NOT FORCE classification - default to OTHER (Fallback) if uncertain
 5. Memory intents: classify first if triggers match
 </classification_rules>
 
@@ -110,7 +110,7 @@ Definitions:
 - confidence: 0.0-1.0 numerical scale
 - complexity: low (simple), medium (moderate), high (complex)
 
-FALLBACK:
+Fallback:
 If none of the provided intents confidently fit, return:
 intent: ${FALLBACK_INTENT.id} (${FALLBACK_INTENT.name})
 reason: Unable to confidently classify
@@ -119,14 +119,16 @@ suggestion: <optional correction or recommendation>
 </output_format>
 
 <intent_catalog>
-${intentCatalog}
+  ${intentCatalog}
 </intent_catalog>
 
 <input>
-<conversation>
-${conversationXml}
-</conversation>
-<latest>${params.latest}</latest>
+  <conversation>
+  ${conversationXml}
+  </conversation>
+  <latest>
+  ${params.latest}
+  </latest>
 </input>`;
 }
 
@@ -155,13 +157,15 @@ export function parseIntentionResult(
     } else if (key === "suggestion") {
       if (value) result.suggestion = value;
     } else if (key === "confidence") {
-      const normalized = value.trim().toLowerCase();
-      if (["low", "medium", "high"].includes(normalized)) {
-        result.confidence = normalized;
+      // Expecting 0.0-1.0 numerical scale per prompt definition
+      const num = parseFloat(value);
+      if (!isNaN(num) && num >= 0 && num <= 1) {
+        result.confidence = num.toString();
       }
     } else if (key === "complexity") {
+      // Expecting low|medium|high per prompt definition
       const normalized = value.trim().toLowerCase();
-      if (["simple", "moderate", "complex"].includes(normalized)) {
+      if (["low", "medium", "high"].includes(normalized)) {
         result.complexity = normalized;
       }
     }
@@ -208,8 +212,8 @@ export function buildPromptPrefix(
   lines.push(`reason: ${result.reason}`);
   lines.push(`goal: ${result.goal}`);
   if (result.suggestion) lines.push(`suggestion: ${result.suggestion}`);
-  lines.push(`confidence: ${result.confidence ?? "medium"}`);
-  lines.push(`complexity: ${result.complexity ?? "moderate"}`);
+  lines.push(`confidence: ${result.confidence ?? "0.5"}`);
+  lines.push(`complexity: ${result.complexity ?? "medium"}`);
   lines.push("");
   lines.push(effectiveDef.prompt);
 
@@ -275,18 +279,14 @@ export async function runIntentionSubagent(params: {
       parseIntentionResult(rawReply, validIds) || {
         intent: FALLBACK_INTENT.id,
         reason: "Parse failed",
-        goal: "Fallback",
-        confidence: "low",
-        complexity: "complex",
+        goal: "Fallback"
       }
     );
   } catch {
     return {
       intent: FALLBACK_INTENT.id,
       reason: "Subagent error",
-      goal: "Fallback",
-      confidence: "low",
-      complexity: "complex",
+      goal: "Fallback"
     };
   }
 }

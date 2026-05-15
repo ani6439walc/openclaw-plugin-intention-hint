@@ -459,7 +459,9 @@ describe("buildIntentionPrompt", () => {
       expect(prompt).toContain("</conversation>");
       expect(prompt).toContain('<turn role="user">hello there</turn>');
       expect(prompt).toContain('<turn role="assistant">hi back</turn>');
-      expect(prompt).toContain("<latest>how are you?</latest>");
+      expect(prompt).toContain("<latest>");
+      expect(prompt).toContain("how are you?");
+      expect(prompt).toContain("</latest>");
     });
 
     it("handles empty conversation (only <latest>)", () => {
@@ -469,7 +471,9 @@ describe("buildIntentionPrompt", () => {
       });
       expect(prompt).toContain("<conversation>");
       expect(prompt).toContain("</conversation>");
-      expect(prompt).toContain("<latest>hello</latest>");
+      expect(prompt).toContain("<latest>");
+      expect(prompt).toContain("hello");
+      expect(prompt).toContain("</latest>");
     });
   });
 
@@ -616,18 +620,18 @@ describe("parseIntentionResult", () => {
 
   it("parses confidence when valid", () => {
     const result = parseIntentionResult(
-      "intent: CHAT\nreason: test\ngoal: social\nconfidence: high",
+      "intent: CHAT\nreason: test\ngoal: social\nconfidence: 0.85",
       ["CHAT", "OTHER"],
     );
-    expect(result?.confidence).toBe("high");
+    expect(result?.confidence).toBe("0.85");
   });
 
   it("parses complexity when valid", () => {
     const result = parseIntentionResult(
-      "intent: CHAT\nreason: test\ngoal: social\ncomplexity: simple",
+      "intent: CHAT\nreason: test\ngoal: social\ncomplexity: high",
       ["CHAT", "OTHER"],
     );
-    expect(result?.complexity).toBe("simple");
+    expect(result?.complexity).toBe("high");
   });
 
   it("omits confidence when absent", () => {
@@ -664,19 +668,19 @@ describe("parseIntentionResult", () => {
 
   it("parses both confidence and complexity when both valid", () => {
     const result = parseIntentionResult(
-      "intent: CHAT\nreason: test\ngoal: social\nconfidence: medium\ncomplexity: moderate",
+      "intent: CHAT\nreason: test\ngoal: social\nconfidence: 0.75\ncomplexity: medium",
       ["CHAT", "OTHER"],
     );
-    expect(result?.confidence).toBe("medium");
-    expect(result?.complexity).toBe("moderate");
+    expect(result?.confidence).toBe("0.75");
+    expect(result?.complexity).toBe("medium");
   });
 
   it("parses mixed valid/invalid — valid included, invalid excluded", () => {
     const result = parseIntentionResult(
-      "intent: CHAT\nreason: test\ngoal: social\nconfidence: high\ncomplexity: weird",
+      "intent: CHAT\nreason: test\ngoal: social\nconfidence: 0.9\ncomplexity: weird",
       ["CHAT", "OTHER"],
     );
-    expect(result?.confidence).toBe("high");
+    expect(result?.confidence).toBe("0.9");
     expect(result?.complexity).toBeUndefined();
   });
 });
@@ -739,32 +743,32 @@ describe("buildPromptPrefix", () => {
         intent: "CHAT",
         reason: "test",
         goal: "social",
-        confidence: "high",
-        complexity: "simple",
+        confidence: "0.9",
+        complexity: "high",
       },
       mockIntents,
     );
     expect(result).toBeDefined();
-    expect(result).toContain("confidence: high");
-    expect(result).toContain("complexity: simple");
+    expect(result).toContain("confidence: 0.9");
+    expect(result).toContain("complexity: high");
   });
 
-  it("defaults confidence to medium when absent", () => {
+  it("defaults confidence to 0.5 when absent", () => {
     const result = buildPromptPrefix(
       { intent: "CHAT", reason: "test", goal: "social" },
       mockIntents,
     );
     expect(result).toBeDefined();
-    expect(result).toContain("confidence: medium");
+    expect(result).toContain("confidence: 0.5");
   });
 
-  it("defaults complexity to moderate when absent", () => {
+  it("defaults complexity to medium when absent", () => {
     const result = buildPromptPrefix(
       { intent: "CHAT", reason: "test", goal: "social" },
       mockIntents,
     );
     expect(result).toBeDefined();
-    expect(result).toContain("complexity: moderate");
+    expect(result).toContain("complexity: medium");
   });
 
   it("includes optional suggestion when present", () => {
