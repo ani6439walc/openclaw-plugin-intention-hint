@@ -5,6 +5,7 @@ import {
   resolveAgentEffectiveModelPrimary,
 } from "openclaw/plugin-sdk/agent-runtime";
 import type { OpenClawPluginApi } from "../api.js";
+import { logger } from "../api.js";
 import {
   UNTRUSTED_CONTEXT_HEADER,
   FALLBACK_INTENT,
@@ -277,8 +278,13 @@ export async function runIntentionSubagent(params: {
 
     const validIds = params.intents.map((i) => i.id);
 
-    return parseIntentionResult(rawReply, validIds) ?? undefined;
-  } catch {
+    const parsed = parseIntentionResult(rawReply, validIds);
+    if (!parsed) {
+      logger.warn("Intention result parse failed", { rawReply, intents: validIds });
+    }
+    return parsed;
+  } catch (err) {
+    logger.warn("Intention subagent error", { error: err });
     return undefined;
   }
 }

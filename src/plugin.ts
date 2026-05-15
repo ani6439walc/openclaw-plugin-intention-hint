@@ -27,6 +27,7 @@ import {
   parseIntentionResult,
   runIntentionSubagent,
 } from "./subagent.js";
+import { log } from "node:console";
 
 const pluginRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -159,6 +160,8 @@ export function createPlugin(api: OpenClawPluginApi) {
               logger.debug("Intention subagent failed; skipping hint injection.");
               return undefined;
             }
+
+            logger.debug(`Intention subagent result: ${JSON.stringify(result)}`);
 
             const promptPrefix = buildPromptPrefix(result, intentCatalog.get());
             if (!promptPrefix) return undefined;
