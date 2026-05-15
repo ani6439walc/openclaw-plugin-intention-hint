@@ -47,7 +47,7 @@ export function normalizePluginConfig(
     allowedChatIds: asStringArray(cfg.allowedChatIds),
     deniedChatIds: asStringArray(cfg.deniedChatIds),
     queryMode:
-      queryMode === "recent" || queryMode === "full"
+      ["message", "recent", "full"].includes(queryMode)
         ? queryMode
         : DEFAULT_QUERY_MODE,
     recentUserTurns: clampInt(

@@ -52,6 +52,14 @@ export function getModelRef(
   return undefined;
 }
 
+function escapeXml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 export function buildIntentionPrompt(params: {
   conversation?: RecentTurn[];
   latest: string;
@@ -62,14 +70,18 @@ export function buildIntentionPrompt(params: {
 
   const intentCatalog = allIntents
     .map((intent) => {
-      const lines = [`<intent>`, `id: ${intent.id}`, `name: ${intent.name}`];
+      const lines = [
+        `<intent>`,
+        `id: ${escapeXml(intent.id)}`,
+        `name: ${escapeXml(intent.name)}`,
+      ];
       if (intent.triggers.length > 0) {
         lines.push(`triggers:`);
-        lines.push(...intent.triggers.map((t) => `- ${t}`));
+        lines.push(...intent.triggers.map((t) => `- ${escapeXml(t)}`));
       }
       if (intent.examples.length > 0) {
         lines.push(`examples:`);
-        lines.push(...intent.examples.map((ex) => `- ${ex}`));
+        lines.push(...intent.examples.map((ex) => `- ${escapeXml(ex)}`));
       }
       lines.push(`</intent>`);
       return lines.join("\n");
@@ -78,7 +90,7 @@ export function buildIntentionPrompt(params: {
 
   const conversationXml = params.conversation && params.conversation.length > 0
     ? params.conversation
-        .map((turn) => `  <turn role="${turn.role}">${turn.text}</turn>`)
+        .map((turn) => `  <turn role="${escapeXml(turn.role)}">${escapeXml(turn.text)}</turn>`)
         .join("\n")
     : "";
 
@@ -99,14 +111,16 @@ Three input types are provided:
 
 <output_format>
 Return exactly 6 lines:
+<field_definitions>
 intent: <id> (<name>)
 reason: <brief reason>
 goal: <what user wants>
 suggestion: <optional correction>
 confidence: <0.0-1.0>
 complexity: <low|medium|high>
+</field_definitions>
 
-Definitions:
+Score definitions:
 - confidence: 0.0-1.0 numerical scale
 - complexity: low (simple), medium (moderate), high (complex)
 
@@ -119,16 +133,14 @@ suggestion: <optional correction or recommendation>
 </output_format>
 
 <intent_catalog>
-  ${intentCatalog}
+${intentCatalog}
 </intent_catalog>
 
 <input>
-  <conversation>
-  ${conversationXml}
-  </conversation>
-  <latest>
-  ${params.latest}
-  </latest>
+<conversation>
+${conversationXml}
+</conversation>
+<latest>${escapeXml(params.latest)}</latest>
 </input>`;
 }
 

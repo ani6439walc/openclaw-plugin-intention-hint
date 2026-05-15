@@ -179,6 +179,10 @@ export function createPlugin(api: OpenClawPluginApi) {
       );
 
       logger.debug("registering intention-hint before_prompt_build hook");
+
+      api.on("unregister", () => {
+        stopHotReload();
+      });
     },
   });
 }
