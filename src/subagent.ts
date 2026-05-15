@@ -93,7 +93,7 @@ Three input types are provided:
 1. Use conversation history to understand context
 2. Classify based on overall conversational goal
 3. Prefer intent that explains WHY user said this
-4. DO NOT FORCE classification - default to OTHER if uncertain
+4. DO NOT FORCE classification - default to OTHER (FALLBACK) if uncertain
 5. Memory intents: classify first if triggers match
 </classification_rules>
 

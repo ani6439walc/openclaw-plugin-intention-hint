@@ -328,8 +328,7 @@ index.ts
             → loadIntents(intentsDir)      // scan .md files
             → before_prompt_build Hook
                 ├── Gate checks (agent whitelist, chat type, chat id, internal runs)
-                ├── buildQuery (message / recent / full)
-                ├── recent mode reads event.messages
+                ├── extractRecentTurns + applyQueryFilters (message / recent / full)
                 ├── runIntentionSubagent (lightweight embedded Pi agent)
                 │       ├── buildIntentionPrompt (dynamic from IntentDefinition[])
                 │       ├── parseIntentionResult (key-value → IntentionResult)
