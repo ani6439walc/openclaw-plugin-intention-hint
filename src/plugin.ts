@@ -76,12 +76,6 @@ export function createPlugin(api: OpenClawPluginApi) {
           refreshIntents();
         }, config.intentsHotReloadIntervalMs);
       };
-      const stopHotReload = () => {
-        if (hotReloadTimer) {
-          clearInterval(hotReloadTimer);
-          hotReloadTimer = undefined;
-        }
-      };
       startHotReload();
 
       api.on(
