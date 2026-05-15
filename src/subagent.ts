@@ -105,13 +105,13 @@ intent: <id> (<name>)
 reason: <brief reason>
 goal: <what user wants>
 suggestion: <optional correction — omit if empty>
-confidence: <0.0-1.0>
+confidence: <0.0 to 1.0>
 complexity: <low|medium|high>
 </field_definitions>
 
 Score definitions:
-- confidence: 0.0-1.0 numerical scale
-- complexity: low (simple), medium (moderate), high (complex)
+- confidence: 0.0 (guessing) to 1.0 (certain), numerical float
+- complexity: low (simple greeting), medium (normal task), high (multi-step)
 
 Fallback:
 If none of the provided intents confidently fit, return:
@@ -157,18 +157,19 @@ export function parseIntentionResult(
     } else if (key === "goal") {
       result.goal = value || undefined;
     } else if (key === "suggestion") {
-      if (value) result.suggestion = value || undefined;
+      const trimmed = value?.trim();
+      if (trimmed) result.suggestion = trimmed;
     } else if (key === "confidence") {
       // Expecting 0.0-1.0 numerical scale per prompt definition
       const num = parseFloat(value);
       if (!isNaN(num) && num >= 0 && num <= 1) {
-        result.confidence = num.toString();
+        result.confidence = num;
       }
     } else if (key === "complexity") {
       // Expecting low|medium|high per prompt definition
       const normalized = value.trim().toLowerCase();
-      if (["low", "medium", "high"].includes(normalized)) {
-        result.complexity = normalized;
+      if (["low", "medium", "high"].includes(normalized as "low" | "medium" | "high")) {
+        result.complexity = normalized as "low" | "medium" | "high";
       }
     }
   }

@@ -50,14 +50,14 @@ export type IntentionResult = {
   suggestion?: string;
   /**
    * Confidence level of the intent classification.
-   * "low" | "medium" | "high"
+   * 0.0-1.0 numerical scale
    */
-  confidence?: string;
+  confidence: number;
   /**
    * Estimated complexity of the task based on the intent.
-   * "simple" | "moderate" | "complex"
+   * "low" | "medium" | "high"
    */
-  complexity?: string;
+  complexity: "low" | "medium" | "high";
 };
 
 export type RecentTurn = {

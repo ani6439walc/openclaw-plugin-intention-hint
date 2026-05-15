@@ -417,7 +417,7 @@ describe("buildIntentionPrompt", () => {
       expect(prompt).toContain("<output_format>");
       expect(prompt).toContain("</output_format>");
       expect(prompt).toContain("confidence");
-      expect(prompt).toContain("0.0-1.0");
+      expect(prompt).toContain("0.0 to 1.0");
       expect(prompt).toContain("complexity");
       expect(prompt).toContain("low");
       expect(prompt).toContain("medium");
@@ -617,7 +617,7 @@ describe("parseIntentionResult", () => {
       "intent: CHAT\nreason: test\ngoal: social\nconfidence: 0.85",
       ["CHAT", "OTHER"],
     );
-    expect(result?.confidence).toBe("0.85");
+    expect(result?.confidence).toBe(0.85);
   });
 
   it("parses complexity when valid", () => {
@@ -665,7 +665,7 @@ describe("parseIntentionResult", () => {
       "intent: CHAT\nreason: test\ngoal: social\nconfidence: 0.75\ncomplexity: medium",
       ["CHAT", "OTHER"],
     );
-    expect(result?.confidence).toBe("0.75");
+    expect(result?.confidence).toBe(0.75);
     expect(result?.complexity).toBe("medium");
   });
 
@@ -674,7 +674,7 @@ describe("parseIntentionResult", () => {
       "intent: CHAT\nreason: test\ngoal: social\nconfidence: 0.9\ncomplexity: weird",
       ["CHAT", "OTHER"],
     );
-    expect(result?.confidence).toBe("0.9");
+    expect(result?.confidence).toBe(0.9);
     expect(result?.complexity).toBeUndefined();
   });
 });
@@ -737,7 +737,7 @@ describe("buildPromptPrefix", () => {
         intent: "CHAT",
         reason: "test",
         goal: "social",
-        confidence: "0.9",
+        confidence: 0.9,
         complexity: "high",
       },
       mockIntents,
@@ -749,7 +749,7 @@ describe("buildPromptPrefix", () => {
 
   it("defaults confidence to 0.5 when absent", () => {
     const result = buildPromptPrefix(
-      { intent: "CHAT", reason: "test", goal: "social" },
+      { intent: "CHAT", reason: "test", goal: "social", confidence: 0.5, complexity: "medium" },
       mockIntents,
     );
     expect(result).toBeDefined();
@@ -758,7 +758,7 @@ describe("buildPromptPrefix", () => {
 
   it("defaults complexity to medium when absent", () => {
     const result = buildPromptPrefix(
-      { intent: "CHAT", reason: "test", goal: "social" },
+      { intent: "CHAT", reason: "test", goal: "social", confidence: 0.5, complexity: "medium" },
       mockIntents,
     );
     expect(result).toBeDefined();
