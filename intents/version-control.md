@@ -31,8 +31,10 @@ Detected "version control" intent. The user wants to perform git operations such
 
 For all git operations, prefer using the **`git-master` skill** for commit, rebase, squash, and history search tasks. It provides atomic commits, style detection, conflict resolution, and blame/bisect workflows.
 
-- For simple operations (status, log, pull, push): use `exec` directly.
-- For commit/rebase/squash/history search: use `git-master` skill.
+- For simple operations (status, log, pull, push)
+  exec({command: "git etc..."})
+- For commit/rebase/squash/history search
+  skill: git-master
 
 ```bash
 # Quick status + log
