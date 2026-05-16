@@ -4,11 +4,12 @@ name: Prompt / Intent / Skill Design Query
 triggers:
 - "User is discussing how to design, refine, rename, restructure, or improve prompts, custom instructions, skills, plugin intents, or routing behavior"
 examples:
-- "Should this intent be renamed?"
-- "Which skill fits this prompt better?"
-- "Help me design a new intent for this plugin"
-- "Does this prompt structure make sense?"
-- "Should this behavior belong in a separate intent?"
+- "這個 intent 要改名嗎？"
+- "哪個 skill 比較適合這個 prompt？"
+- "幫我設計一個新的 intent"
+- "這個 prompt 結構合理嗎？"
+- "這個行為應該放到獨立的 intent 嗎？"
+- "intent-hint 的分類邏輯怎麼改？"
 ---
 
 Detected "prompt design" intent. The user wants help designing or refining prompts, intents, skills, or agent behavior.

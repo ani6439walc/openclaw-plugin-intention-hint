@@ -4,12 +4,12 @@ name: Real-Time / Current Data Query
 triggers:
 - "User is asking for time-sensitive, fast-changing, or current real-world information such as weather, news, prices, hours, or nearby places"
 examples:
-- "What's the weather in Taipei today?"
-- "What's the current price of Bitcoin?"
-- "Any news about the earthquake in Japan?"
-- "Find me a good ramen place near Shibuya station"
-- "What time does the supermarket close today?"
-- "Is it raining right now?"
+- "台北今天天氣如何？"
+- "比特幣現在多少錢？"
+- "日本有地震的新聞嗎？"
+- "澀谷車站附近有什麼好吃的拉麵"
+- "那間超市今天幾點關門"
+- "現在外面在下雨嗎？"
 ---
 
 Detected "real-time research" intent. The user wants current or fast-changing real-world information that must be fetched live.

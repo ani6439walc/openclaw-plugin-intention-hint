@@ -4,11 +4,11 @@ name: Memory Timeline Query
 triggers:
 - "User is asking how something changed, progressed, evolved, or unfolded over time"
 examples:
-- "How has this project progressed from start to now?"
-- "How has our architecture evolved?"
-- "What has changed in the past three months?"
-- "When did this bug first appear?"
-- "What was my journey like from the beginning to now?"
+- "這個專案從開始到現在進度如何？"
+- "我們的架構是怎麼演進的？"
+- "過去三個月有什麼變化？"
+- "這個 bug 最早是什麼時候出現的？"
+- "我從一開始到現在做了哪些事？"
 ---
 
 Detected "memory timeline" intent. The user wants a time-ordered view of how something changed or developed over time.

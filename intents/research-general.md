@@ -3,11 +3,13 @@ id: RESEARCH_GENERAL
 name: General Research Query
 triggers:
 - "User is asking for factual or explanatory information that should be researched from external sources"
+- "User wants general explanations of concepts, history, or how things work (not version-sensitive, not Google developer products, not open-source library docs)"
 examples:
-- "Tell me about quantum computing"
-- "What's the history of the Eiffel Tower?"
-- "Explain blockchain consensus mechanisms"
-- "How does carbon capture work?"
+- "量子運算是什麼？"
+- "艾菲爾鐵塔的歷史"
+- "解釋區塊鏈的共識機制"
+- "碳捕獲是怎麼運作的？"
+- "第一性原理是什麼？"
 ---
 
 Detected "general research" intent. The user wants factual or explanatory information supported by external sources.

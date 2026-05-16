@@ -2,11 +2,9 @@
 id: WIKI_MANAGEMENT
 name: Wiki Management & Query
 triggers:
-- "User is asking to search, read, create, update, or maintain wiki pages in the memory wiki vault"
-- "User wants to check wiki status, lint wiki, or manage wiki content structure"
-- "User is asking about wiki entities, concepts, syntheses, or reports"
-- "User wants to synthesize or organize knowledge into wiki pages"
-- "User is asking where specific knowledge, entities, or concepts are recorded in the wiki"
+- "User is asking to search, read, create, update, or maintain wiki pages in the memory wiki vault (wiki/)"
+- "User wants to check wiki status, lint wiki for contradictions, or manage wiki content structure"
+- "User is asking about wiki entities, concepts, syntheses, or reports — the wiki as a knowledge base, not workspace docs"
 examples:
 - "搜尋 wiki 裡有沒有關於 Kubernetes 的記錄"
 - "幫我建立一個新的 wiki 頁面記錄這個專案"

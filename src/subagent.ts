@@ -101,18 +101,20 @@ Three input types are provided:
 
 <output_format>
 Return only defined fields, one per line:
-<field_definitions>
+
+<field_schema>
 intent: <id> (<name>)
 reason: <brief reason>
 goal: <what user wants>
-suggestion: <optional correction — omit if empty>
 confidence: <0.0 to 1.0>
 complexity: <low|medium|high>
-</field_definitions>
+suggestion: <optional — only when confidence < 0.65>
+</field_schema>
 
-Score definitions:
+Field definitions:
 - confidence: 0.0 (guessing) to 1.0 (certain), numerical float
 - complexity: low (simple greeting), medium (normal task), high (multi-step)
+- suggestion: only provide when confidence < 0.65; give general guidance such as clarifying scope, recommending narrower focus, or noting missing context — do NOT mention specific tools or skills
 
 Fallback:
 If none of the provided intents confidently fit, return:
