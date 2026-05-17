@@ -60,6 +60,7 @@ Reach a shared decision on these fields in order:
 - If the user is really describing an existing intent, say so directly.
 - If two intents are colliding, recommend the smallest clean split.
 - Do not write the final intent file until the user has answered enough to make the boundary clear.
+- **No cross-references in body**: the markdown body must never mention other intents by name or id. The classification sub-agent only sees frontmatter (triggers + examples), so body-text disclaimers like "not covered: go to INTENT_X" are invisible at routing time. All scope boundaries must be expressed through triggers and examples alone.
 
 ## Closing mode
 
