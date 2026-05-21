@@ -18,6 +18,7 @@ const {
   resolveStatusUpdateAgentId,
   isAllowedChatType,
   isAllowedChatId,
+  filterIntentsForAgent,
 } = __testing;
 
 /* ── Config helpers ─────────────────── */
@@ -30,6 +31,7 @@ describe("normalizePluginConfig", () => {
     expect(config.allowedChatTypes).toEqual(["direct"]);
     expect(config.timeoutMs).toBe(3000);
     expect(config.queryMode).toBe("recent");
+    expect(config.intentDeny).toEqual({});
     expect(config.intentsDir).toBe("./intents");
     expect(config.intentsHotReload).toBe(true);
     expect(config.intentsHotReloadIntervalMs).toBe(5000);
@@ -71,6 +73,22 @@ describe("normalizePluginConfig", () => {
 
     const high = normalizePluginConfig({ intentsHotReloadIntervalMs: 500000 });
     expect(high.intentsHotReloadIntervalMs).toBe(300000);
+  });
+
+  it("parses per-agent intent deny patterns", () => {
+    const config = normalizePluginConfig({
+      intentDeny: {
+        main: ["MEMORY_*", "TYPO"],
+        "research-*": ["CHAT"],
+        stringShortcut: "TYPO",
+        empty: [],
+        blank: ["  "],
+      },
+    });
+    expect(config.intentDeny).toEqual({
+      main: ["MEMORY_*", "TYPO"],
+      "research-*": ["CHAT"],
+    });
   });
 });
 
@@ -252,6 +270,71 @@ describe("isAllowedChatId", () => {
         { sessionKey: "agent:main:direct:123", messageProvider: "discord" },
       ),
     ).toBe(false);
+  });
+});
+
+describe("filterIntentsForAgent", () => {
+  const intents = [
+    {
+      id: "CHAT",
+      name: "Casual Chat",
+      enabled: true,
+      triggers: ["Social"],
+      examples: [],
+      prompt: "Chat hint",
+    },
+    {
+      id: "MEMORY_RECENT",
+      name: "Recent Memory",
+      enabled: true,
+      triggers: ["Recall recent context"],
+      examples: [],
+      prompt: "Memory hint",
+    },
+    {
+      id: "TYPO",
+      name: "Typo Correction",
+      enabled: true,
+      triggers: ["Typing error"],
+      examples: [],
+      prompt: "Typo hint",
+    },
+  ];
+
+  it("does not filter when agent has no matching deny entry", () => {
+    const result = filterIntentsForAgent(
+      intents,
+      { intentDeny: { main: ["TYPO"] } } as any,
+      "other",
+    );
+    expect(result.map((i) => i.id)).toEqual(["CHAT", "MEMORY_RECENT", "TYPO"]);
+  });
+
+  it("filters exact intent ids for exact agent ids", () => {
+    const result = filterIntentsForAgent(
+      intents,
+      { intentDeny: { main: ["TYPO"] } } as any,
+      "main",
+    );
+    expect(result.map((i) => i.id)).toEqual(["CHAT", "MEMORY_RECENT"]);
+  });
+
+  it("supports wildcard agent ids and intent ids", () => {
+    const result = filterIntentsForAgent(
+      intents,
+      { intentDeny: { "*": ["MEMORY_*"], "work-*": ["CH?T"] } } as any,
+      "work-main",
+    );
+    expect(result.map((i) => i.id)).toEqual(["TYPO"]);
+  });
+
+  it("matches patterns case-insensitively", () => {
+    const result = filterIntentsForAgent(
+      intents,
+      { intentDeny: { MAIN: ["typo"] } } as any,
+      "main",
+    );
+    expect(result.map((i) => i.id)).toEqual(["CHAT", "MEMORY_RECENT"]);
   });
 });
 

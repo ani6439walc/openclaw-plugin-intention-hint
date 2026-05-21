@@ -1,5 +1,6 @@
 export type IntentionHintPluginConfig = {
   agents?: string[];
+  intentDeny?: Record<string, string[]>;
   model?: string;
   modelFallback?: string;
   allowedChatTypes?: string[];
@@ -18,6 +19,7 @@ export type IntentionHintPluginConfig = {
 
 export type ResolvedIntentionHintPluginConfig = {
   agents: string[];
+  intentDeny: Record<string, string[]>;
   model: string | undefined;
   modelFallback: string | undefined;
   allowedChatTypes: string[];

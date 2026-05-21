@@ -24,9 +24,25 @@ export function normalizePluginConfig(
   const cfg = (raw ?? {}) as Record<string, unknown>;
   const asStringArray = (v: unknown): string[] => {
     if (Array.isArray(v))
-      return v.filter((x): x is string => typeof x === "string");
-    if (typeof v === "string") return [v];
+      return v
+        .filter((x): x is string => typeof x === "string")
+        .map((x) => x.trim())
+        .filter(Boolean);
+    if (typeof v === "string" && v.trim()) return [v.trim()];
     return [];
+  };
+  const asStringArrayMap = (v: unknown): Record<string, string[]> => {
+    if (!v || typeof v !== "object" || Array.isArray(v)) return {};
+    const result: Record<string, string[]> = {};
+    for (const [key, value] of Object.entries(v as Record<string, unknown>)) {
+      const normalizedKey = key.trim();
+      if (!Array.isArray(value)) continue;
+      const patterns = asStringArray(value);
+      if (normalizedKey && patterns.length > 0) {
+        result[normalizedKey] = patterns;
+      }
+    }
+    return result;
   };
   const asBool = (v: unknown, fallback: boolean): boolean => {
     if (typeof v === "boolean") return v;
@@ -38,6 +54,7 @@ export function normalizePluginConfig(
     agents: asStringArray(cfg.agents).length
       ? asStringArray(cfg.agents)
       : ["main"],
+    intentDeny: asStringArrayMap(cfg.intentDeny),
     model: typeof cfg.model === "string" ? cfg.model : undefined,
     modelFallback:
       typeof cfg.modelFallback === "string" ? cfg.modelFallback : undefined,

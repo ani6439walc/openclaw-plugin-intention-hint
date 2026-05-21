@@ -6,6 +6,7 @@ import {
 } from "../api.js";
 import { resolveLivePluginConfigObject } from "openclaw/plugin-sdk/plugin-config-runtime";
 import { clampInt, normalizePluginConfig } from "./config.js";
+import { filterIntentsForAgent } from "./intent-filter.js";
 import { IntentCatalog } from "./intent-loader.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -141,6 +142,12 @@ export function createPlugin(api: OpenClawPluginApi) {
               return undefined;
             }
 
+            const availableIntents = filterIntentsForAgent(
+              intentCatalog.get(),
+              config,
+              effectiveAgentId,
+            );
+
             const result = await runIntentionSubagent({
               api,
               config,
@@ -152,7 +159,7 @@ export function createPlugin(api: OpenClawPluginApi) {
               messageProvider: ctx.messageProvider,
               channelId: ctx.channelId,
               modelRef,
-              intents: intentCatalog.get(),
+              intents: availableIntents,
             });
 
             if (!result) {
@@ -166,7 +173,7 @@ export function createPlugin(api: OpenClawPluginApi) {
               `Intention subagent result: ${JSON.stringify(result)}`,
             );
 
-            const promptPrefix = buildPromptPrefix(result, intentCatalog.get());
+            const promptPrefix = buildPromptPrefix(result, availableIntents);
             if (!promptPrefix) return undefined;
 
             return { prependContext: promptPrefix };
@@ -198,4 +205,5 @@ export const __testing = {
   isAllowedChatType,
   isAllowedChatId,
   resolveStatusUpdateAgentId,
+  filterIntentsForAgent,
 };

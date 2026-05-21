@@ -287,7 +287,7 @@ export async function runIntentionSubagent(params: {
       .join("\n")
       .trim();
 
-    const validIds = params.intents.map((i) => i.id);
+    const validIds = [...params.intents.map((i) => i.id), FALLBACK_INTENT.id];
 
     const parsed = parseIntentionResult(rawReply, validIds);
     if (!parsed) {

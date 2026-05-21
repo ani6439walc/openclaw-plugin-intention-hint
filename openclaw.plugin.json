@@ -26,6 +26,15 @@
         "description": "Agent IDs eligible for intention scanning.",
         "default": ["main"]
       },
+      "intentDeny": {
+        "type": "object",
+        "description": "Per-agent deny-list for intent IDs injected into the intention classifier. Object keys are agent IDs or wildcard patterns; values are arrays of intent ID or wildcard patterns.",
+        "additionalProperties": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "default": {}
+      },
       "model": {
         "type": "string",
         "description": "Lightweight model for the intention scanner (e.g. google/gemini-3-flash). If null, falls back to the agent's default model.",
