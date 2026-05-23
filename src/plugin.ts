@@ -173,7 +173,7 @@ export function createPlugin(api: OpenClawPluginApi) {
               `Intention subagent result: ${JSON.stringify(result)}`,
             );
 
-            const promptPrefix = buildPromptPrefix(result, availableIntents);
+            const promptPrefix = buildPromptPrefix(result, availableIntents, config);
             if (!promptPrefix) return undefined;
 
             return { prependContext: promptPrefix };

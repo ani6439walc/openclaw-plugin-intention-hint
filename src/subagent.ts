@@ -10,6 +10,9 @@ import {
   UNTRUSTED_CONTEXT_HEADER,
   FALLBACK_INTENT,
   INTENTION_HINT_PLUGIN_TAG,
+  DEFAULT_LOW_COMPLEXITY_PROMPT,
+  DEFAULT_MEDIUM_COMPLEXITY_PROMPT,
+  DEFAULT_HIGH_COMPLEXITY_PROMPT,
 } from "./constants.js";
 import { resolveCanonicalSessionKeyFromSessionId } from "./session.js";
 import type {
@@ -218,6 +221,7 @@ export function parseIntentionResult(
 export function buildPromptPrefix(
   result: IntentionResult,
   intents: readonly IntentDefinition[],
+  config: ResolvedIntentionHintPluginConfig,
 ): string | undefined {
   const intentDef = intents.find((i) => i.id === result.intent && i.enabled);
   const effectiveDef = intentDef ?? FALLBACK_INTENT;
@@ -230,6 +234,15 @@ export function buildPromptPrefix(
   lines.push(`complexity: ${result.complexity}`);
   lines.push("");
   lines.push(effectiveDef.prompt);
+
+  const complexityPrompt =
+    result.complexity === "low"
+      ? config.lowComplexityPrompt ?? DEFAULT_LOW_COMPLEXITY_PROMPT
+      : result.complexity === "medium"
+        ? config.mediumComplexityPrompt ?? DEFAULT_MEDIUM_COMPLEXITY_PROMPT
+        : config.highComplexityPrompt ?? DEFAULT_HIGH_COMPLEXITY_PROMPT;
+  lines.push("");
+  lines.push(complexityPrompt);
 
   return `${UNTRUSTED_CONTEXT_HEADER}
 <${INTENTION_HINT_PLUGIN_TAG}>

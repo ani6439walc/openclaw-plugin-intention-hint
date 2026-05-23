@@ -5,6 +5,9 @@ import {
   DEFAULT_RECENT_ASSISTANT_TURNS,
   DEFAULT_RECENT_USER_CHARS,
   DEFAULT_RECENT_ASSISTANT_CHARS,
+  DEFAULT_LOW_COMPLEXITY_PROMPT,
+  DEFAULT_MEDIUM_COMPLEXITY_PROMPT,
+  DEFAULT_HIGH_COMPLEXITY_PROMPT,
 } from "./constants.js";
 import type { ResolvedIntentionHintPluginConfig } from "./types.js";
 
@@ -105,5 +108,17 @@ export function normalizePluginConfig(
       1_000,
       300_000,
     ),
+    lowComplexityPrompt:
+      typeof cfg.lowComplexityPrompt === "string" && cfg.lowComplexityPrompt.trim()
+        ? cfg.lowComplexityPrompt
+        : DEFAULT_LOW_COMPLEXITY_PROMPT,
+    mediumComplexityPrompt:
+      typeof cfg.mediumComplexityPrompt === "string" && cfg.mediumComplexityPrompt.trim()
+        ? cfg.mediumComplexityPrompt
+        : DEFAULT_MEDIUM_COMPLEXITY_PROMPT,
+    highComplexityPrompt:
+      typeof cfg.highComplexityPrompt === "string" && cfg.highComplexityPrompt.trim()
+        ? cfg.highComplexityPrompt
+        : DEFAULT_HIGH_COMPLEXITY_PROMPT,
   };
 }

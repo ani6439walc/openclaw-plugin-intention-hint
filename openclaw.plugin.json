@@ -123,6 +123,21 @@
         "maximum": 300000,
         "description": "Interval in milliseconds for checking intent definition changes.",
         "default": 180000
+      },
+      "lowComplexityPrompt": {
+        "type": "string",
+        "description": "Custom prompt to prepend for low-complexity tasks (simple, quick questions).",
+        "default": null
+      },
+      "mediumComplexityPrompt": {
+        "type": "string",
+        "description": "Custom prompt to prepend for medium-complexity tasks (standard multi-step work).",
+        "default": null
+      },
+      "highComplexityPrompt": {
+        "type": "string",
+        "description": "Custom prompt to prepend for high-complexity tasks (complex multi-file changes, architecture decisions).",
+        "default": null
       }
     }
   }

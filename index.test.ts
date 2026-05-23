@@ -807,10 +807,13 @@ describe("buildPromptPrefix", () => {
     },
   ];
 
+  const mockConfig = normalizePluginConfig({});
+
   it("places subagent output fields above the body", () => {
     const result = buildPromptPrefix(
-      { intent: "CHAT", reason: "test-reason", goal: "social" },
+      { intent: "CHAT", reason: "test-reason", goal: "social", confidence: 0.5, complexity: "medium" },
       mockIntents,
+      mockConfig,
     );
     expect(result).toBeDefined();
     expect(result).toContain("reason: test-reason");
@@ -831,6 +834,7 @@ describe("buildPromptPrefix", () => {
         complexity: "high",
       },
       mockIntents,
+      mockConfig,
     );
     expect(result).toBeDefined();
     expect(result).toContain("confidence: 0.9");
@@ -847,6 +851,7 @@ describe("buildPromptPrefix", () => {
         complexity: "medium",
       },
       mockIntents,
+      mockConfig,
     );
     expect(result).toBeDefined();
     expect(result).toContain("confidence: 0.5");
@@ -862,6 +867,7 @@ describe("buildPromptPrefix", () => {
         complexity: "medium",
       },
       mockIntents,
+      mockConfig,
     );
     expect(result).toBeDefined();
     expect(result).toContain("complexity: medium");
@@ -878,6 +884,7 @@ describe("buildPromptPrefix", () => {
         complexity: "high",
       },
       mockIntents,
+      mockConfig,
     );
     expect(result).toBeDefined();
     expect(result).toContain("suggestion: try web_search");
@@ -893,6 +900,7 @@ describe("buildPromptPrefix", () => {
         complexity: "low",
       },
       mockIntents,
+      mockConfig,
     );
     expect(result).toBeDefined();
     expect(result).not.toContain("suggestion:");
@@ -900,8 +908,9 @@ describe("buildPromptPrefix", () => {
 
   it("uses hard-coded fallback for unknown intent", () => {
     const result = buildPromptPrefix(
-      { intent: "unknown", reason: "test", goal: "fallback-test" },
+      { intent: "unknown", reason: "test", goal: "fallback-test", confidence: 0.5, complexity: "medium" },
       mockIntents,
+      mockConfig,
     );
     expect(result).toBeDefined();
     expect(result).toContain("No predefined intent detected.");
@@ -921,8 +930,9 @@ describe("buildPromptPrefix", () => {
       },
     ];
     const result = buildPromptPrefix(
-      { intent: "unknown", reason: "test", goal: "test" },
+      { intent: "unknown", reason: "test", goal: "test", confidence: 0.5, complexity: "medium" },
       intents,
+      mockConfig,
     );
     expect(result).toBeDefined();
     expect(result).toContain("No predefined intent detected.");

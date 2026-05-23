@@ -15,6 +15,9 @@ export type IntentionHintPluginConfig = {
   intentsDir?: string;
   intentsHotReload?: boolean;
   intentsHotReloadIntervalMs?: number;
+  lowComplexityPrompt?: string;
+  mediumComplexityPrompt?: string;
+  highComplexityPrompt?: string;
 };
 
 export type ResolvedIntentionHintPluginConfig = {
@@ -34,6 +37,9 @@ export type ResolvedIntentionHintPluginConfig = {
   intentsDir: string | undefined;
   intentsHotReload: boolean;
   intentsHotReloadIntervalMs: number;
+  lowComplexityPrompt: string;
+  mediumComplexityPrompt: string;
+  highComplexityPrompt: string;
 };
 
 export type IntentDefinition = {
