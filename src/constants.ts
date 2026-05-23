@@ -44,6 +44,11 @@ Balanced execution mindset:
 - Standard best practices
 - Reasonable verification steps
 
+Planning and Clarification:
+- Use available tools to think step-by-step and outline a plan before implementation
+- If any requirements or details are ambiguous, PAUSE and ask the user for clarification
+- Do not guess or make assumptions on unclear points — clarify first, execute second
+
 Approach:
 - Solid implementation with proper error handling
 - Follow existing patterns in the codebase
