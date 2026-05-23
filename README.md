@@ -89,6 +89,27 @@ pnpm run build
 | `intentsDir`                 | `string`   | `"./intents"` | Directory containing dynamic intent `.md` files. Resolved relative to the plugin installation directory.                  |
 | `intentsHotReload`           | `boolean`  | `true`        | Automatically reload intent definitions when files change.                                                                |
 | `intentsHotReloadIntervalMs` | `number`   | `5000`        | How often to check for intent file changes (clamped to 1000–300000 ms).                                                   |
+| `complexityPrompts`          | `object`   | `{}`          | Custom prompts per complexity level. Overrides built-in defaults for `low`, `medium`, or `high`.                          |
+
+#### `complexityPrompts` Object
+
+The plugin injects a complexity-specific guidance prompt **after** the intent definition prompt. Each key is optional; unset keys use the built-in default.
+
+```json
+{
+  "complexityPrompts": {
+    "low": "Custom low-complexity prompt...",
+    "medium": "Custom medium-complexity prompt...",
+    "high": "Custom high-complexity prompt..."
+  }
+}
+```
+
+Built-in behavior (configurable via `complexityPrompts`):
+
+- **`low`** — Fast, concise, minimal overhead. For quick tasks and simple questions.
+- **`medium`** — Balanced execution with step-by-step planning and clarification. Pauses to ask when details are ambiguous.
+- **`high`** — Deep investigation using sub-agents for large codebases, structured multi-step planning with user review before execution.
 
 ## Intent Definition Format
 

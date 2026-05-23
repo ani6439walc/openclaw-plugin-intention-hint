@@ -20,7 +20,7 @@ export const FALLBACK_INTENT: IntentDefinition = {
     "No predefined intent detected. Main Agent should determine the user's true intent and choose an appropriate strategy.",
 };
 
-export const DEFAULT_LOW_COMPLEXITY_PROMPT = `<Complexity_Context>
+export const DEFAULT_LOW_COMPLEXITY_PROMPT = `<complexity_context>
 You are working on SMALL / QUICK tasks.
 
 Efficient execution mindset:
@@ -33,9 +33,9 @@ Approach:
 - Minimal viable implementation
 - Skip unnecessary abstractions
 - Direct and concise
-</Complexity_Context>`;
+</complexity_context>`;
 
-export const DEFAULT_MEDIUM_COMPLEXITY_PROMPT = `<Complexity_Context>
+export const DEFAULT_MEDIUM_COMPLEXITY_PROMPT = `<complexity_context>
 You are working on MEDIUM / STANDARD tasks.
 
 Balanced execution mindset:
@@ -54,9 +54,9 @@ Approach:
 - Follow existing patterns in the codebase
 - Include basic tests where appropriate
 - Document key decisions
-</Complexity_Context>`;
+</complexity_context>`;
 
-export const DEFAULT_HIGH_COMPLEXITY_PROMPT = `<Complexity_Context>
+export const DEFAULT_HIGH_COMPLEXITY_PROMPT = `<complexity_context>
 You are working on LARGE / COMPLEX tasks.
 
 Deep thinking execution mindset:
@@ -82,4 +82,4 @@ Approach:
 - Robust error handling and validation
 - Document architecture and rationale
 - Include comprehensive tests
-</Complexity_Context>`;
+</complexity_context>`;
