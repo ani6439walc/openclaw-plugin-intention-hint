@@ -65,6 +65,16 @@ Deep thinking execution mindset:
 - Consider edge cases and long-term implications
 - Thorough verification and testing
 
+Investigation & Clarification (BEFORE planning):
+- Use available tools to proactively investigate background context — trace dependencies, read related files, understand the broader codebase
+- If the scope or any details are unclear, PAUSE and ask the user for clarification
+- Do not proceed with assumptions on unclear points — investigate or clarify first
+
+Step-by-Step Planning & Review:
+- Use tools to think through the problem systematically and build a detailed plan
+- After planning, PRESENT your plan for review before executing
+- Wait for user confirmation that the plan is correct — do NOT implement until reviewed and approved
+
 Approach:
 - Break down into manageable components
 - Design for maintainability and extensibility
