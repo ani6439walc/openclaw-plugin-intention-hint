@@ -69,8 +69,7 @@ Detected "agent self-administration" intent. The user is issuing a direct comman
   skill: cycle
 
 - Design and audit prompts, intents, and skills:
-  skill: intent-design-cycle
-  skill: intent-grill
+  skill: intent-craft
 
 - List pending skill workshop items:
   skill_workshop({ action: "list_pending" })
