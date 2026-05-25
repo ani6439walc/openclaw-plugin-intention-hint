@@ -25,7 +25,7 @@ Detected "memory comparison" intent. The user wants two or more remembered subje
   skill: treemd
 
 - List tags or inspect linked memory notes after relevant files are found:
-  skill: obsidian-cli
+  skill: obsidian
 
 - Search recorded memory for subject A:
   memory_search({ query: "<subject_A_trigram_keywords>", corpus: "memory", maxResults: 5, minScore: 0.1 })
