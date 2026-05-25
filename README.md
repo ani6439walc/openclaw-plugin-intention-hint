@@ -75,21 +75,22 @@ pnpm run build
 
 ### Config Options
 
-| Option                       | Type       | Default       | Description                                                                                                               |
-| ---------------------------- | ---------- | ------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `agents`                     | `string[]` | `["main"]`    | Agent IDs eligible for intention scanning.                                                                                |
-| `intentDeny`                 | `object`   | `{}`          | Per-agent intent deny-list. Keys are agent IDs or wildcard patterns; values are arrays of intent ID or wildcard patterns. |
-| `model`                      | `string`   | —             | Lightweight model for the intention scanner. Falls back to the agent's default if empty.                                  |
-| `modelFallback`              | `string`   | —             | Fallback model when `config.model` cannot be resolved.                                                                    |
-| `allowedChatTypes`           | `string[]` | `["direct"]`  | Which chat types are eligible (`direct`, `group`, `channel`, `explicit`).                                                 |
-| `allowedChatIds`             | `string[]` | `[]`          | Allow-list of chat IDs.                                                                                                   |
-| `deniedChatIds`              | `string[]` | `[]`          | Deny-list of chat IDs.                                                                                                    |
-| `queryMode`                  | `string`   | `"recent"`    | Context sent to scanner: `message` (latest only), `recent` (recent turns), or `full` (full history).                      |
-| `timeoutMs`                  | `number`   | `3000`        | Budget in milliseconds for the intention scanner sub-agent.                                                               |
-| `intentsDir`                 | `string`   | `"./intents"` | Directory containing dynamic intent `.md` files. Resolved relative to the plugin installation directory.                  |
-| `intentsHotReload`           | `boolean`  | `true`        | Automatically reload intent definitions when files change.                                                                |
-| `intentsHotReloadIntervalMs` | `number`   | `5000`        | How often to check for intent file changes (clamped to 1000–300000 ms).                                                   |
-| `complexityPrompts`          | `object`   | `{}`          | Custom prompts per complexity level. Overrides built-in defaults for `low`, `medium`, or `high`.                          |
+| Option                       | Type       | Default             | Description                                                                                                               |
+| ---------------------------- | ---------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `agents`                     | `string[]` | `["main"]`          | Agent IDs eligible for intention scanning.                                                                                |
+| `intentDeny`                 | `object`   | `{}`                | Per-agent intent deny-list. Keys are agent IDs or wildcard patterns; values are arrays of intent ID or wildcard patterns. |
+| `model`                      | `string`   | —                   | Lightweight model for the intention scanner. Falls back to the agent's default if empty.                                  |
+| `modelFallback`              | `string`   | —                   | Fallback model when `config.model` cannot be resolved.                                                                    |
+| `allowedChatTypes`           | `string[]` | `["direct"]`        | Which chat types are eligible (`direct`, `group`, `channel`, `explicit`).                                                 |
+| `allowedChatIds`             | `string[]` | `[]`                | Allow-list of chat IDs.                                                                                                   |
+| `deniedChatIds`              | `string[]` | `[]`                | Deny-list of chat IDs.                                                                                                    |
+| `queryMode`                  | `string`   | `"recent"`          | Context sent to scanner: `message` (latest only), `recent` (recent turns), or `full` (full history).                      |
+| `timeoutMs`                  | `number`   | `3000`              | Budget in milliseconds for the intention scanner sub-agent.                                                               |
+| `intentsDir`                 | `string`   | `"./intents"`       | Directory containing dynamic intent `.md` files. Resolved relative to the plugin installation directory.                  |
+| `intentsHotReload`           | `boolean`  | `true`              | Automatically reload intent definitions when files change.                                                                |
+| `intentsHotReloadIntervalMs` | `number`   | `5000`              | How often to check for intent file changes (clamped to 1000–300000 ms).                                                   |
+| `complexityPrompts`          | `object`   | `{}`                | Custom prompts per complexity level. Overrides built-in defaults for `low`, `medium`, or `high`.                          |
+| `selfEvolution`              | `object`   | `{ enabled: true }` | Self-evolution config for automatic skill/review suggestions. Set `enabled: false` to disable.                            |
 
 #### `complexityPrompts` Object
 
@@ -110,6 +111,77 @@ Built-in behavior (configurable via `complexityPrompts`):
 - **`low`** — Fast, concise, minimal overhead. For quick tasks and simple questions.
 - **`medium`** — Balanced execution with step-by-step planning and clarification. Pauses to ask when details are ambiguous.
 - **`high`** — Deep investigation using sub-agents for large codebases, structured multi-step planning with user review before execution.
+
+## Self-Evolution
+
+The plugin can automatically review session behavior and generate improvement suggestions without requiring manual configuration. When enabled, it monitors session activity and spawns background review sub-agents to analyze patterns and write backlog entries for the user to review.
+
+### How it Works
+
+1. **Session Tracking** — A `SessionTracker` keeps in-memory state for each session: turn count, tool call count, failure count, skills used, and turn history. Keyword triggers use the clean latest user message, while full conversation records remain available for review context.
+2. **Skill Detection** — Automatically detects skill usage only when a successful read-style tool call reads a `SKILL.md` file path; the skill name comes from the file's YAML frontmatter `name` field parsed by `gray-matter`. Malformed frontmatter fails open and simply records no skill.
+3. **Non-LLM Triggers** (checked every agent end):
+   - `skill_candidate` — tool calls exceed threshold OR skills were used
+   - `process_gap` — tool failures exceed threshold
+   - `missing_intent` — intent classified as `OTHER`
+   - `weak_intent` — confidence below threshold
+   - `behavior_fix` — explicit correction phrases detected (e.g., "don't do that", "你誤會了，以後不要這樣")
+4. **LLM Trigger** — every N turns (default 5), a satisfaction check spawns a review sub-agent that analyzes the included turns' full conversation records and intent results. Also triggers on satisfaction keywords (e.g., "完美", "looks good", "很好").
+5. **Review Sub-agent** — runs in background with a dedicated `:evolution-review:` session key (anti-recursion guard), analyzes only the structured metrics/conversation context provided in its prompt, and does not fetch extra history.
+6. **Backlog Entry** — written to `evolution/backlog/` as a Markdown file with standard YAML frontmatter containing trigger metadata and a Markdown body containing the full trigger data for analysis.
+
+### Tool History
+
+Tool calls are recorded with secrets redacted (API keys, tokens, passwords replaced with `[REDACTED]`). History scope varies by trigger:
+
+- **Non-LLM triggers**: Current turn only
+- **LLM satisfaction check**: Multi-turn history (all previous turns)
+
+### Configuration
+
+`selfEvolution.enabled` defaults to `true` in both the OpenClaw schema and runtime normalization. Set it to `false` explicitly to disable self-evolution.
+
+```json
+{
+  "selfEvolution": {
+    "enabled": true,
+    "reviewModel": "claude/claude-sonnet-4-20250514",
+    "reviewThinkingLevel": "low",
+    "triggers": {
+      "satisfactionCheckInterval": 5,
+      "toolCallCountThreshold": 5,
+      "skillsUsedThreshold": 0,
+      "failureCountThreshold": 2,
+      "weakIntentConfidenceThreshold": 0.8
+    }
+  }
+}
+```
+
+### Trigger Options
+
+| Option                          | Type     | Default | Description                                                                                        |
+| ------------------------------- | -------- | ------- | -------------------------------------------------------------------------------------------------- |
+| `satisfactionCheckInterval`     | `number` | `5`     | LLM review triggers every N turns (1–100).                                                         |
+| `toolCallCountThreshold`        | `number` | `5`     | Triggers `skill_candidate` when `toolCallCount > N` (1–1000).                                      |
+| `skillsUsedThreshold`           | `number` | `0`     | Triggers `skill_candidate` when `skillsUsed.size > N`. `0` means any skill usage triggers. (0–100) |
+| `failureCountThreshold`         | `number` | `2`     | Triggers `process_gap` when `toolFailCount >= N` (1–100).                                          |
+| `weakIntentConfidenceThreshold` | `number` | `0.8`   | Triggers `weak_intent` when `confidence < N` (0.0–1.0).                                            |
+
+### Review Options
+
+| Option                | Type                                                                                  | Default | Description                                                                 |
+| --------------------- | ------------------------------------------------------------------------------------- | ------- | --------------------------------------------------------------------------- |
+| `reviewModel`         | `string`                                                                              | —       | Model for the review sub-agent. Falls back to the agent's default if unset. |
+| `reviewThinkingLevel` | `"off" \| "minimal" \| "low" \| "medium" \| "high" \| "xhigh" \| "adaptive" \| "max"` | `"low"` | OpenClaw thinking level for the review sub-agent.                           |
+
+### Safety Features
+
+- **Fail-open** — All evolution hooks are wrapped in try-catch; errors are logged but never break the main plugin.
+- **Anti-recursion** — Review sub-agents have `:evolution-review:` in their session key; the `agent_end` hook skips these to prevent infinite review loops.
+- **Deduplication** — Each trigger type fires only once per session.
+- **Sub-agent exclusion** — Sessions with `:subagent:` in their key are skipped.
+- **Zero persistence** — All tracking state is in-memory and cleaned up on session end.
 
 ## Intent Definition Format
 

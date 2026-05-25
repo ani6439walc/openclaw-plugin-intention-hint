@@ -6,9 +6,9 @@ import { logger } from "../api.js";
 
 export class IntentCatalog {
   private intents: IntentDefinition[] = [];
-  private pluginRoot: string;
+  private pluginRoot: string = "";
 
-  constructor(pluginRoot: string) {
+  configure(pluginRoot: string): void {
     this.pluginRoot = pluginRoot;
   }
 
@@ -90,3 +90,5 @@ export class IntentCatalog {
     return result;
   }
 }
+
+export const defaultIntentCatalog = new IntentCatalog();

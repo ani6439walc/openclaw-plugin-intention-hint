@@ -36,6 +36,7 @@ export function shouldSkipIntentAnalysis(ctx: {
   return (
     sessionKey.includes(":active-memory:") ||
     sessionKey.includes(":intention-hint:") ||
+    sessionKey.includes(":evolution-review:") ||
     sessionKey.includes(":subagent:") ||
     sessionId.startsWith("active-memory-") ||
     sessionId.startsWith("intention-hint-")

@@ -8,9 +8,31 @@ import {
   DEFAULT_LOW_COMPLEXITY_PROMPT,
   DEFAULT_MEDIUM_COMPLEXITY_PROMPT,
   DEFAULT_HIGH_COMPLEXITY_PROMPT,
+  DEFAULT_SELF_EVOLUTION_SATISFACTION_CHECK_INTERVAL,
+  DEFAULT_SELF_EVOLUTION_TOOL_CALL_COUNT_THRESHOLD,
+  DEFAULT_SELF_EVOLUTION_SKILLS_USED_THRESHOLD,
+  DEFAULT_SELF_EVOLUTION_FAILURE_COUNT_THRESHOLD,
+  DEFAULT_SELF_EVOLUTION_WEAK_INTENT_CONFIDENCE_THRESHOLD,
+  DEFAULT_SELF_EVOLUTION_REVIEW_TIMEOUT_MS,
 } from "./constants.js";
-import type { ResolvedIntentionHintPluginConfig } from "./types.js";
+import type { ResolvedIntentionHintPluginConfig, ThinkLevel } from "./types.js";
 
+const THINK_LEVELS = [
+  "off",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "adaptive",
+  "max",
+] as const satisfies readonly ThinkLevel[];
+
+function normalizeThinkLevel(value: unknown): ThinkLevel {
+  return typeof value === "string" && THINK_LEVELS.includes(value as ThinkLevel)
+    ? (value as ThinkLevel)
+    : "low";
+}
 export function clampInt(
   value: number | undefined,
   fallback: number,
@@ -109,15 +131,107 @@ export function normalizePluginConfig(
       300_000,
     ),
     complexityPrompts: {
-      low: typeof (cfg.complexityPrompts as Record<string, unknown> | undefined)?.low === "string" && ((cfg.complexityPrompts as Record<string, unknown>)?.low as string).trim()
-        ? (cfg.complexityPrompts as Record<string, unknown>).low as string
-        : DEFAULT_LOW_COMPLEXITY_PROMPT,
-      medium: typeof (cfg.complexityPrompts as Record<string, unknown> | undefined)?.medium === "string" && ((cfg.complexityPrompts as Record<string, unknown>)?.medium as string).trim()
-        ? (cfg.complexityPrompts as Record<string, unknown>).medium as string
-        : DEFAULT_MEDIUM_COMPLEXITY_PROMPT,
-      high: typeof (cfg.complexityPrompts as Record<string, unknown> | undefined)?.high === "string" && ((cfg.complexityPrompts as Record<string, unknown>)?.high as string).trim()
-        ? (cfg.complexityPrompts as Record<string, unknown>).high as string
-        : DEFAULT_HIGH_COMPLEXITY_PROMPT,
+      low:
+        typeof (cfg.complexityPrompts as Record<string, unknown> | undefined)
+          ?.low === "string" &&
+        (
+          (cfg.complexityPrompts as Record<string, unknown>)?.low as string
+        ).trim()
+          ? ((cfg.complexityPrompts as Record<string, unknown>).low as string)
+          : DEFAULT_LOW_COMPLEXITY_PROMPT,
+      medium:
+        typeof (cfg.complexityPrompts as Record<string, unknown> | undefined)
+          ?.medium === "string" &&
+        (
+          (cfg.complexityPrompts as Record<string, unknown>)?.medium as string
+        ).trim()
+          ? ((cfg.complexityPrompts as Record<string, unknown>)
+              .medium as string)
+          : DEFAULT_MEDIUM_COMPLEXITY_PROMPT,
+      high:
+        typeof (cfg.complexityPrompts as Record<string, unknown> | undefined)
+          ?.high === "string" &&
+        (
+          (cfg.complexityPrompts as Record<string, unknown>)?.high as string
+        ).trim()
+          ? ((cfg.complexityPrompts as Record<string, unknown>).high as string)
+          : DEFAULT_HIGH_COMPLEXITY_PROMPT,
+    },
+    selfEvolution: {
+      enabled: asBool(
+        (cfg.selfEvolution as Record<string, unknown> | undefined)?.enabled,
+        true,
+      ),
+      reviewModel:
+        typeof (cfg.selfEvolution as Record<string, unknown> | undefined)
+          ?.reviewModel === "string"
+          ? ((cfg.selfEvolution as Record<string, unknown>)
+              ?.reviewModel as string)
+          : undefined,
+      reviewThinkingLevel: normalizeThinkLevel(
+        (cfg.selfEvolution as Record<string, unknown> | undefined)
+          ?.reviewThinkingLevel,
+      ),
+      reviewTimeoutMs: clampInt(
+        (cfg.selfEvolution as Record<string, unknown> | undefined)
+          ?.reviewTimeoutMs as number | undefined,
+        DEFAULT_SELF_EVOLUTION_REVIEW_TIMEOUT_MS,
+        10_000,
+        600_000,
+      ),
+      triggers: {
+        satisfactionCheckInterval: clampInt(
+          (
+            (cfg.selfEvolution as Record<string, unknown> | undefined)
+              ?.triggers as Record<string, unknown> | undefined
+          )?.satisfactionCheckInterval as number | undefined,
+          DEFAULT_SELF_EVOLUTION_SATISFACTION_CHECK_INTERVAL,
+          1,
+          100,
+        ),
+        toolCallCountThreshold: clampInt(
+          (
+            (cfg.selfEvolution as Record<string, unknown> | undefined)
+              ?.triggers as Record<string, unknown> | undefined
+          )?.toolCallCountThreshold as number | undefined,
+          DEFAULT_SELF_EVOLUTION_TOOL_CALL_COUNT_THRESHOLD,
+          1,
+          1000,
+        ),
+        skillsUsedThreshold: clampInt(
+          (
+            (cfg.selfEvolution as Record<string, unknown> | undefined)
+              ?.triggers as Record<string, unknown> | undefined
+          )?.skillsUsedThreshold as number | undefined,
+          DEFAULT_SELF_EVOLUTION_SKILLS_USED_THRESHOLD,
+          0,
+          100,
+        ),
+        failureCountThreshold: clampInt(
+          (
+            (cfg.selfEvolution as Record<string, unknown> | undefined)
+              ?.triggers as Record<string, unknown> | undefined
+          )?.failureCountThreshold as number | undefined,
+          DEFAULT_SELF_EVOLUTION_FAILURE_COUNT_THRESHOLD,
+          1,
+          100,
+        ),
+        weakIntentConfidenceThreshold: (() => {
+          const raw = (
+            (cfg.selfEvolution as Record<string, unknown> | undefined)
+              ?.triggers as Record<string, unknown> | undefined
+          )?.weakIntentConfidenceThreshold as number | undefined;
+          if (
+            typeof raw === "number" &&
+            !Number.isNaN(raw) &&
+            raw >= 0 &&
+            raw <= 1
+          ) {
+            return raw;
+          }
+          return DEFAULT_SELF_EVOLUTION_WEAK_INTENT_CONFIDENCE_THRESHOLD;
+        })(),
+      },
     },
   };
 }

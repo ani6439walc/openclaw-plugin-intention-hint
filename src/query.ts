@@ -69,11 +69,32 @@ export function applyQueryFilters(
   return picked;
 }
 
-function extractTextContent(
-  content: string | Array<string | MessageContentPart> | undefined,
-): string {
+const TEXT_BLOCK_TYPES = new Set(["text", "input_text", "output_text"]);
+
+function readTextValue(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (!value || typeof value !== "object") return "";
+
+  const record = value as Record<string, unknown>;
+  return typeof record.value === "string" ? record.value : "";
+}
+
+function extractTextBlock(block: unknown): string {
+  if (!block || typeof block !== "object") return "";
+
+  const record = block as MessageContentPart;
+  if (typeof record.type === "string" && TEXT_BLOCK_TYPES.has(record.type)) {
+    return readTextValue(record.text) || readTextValue(record.content);
+  }
+
+  if (typeof record.text === "string") return record.text;
+  if (typeof record.content === "string") return record.content;
+  return "";
+}
+
+function extractTextContent(content: unknown): string {
   if (typeof content === "string") return content;
-  if (!Array.isArray(content)) return "";
+  if (!Array.isArray(content)) return extractTextBlock(content);
 
   const parts: string[] = [];
   for (const item of content) {
@@ -81,14 +102,8 @@ function extractTextContent(
       parts.push(item);
       continue;
     }
-    if (!item || typeof item !== "object") continue;
-    if (typeof item.text === "string") {
-      parts.push(item.text);
-      continue;
-    }
-    if (item.type === "text" && typeof item.content === "string") {
-      parts.push(item.content);
-    }
+    const text = extractTextBlock(item);
+    if (text) parts.push(text);
   }
   return parts.join(" ").trim();
 }
@@ -123,4 +138,54 @@ export function extractRecentTurns(
     turns.push({ role, text });
   }
   return turns;
+}
+
+export function extractTranscriptTurns(
+  messages: unknown[] | undefined,
+): RecentTurn[] {
+  if (!Array.isArray(messages)) return [];
+
+  const turns: RecentTurn[] = [];
+  for (const message of messages) {
+    if (!message || typeof message !== "object") continue;
+
+    const typed = message as PromptMessageLike;
+    if (typeof typed.role !== "string") continue;
+
+    const text = stripIntentionHintBlocks(extractTextContent(typed.content));
+    if (!text) continue;
+    turns.push({ role: typed.role, text });
+  }
+  return turns;
+}
+
+export function extractLatestConversationRound(
+  messages: unknown[] | undefined,
+): RecentTurn[] {
+  const transcript = extractTranscriptTurns(messages);
+  if (transcript.length === 0) return [];
+
+  for (let index = transcript.length - 1; index >= 0; index--) {
+    if (
+      transcript[index].role === "user" &&
+      !isInternalUserTranscriptText(transcript[index].text)
+    ) {
+      return transcript
+        .slice(index)
+        .filter((turn) => !isInternalUserTurn(turn));
+    }
+  }
+
+  return transcript.filter((turn) => !isInternalUserTurn(turn));
+}
+
+function isInternalUserTurn(turn: RecentTurn): boolean {
+  return turn.role === "user" && isInternalUserTranscriptText(turn.text);
+}
+
+function isInternalUserTranscriptText(text: string): boolean {
+  return (
+    text.includes("<!-- OMO_INTERNAL_INITIATOR -->") ||
+    text.includes("[SYSTEM DIRECTIVE:")
+  );
 }

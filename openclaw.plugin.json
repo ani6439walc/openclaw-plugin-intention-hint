@@ -146,6 +146,89 @@
         },
         "additionalProperties": false,
         "default": {}
+      },
+      "selfEvolution": {
+        "type": "object",
+        "description": "Configuration for self-evolution features.",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Enable self-evolution features for the plugin.",
+            "default": true
+          },
+          "reviewModel": {
+            "type": "string",
+            "description": "Model for the review subagent (e.g. claude/claude-sonnet-4-20250514). If null, uses the default model.",
+            "default": ""
+          },
+          "reviewThinkingLevel": {
+            "type": "string",
+            "enum": [
+              "off",
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "adaptive",
+              "max"
+            ],
+            "description": "OpenClaw thinking level for the review subagent.",
+            "default": "low"
+          },
+          "reviewTimeoutMs": {
+            "type": "integer",
+            "minimum": 10000,
+            "maximum": 600000,
+            "description": "Timeout in milliseconds for the review subagent.",
+            "default": 120000
+          },
+          "triggers": {
+            "type": "object",
+            "description": "Configurable trigger thresholds for self-evolution.",
+            "properties": {
+              "satisfactionCheckInterval": {
+                "type": "integer",
+                "description": "LLM satisfaction check interval in turns.",
+                "default": 5,
+                "minimum": 1,
+                "maximum": 100
+              },
+              "toolCallCountThreshold": {
+                "type": "integer",
+                "description": "Non-LLM: tool call count threshold for skill_candidate trigger.",
+                "default": 5,
+                "minimum": 1,
+                "maximum": 1000
+              },
+              "skillsUsedThreshold": {
+                "type": "integer",
+                "description": "Non-LLM: used skills size threshold for skill_candidate trigger (0 means any skill triggers).",
+                "default": 0,
+                "minimum": 0,
+                "maximum": 100
+              },
+              "failureCountThreshold": {
+                "type": "integer",
+                "description": "Non-LLM: tool failure count threshold for process_gap trigger.",
+                "default": 2,
+                "minimum": 1,
+                "maximum": 100
+              },
+              "weakIntentConfidenceThreshold": {
+                "type": "number",
+                "description": "Non-LLM: confidence threshold for weak_intent trigger (0.0-1.0).",
+                "default": 0.8,
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "additionalProperties": false,
+            "default": {}
+          }
+        },
+        "additionalProperties": false,
+        "default": {}
       }
     }
   }
