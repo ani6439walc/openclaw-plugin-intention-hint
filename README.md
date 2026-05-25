@@ -64,8 +64,6 @@ pnpm run build
           queryMode: "recent",
           timeoutMs: 3000,
           intentsDir: "./intents", // relative to plugin root
-          intentsHotReload: true, // auto-reload on change
-          intentsHotReloadIntervalMs: 5000, // poll interval
         },
       },
     },
@@ -75,21 +73,21 @@ pnpm run build
 
 ### Config Options
 
-| Option                       | Type       | Default       | Description                                                                                                               |
-| ---------------------------- | ---------- | ------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `agents`                     | `string[]` | `["main"]`    | Agent IDs eligible for intention scanning.                                                                                |
-| `intentDeny`                 | `object`   | `{}`          | Per-agent intent deny-list. Keys are agent IDs or wildcard patterns; values are arrays of intent ID or wildcard patterns. |
-| `model`                      | `string`   | —             | Lightweight model for the intention scanner. Falls back to the agent's default if empty.                                  |
-| `modelFallback`              | `string`   | —             | Fallback model when `config.model` cannot be resolved.                                                                    |
-| `allowedChatTypes`           | `string[]` | `["direct"]`  | Which chat types are eligible (`direct`, `group`, `channel`, `explicit`).                                                 |
-| `allowedChatIds`             | `string[]` | `[]`          | Allow-list of chat IDs.                                                                                                   |
-| `deniedChatIds`              | `string[]` | `[]`          | Deny-list of chat IDs.                                                                                                    |
-| `queryMode`                  | `string`   | `"recent"`    | Context sent to scanner: `message` (latest only), `recent` (recent turns), or `full` (full history).                      |
-| `timeoutMs`                  | `number`   | `3000`        | Budget in milliseconds for the intention scanner sub-agent.                                                               |
-| `intentsDir`                 | `string`   | `"./intents"` | Directory containing dynamic intent `.md` files. Resolved relative to the plugin installation directory.                  |
-| `intentsHotReload`           | `boolean`  | `true`        | Automatically reload intent definitions when files change.                                                                |
-| `intentsHotReloadIntervalMs` | `number`   | `5000`        | How often to check for intent file changes (clamped to 1000–300000 ms).                                                   |
-| `complexityPrompts`          | `object`   | `{}`          | Custom prompts per complexity level. Overrides built-in defaults for `low`, `medium`, or `high`.                          |
+| Option              | Type       | Default       | Description                                                                                                               |
+| ------------------- | ---------- | ------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `agents`            | `string[]` | `["main"]`    | Agent IDs eligible for intention scanning.                                                                                |
+| `intentDeny`        | `object`   | `{}`          | Per-agent intent deny-list. Keys are agent IDs or wildcard patterns; values are arrays of intent ID or wildcard patterns. |
+| `model`             | `string`   | —             | Lightweight model for the intention scanner. Falls back to the agent's default if empty.                                  |
+| `modelFallback`     | `string`   | —             | Fallback model when `config.model` cannot be resolved.                                                                    |
+| `allowedChatTypes`  | `string[]` | `["direct"]`  | Which chat types are eligible (`direct`, `group`, `channel`, `explicit`).                                                 |
+| `allowedChatIds`    | `string[]` | `[]`          | Allow-list of chat IDs.                                                                                                   |
+| `deniedChatIds`     | `string[]` | `[]`          | Deny-list of chat IDs.                                                                                                    |
+| `queryMode`         | `string`   | `"recent"`    | Context sent to scanner: `message` (latest only), `recent` (recent turns), or `full` (full history).                      |
+| `timeoutMs`         | `number`   | `3000`        | Budget in milliseconds for the intention scanner sub-agent.                                                               |
+| `intentsDir`        | `string`   | `"./intents"` | Directory containing dynamic intent `.md` files. Resolved relative to the plugin installation directory.                  |
+| `complexityPrompts` | `object`   | —             |
+
+| `complexityPrompts` | `object` | `{}` | Custom prompts per complexity level. Overrides built-in defaults for `low`, `medium`, or `high`. |
 
 #### `complexityPrompts` Object
 

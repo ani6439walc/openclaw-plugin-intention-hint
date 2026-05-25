@@ -1,27 +1,87 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import matter from "gray-matter";
-import type { IntentDefinition } from "./types.js";
+import type {
+  IntentDefinition,
+  ResolvedIntentionHintPluginConfig,
+} from "./types.js";
 import { logger } from "../api.js";
+
+function wildcardToRegExp(pattern: string): RegExp {
+  const escaped = pattern
+    .replace(/[|\\{}()[\]^$+?.]/g, "\\$&")
+    .replace(/\*/g, ".*")
+    .replace(/\\\?/g, ".");
+  return new RegExp(`^${escaped}$`, "i");
+}
+
+function matchesWildcard(pattern: string, value: string): boolean {
+  const normalizedPattern = pattern.trim();
+  if (!normalizedPattern) return false;
+  return wildcardToRegExp(normalizedPattern).test(value);
+}
+
+function resolveIntentDenyPatterns(
+  config: ResolvedIntentionHintPluginConfig,
+  agentId: string | undefined,
+): string[] {
+  const normalizedAgentId = agentId?.trim();
+  if (!normalizedAgentId) return [];
+
+  const patterns: string[] = [];
+  for (const [agentPattern, intentPatterns] of Object.entries(
+    config.intentDeny,
+  )) {
+    if (matchesWildcard(agentPattern, normalizedAgentId)) {
+      patterns.push(...intentPatterns);
+    }
+  }
+  return [...new Set(patterns)];
+}
+
+export function filterIntentsForAgent(
+  intents: readonly IntentDefinition[],
+  config: ResolvedIntentionHintPluginConfig,
+  agentId: string | undefined,
+): IntentDefinition[] {
+  const denyPatterns = resolveIntentDenyPatterns(config, agentId);
+  if (denyPatterns.length === 0) return [...intents];
+
+  return intents.filter(
+    (intent) =>
+      !denyPatterns.some((pattern) => matchesWildcard(pattern, intent.id)),
+  );
+}
 
 export class IntentCatalog {
   private intents: IntentDefinition[] = [];
   private pluginRoot: string;
 
-  constructor(pluginRoot: string) {
+  private constructor(pluginRoot: string) {
     this.pluginRoot = pluginRoot;
+  }
+
+  static create(pluginRoot: string): IntentCatalog {
+    return new IntentCatalog(pluginRoot);
   }
 
   load(intentsDir: string): number {
     const resolvedDir = path.resolve(this.pluginRoot, intentsDir);
     const loaded = this.loadFromDir(resolvedDir);
     this.intents = loaded;
-    logger.debug(`Loaded ${loaded.length} dynamic intents from ${resolvedDir}`);
+    logger.debug(
+      `loaded ${loaded.length} dynamic intents from ${resolvedDir}.`,
+    );
     return loaded.length;
   }
 
   reset(): void {
     this.intents = [];
+  }
+
+  setIntents(intents: IntentDefinition[]): void {
+    this.intents = [...intents];
   }
 
   get(): readonly IntentDefinition[] {
@@ -30,6 +90,13 @@ export class IntentCatalog {
 
   get count(): number {
     return this.intents.length;
+  }
+
+  filterForAgent(
+    config: ResolvedIntentionHintPluginConfig,
+    agentId: string | undefined,
+  ): IntentDefinition[] {
+    return filterIntentsForAgent(this.intents, config, agentId);
   }
 
   private loadFromDir(intentsDir: string): IntentDefinition[] {
@@ -90,3 +157,10 @@ export class IntentCatalog {
     return result;
   }
 }
+
+const pluginRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
+
+export const defaultCatalog = IntentCatalog.create(pluginRoot);

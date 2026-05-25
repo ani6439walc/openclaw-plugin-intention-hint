@@ -1,31 +1,30 @@
 import { describe, expect, it } from "vitest";
-import { __testing } from "./index.js";
 import type { OpenClawPluginApi } from "./api.js";
 
-const {
-  normalizePluginConfig,
+import { resolveConfig, clampInt } from "./src/config.js";
+import {
   buildIntentionPrompt,
-  buildIntentionEmbeddedRunParams,
-  parseIntentionResult,
   buildPromptPrefix,
-  applyQueryFilters,
-  extractRecentTurns,
-  getModelRef,
-  clampInt,
+  parseIntentionResult,
+} from "./src/prompt.js";
+import { buildIntentionEmbeddedRunParams } from "./src/subagent.js";
+import { applyQueryFilters, extractRecentTurns } from "./src/query.js";
+import {
   isEnabledForAgent,
   isEligibleInteractiveSession,
   shouldSkipIntentAnalysis,
-  resolveStatusUpdateAgentId,
   isAllowedChatType,
   isAllowedChatId,
-  filterIntentsForAgent,
-} = __testing;
+  resolveStatusUpdateAgentId,
+} from "./src/session.js";
+import { IntentCatalog } from "./src/intent-loader.js";
+import { RecentTurn } from "./src/types.js";
 
 /* ── Config helpers ─────────────────── */
 
-describe("normalizePluginConfig", () => {
+describe("resolveConfig", () => {
   it("applies defaults when given empty config", () => {
-    const config = normalizePluginConfig({});
+    const config = resolveConfig({});
     expect(config.agents).toEqual(["main"]);
     expect(config.model).toBeUndefined();
     expect(config.allowedChatTypes).toEqual(["direct"]);
@@ -33,12 +32,10 @@ describe("normalizePluginConfig", () => {
     expect(config.queryMode).toBe("recent");
     expect(config.intentDeny).toEqual({});
     expect(config.intentsDir).toBe("./intents");
-    expect(config.intentsHotReload).toBe(true);
-    expect(config.intentsHotReloadIntervalMs).toBe(5000);
   });
 
   it("returns correct types", () => {
-    const config = normalizePluginConfig({
+    const config = resolveConfig({
       queryMode: "full",
       agents: ["main", "secondary"],
       model: "google/gemini-3-flash",
@@ -49,34 +46,15 @@ describe("normalizePluginConfig", () => {
   });
 
   it("clamps timeoutMs within bounds", () => {
-    const low = normalizePluginConfig({ timeoutMs: 100 });
+    const low = resolveConfig({ timeoutMs: 100 });
     expect(low.timeoutMs).toBe(250);
 
-    const high = normalizePluginConfig({ timeoutMs: 200000 });
+    const high = resolveConfig({ timeoutMs: 200000 });
     expect(high.timeoutMs).toBe(120000);
   });
 
-  it("parses intents config fields", () => {
-    const config = normalizePluginConfig({
-      intentsDir: "./custom-intents",
-      intentsHotReload: false,
-      intentsHotReloadIntervalMs: 10000,
-    });
-    expect(config.intentsDir).toBe("./custom-intents");
-    expect(config.intentsHotReload).toBe(false);
-    expect(config.intentsHotReloadIntervalMs).toBe(10000);
-  });
-
-  it("clamps intentsHotReloadIntervalMs within bounds", () => {
-    const low = normalizePluginConfig({ intentsHotReloadIntervalMs: 200 });
-    expect(low.intentsHotReloadIntervalMs).toBe(1000);
-
-    const high = normalizePluginConfig({ intentsHotReloadIntervalMs: 500000 });
-    expect(high.intentsHotReloadIntervalMs).toBe(300000);
-  });
-
   it("parses per-agent intent deny patterns", () => {
-    const config = normalizePluginConfig({
+    const config = resolveConfig({
       intentDeny: {
         main: ["MEMORY_*", "TYPO"],
         "research-*": ["CHAT"],
@@ -301,39 +279,37 @@ describe("filterIntentsForAgent", () => {
     },
   ];
 
+  function testFilter(
+    list: typeof intents,
+    intentDeny: Record<string, string[]>,
+    agentId: string | undefined,
+  ) {
+    const catalog = IntentCatalog.create("/tmp");
+    catalog.setIntents(list);
+    return catalog.filterForAgent({ intentDeny } as any, agentId);
+  }
+
   it("does not filter when agent has no matching deny entry", () => {
-    const result = filterIntentsForAgent(
-      intents,
-      { intentDeny: { main: ["TYPO"] } } as any,
-      "other",
-    );
+    const result = testFilter(intents, { main: ["TYPO"] }, "other");
     expect(result.map((i) => i.id)).toEqual(["CHAT", "MEMORY_RECENT", "TYPO"]);
   });
 
   it("filters exact intent ids for exact agent ids", () => {
-    const result = filterIntentsForAgent(
-      intents,
-      { intentDeny: { main: ["TYPO"] } } as any,
-      "main",
-    );
+    const result = testFilter(intents, { main: ["TYPO"] }, "main");
     expect(result.map((i) => i.id)).toEqual(["CHAT", "MEMORY_RECENT"]);
   });
 
   it("supports wildcard agent ids and intent ids", () => {
-    const result = filterIntentsForAgent(
+    const result = testFilter(
       intents,
-      { intentDeny: { "*": ["MEMORY_*"], "work-*": ["CH?T"] } } as any,
+      { "*": ["MEMORY_*"], "work-*": ["CH?T"] },
       "work-main",
     );
     expect(result.map((i) => i.id)).toEqual(["TYPO"]);
   });
 
   it("matches patterns case-insensitively", () => {
-    const result = filterIntentsForAgent(
-      intents,
-      { intentDeny: { MAIN: ["typo"] } } as any,
-      "main",
-    );
+    const result = testFilter(intents, { MAIN: ["typo"] }, "main");
     expect(result.map((i) => i.id)).toEqual(["CHAT", "MEMORY_RECENT"]);
   });
 });
@@ -807,11 +783,17 @@ describe("buildPromptPrefix", () => {
     },
   ];
 
-  const mockConfig = normalizePluginConfig({});
+  const mockConfig = resolveConfig({});
 
   it("places subagent output fields above the body", () => {
     const result = buildPromptPrefix(
-      { intent: "CHAT", reason: "test-reason", goal: "social", confidence: 0.5, complexity: "medium" },
+      {
+        intent: "CHAT",
+        reason: "test-reason",
+        goal: "social",
+        confidence: 0.5,
+        complexity: "medium",
+      },
       mockIntents,
       mockConfig,
     );
@@ -908,7 +890,13 @@ describe("buildPromptPrefix", () => {
 
   it("uses hard-coded fallback for unknown intent", () => {
     const result = buildPromptPrefix(
-      { intent: "unknown", reason: "test", goal: "fallback-test", confidence: 0.5, complexity: "medium" },
+      {
+        intent: "unknown",
+        reason: "test",
+        goal: "fallback-test",
+        confidence: 0.5,
+        complexity: "medium",
+      },
       mockIntents,
       mockConfig,
     );
@@ -930,7 +918,13 @@ describe("buildPromptPrefix", () => {
       },
     ];
     const result = buildPromptPrefix(
-      { intent: "unknown", reason: "test", goal: "test", confidence: 0.5, complexity: "medium" },
+      {
+        intent: "unknown",
+        reason: "test",
+        goal: "test",
+        confidence: 0.5,
+        complexity: "medium",
+      },
       intents,
       mockConfig,
     );
@@ -948,7 +942,7 @@ describe("buildIntentionEmbeddedRunParams", () => {
     const result = buildIntentionEmbeddedRunParams({
       params: {
         api: { config: { plugins: {} } } as unknown as OpenClawPluginApi,
-        config: normalizePluginConfig({ timeoutMs: 4321 }),
+        config: resolveConfig({ timeoutMs: 4321 }),
         agentId: "main",
         messageProvider: "telegram",
         modelRef: { provider: "openai", model: "gpt-5-mini" },

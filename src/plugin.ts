@@ -5,11 +5,8 @@ import {
   type OpenClawPluginApi,
 } from "../api.js";
 import { resolveLivePluginConfigObject } from "openclaw/plugin-sdk/plugin-config-runtime";
-import { clampInt, normalizePluginConfig } from "./config.js";
-import { filterIntentsForAgent } from "./intent-filter.js";
-import { IntentCatalog } from "./intent-loader.js";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolveConfig } from "./config.js";
+import { defaultCatalog } from "./intent-loader.js";
 import { applyQueryFilters, extractRecentTurns } from "./query.js";
 import {
   isAllowedChatId,
@@ -20,20 +17,8 @@ import {
   shouldSkipIntentAnalysis,
   resolveCanonicalSessionKeyFromSessionId,
 } from "./session.js";
-import {
-  buildIntentionEmbeddedRunParams,
-  buildIntentionPrompt,
-  buildPromptPrefix,
-  getModelRef,
-  parseIntentionResult,
-  runIntentionSubagent,
-} from "./subagent.js";
-
-const pluginRoot = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../..",
-);
-const intentCatalog = new IntentCatalog(pluginRoot);
+import { getModelRef, runIntentionSubagent } from "./subagent.js";
+import { buildPromptPrefix } from "./prompt.js";
 
 export function createPlugin(api: OpenClawPluginApi) {
   return definePluginEntry({
@@ -42,7 +27,7 @@ export function createPlugin(api: OpenClawPluginApi) {
     description:
       "Pre-scans user intent before replies and injects routing hints via before_prompt_build hook.",
     register() {
-      let config = normalizePluginConfig(api.pluginConfig);
+      let config = resolveConfig(api.pluginConfig);
 
       const refreshLiveConfigFromRuntime = () => {
         const livePluginConfig = resolveLivePluginConfigObject(
@@ -52,7 +37,7 @@ export function createPlugin(api: OpenClawPluginApi) {
           "intention-hint",
           api.pluginConfig as Record<string, unknown>,
         );
-        config = normalizePluginConfig(livePluginConfig ?? {});
+        config = resolveConfig(livePluginConfig ?? {});
       };
 
       refreshLiveConfigFromRuntime();
@@ -60,29 +45,18 @@ export function createPlugin(api: OpenClawPluginApi) {
       const refreshIntents = () => {
         const dir = config.intentsDir;
         if (dir) {
-          intentCatalog.load(dir);
+          defaultCatalog.load(dir);
         } else {
-          intentCatalog.reset();
+          defaultCatalog.reset();
         }
       };
       refreshIntents();
-
-      let hotReloadTimer: ReturnType<typeof setInterval> | undefined;
-      const startHotReload = () => {
-        if (hotReloadTimer) return;
-        if (!config.intentsHotReload || !config.intentsDir) return;
-        hotReloadTimer = setInterval(() => {
-          refreshIntents();
-        }, config.intentsHotReloadIntervalMs);
-      };
-      startHotReload();
 
       api.on(
         "before_prompt_build",
         async (event, ctx) => {
           try {
-            refreshLiveConfigFromRuntime();
-
+            // Early return checks FIRST (before refresh calls)
             if (shouldSkipIntentAnalysis(ctx)) return undefined;
 
             const resolvedAgentId = resolveStatusUpdateAgentId(ctx);
@@ -97,11 +71,9 @@ export function createPlugin(api: OpenClawPluginApi) {
                 : undefined);
             const effectiveAgentId = resolvedAgentId;
 
+            // Use current config for early checks (will be refreshed after)
             if (!isEnabledForAgent(config, effectiveAgentId)) return undefined;
             if (!isEligibleInteractiveSession(ctx)) return undefined;
-            logger.debug(
-              `before_prompt_build hook triggered, ctx: ${JSON.stringify(ctx)}`,
-            );
             if (
               !isAllowedChatType(config, {
                 ...ctx,
@@ -120,6 +92,30 @@ export function createPlugin(api: OpenClawPluginApi) {
               return undefined;
             }
 
+            const modelRef = getModelRef(api, effectiveAgentId, config, {
+              modelProviderId: ctx.modelProviderId,
+              modelId: ctx.modelId,
+            });
+            if (!modelRef) return undefined;
+
+            // THEN refresh config and intents
+            refreshLiveConfigFromRuntime();
+            refreshIntents();
+
+            if (defaultCatalog.count === 0) {
+              logger.debug("no intents loaded; skipping intention scan.");
+              return undefined;
+            }
+
+            logger.debug(
+              `before_prompt_build hook triggered, ctx: ${JSON.stringify(ctx)}`,
+            );
+
+            const availableIntents = defaultCatalog.filterForAgent(
+              config,
+              effectiveAgentId,
+            );
+
             const allTurns = extractRecentTurns(event.messages);
             const latestUserMessage = event.prompt ?? "";
 
@@ -130,23 +126,6 @@ export function createPlugin(api: OpenClawPluginApi) {
               recentUserChars: config.recentUserChars,
               recentAssistantChars: config.recentAssistantChars,
             });
-
-            const modelRef = getModelRef(api, effectiveAgentId, config, {
-              modelProviderId: ctx.modelProviderId,
-              modelId: ctx.modelId,
-            });
-            if (!modelRef) return undefined;
-
-            if (intentCatalog.count === 0) {
-              logger.debug("No intents loaded; skipping intention scan.");
-              return undefined;
-            }
-
-            const availableIntents = filterIntentsForAgent(
-              intentCatalog.get(),
-              config,
-              effectiveAgentId,
-            );
 
             const result = await runIntentionSubagent({
               api,
@@ -164,16 +143,20 @@ export function createPlugin(api: OpenClawPluginApi) {
 
             if (!result) {
               logger.debug(
-                "Intention subagent failed; skipping hint injection.",
+                "intention subagent failed; skipping hint injection.",
               );
               return undefined;
             }
 
             logger.debug(
-              `Intention subagent result: ${JSON.stringify(result)}`,
+              `intention subagent result: ${JSON.stringify(result)}`,
             );
 
-            const promptPrefix = buildPromptPrefix(result, availableIntents, config);
+            const promptPrefix = buildPromptPrefix(
+              result,
+              availableIntents,
+              config,
+            );
             if (!promptPrefix) return undefined;
 
             return { prependContext: promptPrefix };
@@ -183,27 +166,6 @@ export function createPlugin(api: OpenClawPluginApi) {
         },
         { timeoutMs: config.timeoutMs * 1.1 + 500 },
       );
-
-      logger.debug("registering intention-hint before_prompt_build hook");
     },
   });
 }
-
-export const __testing = {
-  normalizePluginConfig,
-  clampInt,
-  buildIntentionPrompt,
-  buildIntentionEmbeddedRunParams,
-  parseIntentionResult,
-  buildPromptPrefix,
-  applyQueryFilters,
-  extractRecentTurns,
-  getModelRef,
-  isEnabledForAgent,
-  isEligibleInteractiveSession,
-  shouldSkipIntentAnalysis,
-  isAllowedChatType,
-  isAllowedChatId,
-  resolveStatusUpdateAgentId,
-  filterIntentsForAgent,
-};

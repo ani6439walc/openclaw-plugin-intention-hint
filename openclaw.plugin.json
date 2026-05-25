@@ -112,18 +112,6 @@
         "description": "Directory containing dynamic intent definitions (.md files with YAML frontmatter).",
         "default": "./intents"
       },
-      "intentsHotReload": {
-        "type": "boolean",
-        "description": "Automatically reload intent definitions from intentsDir when changed.",
-        "default": true
-      },
-      "intentsHotReloadIntervalMs": {
-        "type": "integer",
-        "minimum": 1000,
-        "maximum": 300000,
-        "description": "Interval in milliseconds for checking intent definition changes.",
-        "default": 180000
-      },
       "complexityPrompts": {
         "type": "object",
         "description": "Custom prompts for each complexity level.",

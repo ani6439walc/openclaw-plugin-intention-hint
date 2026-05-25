@@ -1,5 +1,5 @@
 import type { OpenClawPluginApi } from "./api.js";
-import { __testing, createPlugin } from "./src/plugin.js";
+import { createPlugin } from "./src/plugin.js";
 
 export default {
   id: "intention-hint",
@@ -11,5 +11,3 @@ export default {
     plugin.register(api);
   },
 };
-
-export { __testing };

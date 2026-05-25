@@ -25,8 +25,6 @@ export type IntentionHintPluginConfig = {
   recentAssistantChars?: number;
   timeoutMs?: number;
   intentsDir?: string;
-  intentsHotReload?: boolean;
-  intentsHotReloadIntervalMs?: number;
   complexityPrompts?: ComplexityPromptsConfig;
 };
 
@@ -45,8 +43,6 @@ export type ResolvedIntentionHintPluginConfig = {
   recentAssistantChars: number;
   timeoutMs: number;
   intentsDir: string | undefined;
-  intentsHotReload: boolean;
-  intentsHotReloadIntervalMs: number;
   complexityPrompts: ResolvedComplexityPromptsConfig;
 };
 

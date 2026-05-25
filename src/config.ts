@@ -1,3 +1,4 @@
+import { z, preprocess } from "openclaw/plugin-sdk/zod";
 import {
   DEFAULT_QUERY_MODE,
   DEFAULT_TIMEOUT_MS,
@@ -21,103 +22,122 @@ export function clampInt(
   return Math.max(min, Math.min(max, Math.floor(value)));
 }
 
-export function normalizePluginConfig(
-  raw: unknown,
-): ResolvedIntentionHintPluginConfig {
-  const cfg = (raw ?? {}) as Record<string, unknown>;
-  const asStringArray = (v: unknown): string[] => {
-    if (Array.isArray(v))
-      return v
-        .filter((x): x is string => typeof x === "string")
-        .map((x) => x.trim())
-        .filter(Boolean);
-    if (typeof v === "string" && v.trim()) return [v.trim()];
-    return [];
-  };
-  const asStringArrayMap = (v: unknown): Record<string, string[]> => {
-    if (!v || typeof v !== "object" || Array.isArray(v)) return {};
-    const result: Record<string, string[]> = {};
-    for (const [key, value] of Object.entries(v as Record<string, unknown>)) {
-      const normalizedKey = key.trim();
-      if (!Array.isArray(value)) continue;
-      const patterns = asStringArray(value);
-      if (normalizedKey && patterns.length > 0) {
-        result[normalizedKey] = patterns;
-      }
+const asStringArray = (v: unknown): string[] => {
+  if (Array.isArray(v))
+    return v
+      .filter((x): x is string => typeof x === "string")
+      .map((x) => x.trim())
+      .filter(Boolean);
+  if (typeof v === "string" && v.trim()) return [v.trim()];
+  return [];
+};
+
+const asStringArrayMap = (v: unknown): Record<string, string[]> => {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return {};
+  const result: Record<string, string[]> = {};
+  for (const [key, value] of Object.entries(v as Record<string, unknown>)) {
+    const normalizedKey = key.trim();
+    if (!Array.isArray(value)) continue;
+    const patterns = asStringArray(value);
+    if (normalizedKey && patterns.length > 0) {
+      result[normalizedKey] = patterns;
     }
-    return result;
-  };
-  const asBool = (v: unknown, fallback: boolean): boolean => {
-    if (typeof v === "boolean") return v;
-    if (typeof v === "string") return v.toLowerCase() === "true";
-    return fallback;
-  };
-  const queryMode = (cfg.queryMode ?? DEFAULT_QUERY_MODE) as string;
-  return {
-    agents: asStringArray(cfg.agents).length
-      ? asStringArray(cfg.agents)
-      : ["main"],
-    intentDeny: asStringArrayMap(cfg.intentDeny),
-    model: typeof cfg.model === "string" ? cfg.model : undefined,
-    modelFallback:
-      typeof cfg.modelFallback === "string" ? cfg.modelFallback : undefined,
-    allowedChatTypes: asStringArray(cfg.allowedChatTypes).length
-      ? asStringArray(cfg.allowedChatTypes)
-      : ["direct"],
-    allowedChatIds: asStringArray(cfg.allowedChatIds),
-    deniedChatIds: asStringArray(cfg.deniedChatIds),
-    queryMode: (["message", "recent", "full"].includes(queryMode)
-      ? queryMode
-      : DEFAULT_QUERY_MODE) as "message" | "recent" | "full",
-    recentUserTurns: clampInt(
-      cfg.recentUserTurns as number | undefined,
-      DEFAULT_RECENT_USER_TURNS,
-      0,
-      20,
-    ),
-    recentAssistantTurns: clampInt(
-      cfg.recentAssistantTurns as number | undefined,
-      DEFAULT_RECENT_ASSISTANT_TURNS,
-      0,
-      10,
-    ),
-    recentUserChars: clampInt(
-      cfg.recentUserChars as number | undefined,
-      DEFAULT_RECENT_USER_CHARS,
-      40,
-      1000,
-    ),
-    recentAssistantChars: clampInt(
-      cfg.recentAssistantChars as number | undefined,
-      DEFAULT_RECENT_ASSISTANT_CHARS,
-      40,
-      1000,
-    ),
-    timeoutMs: clampInt(
-      cfg.timeoutMs as number | undefined,
-      DEFAULT_TIMEOUT_MS,
-      250,
-      120_000,
-    ),
-    intentsDir:
-      typeof cfg.intentsDir === "string" ? cfg.intentsDir : "./intents",
-    intentsHotReload: asBool(cfg.intentsHotReload, true),
-    intentsHotReloadIntervalMs: clampInt(
-      cfg.intentsHotReloadIntervalMs as number | undefined,
-      5_000,
-      1_000,
-      300_000,
-    ),
-    complexityPrompts: {
-      low: typeof (cfg.complexityPrompts as Record<string, unknown> | undefined)?.low === "string" && ((cfg.complexityPrompts as Record<string, unknown>)?.low as string).trim()
-        ? (cfg.complexityPrompts as Record<string, unknown>).low as string
-        : DEFAULT_LOW_COMPLEXITY_PROMPT,
-      medium: typeof (cfg.complexityPrompts as Record<string, unknown> | undefined)?.medium === "string" && ((cfg.complexityPrompts as Record<string, unknown>)?.medium as string).trim()
-        ? (cfg.complexityPrompts as Record<string, unknown>).medium as string
-        : DEFAULT_MEDIUM_COMPLEXITY_PROMPT,
-      high: typeof (cfg.complexityPrompts as Record<string, unknown> | undefined)?.high === "string" && ((cfg.complexityPrompts as Record<string, unknown>)?.high as string).trim()
-        ? (cfg.complexityPrompts as Record<string, unknown>).high as string
-        : DEFAULT_HIGH_COMPLEXITY_PROMPT,
+  }
+  return result;
+};
+
+const IntentionHintConfigSchema = z.object({
+  agents: preprocess(
+    (v) => (asStringArray(v).length ? asStringArray(v) : ["main"]),
+    z.array(z.string()),
+  ),
+  intentDeny: preprocess(
+    (v) => asStringArrayMap(v),
+    z.record(z.string(), z.array(z.string())),
+  ),
+  model: preprocess(
+    (v) => (typeof v === "string" ? v : undefined),
+    z.string().optional(),
+  ),
+  modelFallback: preprocess(
+    (v) => (typeof v === "string" ? v : undefined),
+    z.string().optional(),
+  ),
+  allowedChatTypes: preprocess(
+    (v) => (asStringArray(v).length ? asStringArray(v) : ["direct"]),
+    z.array(z.string()),
+  ),
+  allowedChatIds: preprocess((v) => asStringArray(v), z.array(z.string())),
+  deniedChatIds: preprocess((v) => asStringArray(v), z.array(z.string())),
+  queryMode: preprocess(
+    (v) => {
+      const mode = (v ?? DEFAULT_QUERY_MODE) as string;
+      return ["message", "recent", "full"].includes(mode)
+        ? mode
+        : DEFAULT_QUERY_MODE;
     },
-  };
+    z.enum(["message", "recent", "full"]),
+  ),
+  recentUserTurns: preprocess(
+    (v) => clampInt(v as number | undefined, DEFAULT_RECENT_USER_TURNS, 0, 20),
+    z.number().int(),
+  ),
+  recentAssistantTurns: preprocess(
+    (v) =>
+      clampInt(v as number | undefined, DEFAULT_RECENT_ASSISTANT_TURNS, 0, 10),
+    z.number().int(),
+  ),
+  recentUserChars: preprocess(
+    (v) =>
+      clampInt(v as number | undefined, DEFAULT_RECENT_USER_CHARS, 40, 1000),
+    z.number().int(),
+  ),
+  recentAssistantChars: preprocess(
+    (v) =>
+      clampInt(
+        v as number | undefined,
+        DEFAULT_RECENT_ASSISTANT_CHARS,
+        40,
+        1000,
+      ),
+    z.number().int(),
+  ),
+  timeoutMs: preprocess(
+    (v) => clampInt(v as number | undefined, DEFAULT_TIMEOUT_MS, 250, 120_000),
+    z.number().int(),
+  ),
+  intentsDir: preprocess(
+    (v) => (typeof v === "string" ? v : "./intents"),
+    z.string(),
+  ),
+  complexityPrompts: preprocess(
+    (v) => {
+      const cfg = v as Record<string, unknown> | undefined;
+      return {
+        low:
+          typeof cfg?.low === "string" && cfg.low.trim()
+            ? cfg.low
+            : DEFAULT_LOW_COMPLEXITY_PROMPT,
+        medium:
+          typeof cfg?.medium === "string" && cfg.medium.trim()
+            ? cfg.medium
+            : DEFAULT_MEDIUM_COMPLEXITY_PROMPT,
+        high:
+          typeof cfg?.high === "string" && cfg.high.trim()
+            ? cfg.high
+            : DEFAULT_HIGH_COMPLEXITY_PROMPT,
+      };
+    },
+    z.object({
+      low: z.string(),
+      medium: z.string(),
+      high: z.string(),
+    }),
+  ),
+});
+
+export function resolveConfig(raw: unknown): ResolvedIntentionHintPluginConfig {
+  return IntentionHintConfigSchema.parse(
+    raw ?? {},
+  ) as ResolvedIntentionHintPluginConfig;
 }
