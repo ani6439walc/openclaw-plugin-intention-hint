@@ -158,9 +158,8 @@ export class IntentCatalog {
   }
 }
 
-const pluginRoot = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "..",
-);
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
+// Compiled code lives in dist/src/, so go up 2 levels to reach plugin root.
+const pluginRoot = path.resolve(currentDir, "..", "..");
 
 export const defaultCatalog = IntentCatalog.create(pluginRoot);
