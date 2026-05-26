@@ -10,7 +10,11 @@ import type {
 import { logger } from "../api.js";
 import { defaultCatalog } from "./intent-loader.js";
 import { defaultTracker } from "./session-tracker.js";
-import { applyQueryFilters, extractRecentTurns } from "./query.js";
+import {
+  applyQueryFilters,
+  extractRecentTurns,
+  extractToolText,
+} from "./query.js";
 import {
   isAllowedChatId,
   isAllowedChatType,
@@ -172,7 +176,7 @@ export function createHookHandlers(deps: HookDeps) {
 
     const output = event.result ?? event.error ?? "";
     const outputStr =
-      typeof output === "string" ? output : JSON.stringify(output);
+      typeof output === "string" ? output : extractToolText(output);
     const truncatedOutput = outputStr.slice(0, 200);
 
     defaultTracker.record({
@@ -198,18 +202,20 @@ export function createHookHandlers(deps: HookDeps) {
     if (!sessionId) return;
     if (!defaultTracker.hasIntentData(sessionId)) return;
 
-    const messages = event.messages as Array<{
-      role?: string;
-      content?: string;
-    }>;
-    const lastAssistant = messages
+    const turns = extractRecentTurns(
+      event.messages as Array<{
+        role?: string;
+        content?: string;
+      }>,
+    );
+    const lastAssistantTurn = turns
       .slice()
       .reverse()
-      .find((m) => m.role === "assistant");
+      .find((t) => t.role === "assistant");
 
     defaultTracker.record({
       sessionId,
-      finalResponse: lastAssistant?.content,
+      finalResponse: lastAssistantTurn?.text?.slice(0, 500),
       success: event.success,
       error: event.error,
       timestamps: { end: new Date().toISOString() },

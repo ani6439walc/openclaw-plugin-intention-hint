@@ -662,6 +662,28 @@ describe("extractRecentTurns", () => {
       { role: "assistant", text: "Searching for you..." },
     ]);
   });
+
+  it("excludes assistant HEARTBEAT_OK messages", () => {
+    const result = extractRecentTurns([
+      { role: "user", content: "hello" },
+      { role: "assistant", content: "HEARTBEAT_OK" },
+      { role: "assistant", content: "real reply here" },
+    ]);
+
+    expect(result).toEqual([
+      { role: "user", text: "hello" },
+      { role: "assistant", text: "real reply here" },
+    ]);
+  });
+
+  it("excludes user heartbeat poll messages", () => {
+    const result = extractRecentTurns([
+      { role: "user", content: "[OpenClaw heartbeat poll]" },
+      { role: "user", content: "actual question" },
+    ]);
+
+    expect(result).toEqual([{ role: "user", text: "actual question" }]);
+  });
 });
 
 /* ── Parse Intention Result ─────────── */

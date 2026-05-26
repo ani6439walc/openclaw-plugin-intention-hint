@@ -70,6 +70,13 @@ export class SessionTracker {
       processedData.toolCalls = [...existingToolCalls, ...data.toolCalls];
     }
 
+    if (data.timestamps) {
+      processedData.timestamps = {
+        ...this.sessionData.timestamps,
+        ...data.timestamps,
+      };
+    }
+
     this.sessionData = { ...this.sessionData, ...processedData };
   }
 

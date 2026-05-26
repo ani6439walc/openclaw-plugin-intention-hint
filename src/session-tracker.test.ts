@@ -272,6 +272,32 @@ describe("SessionTracker", () => {
       expect(parsed.toolCalls).toBeDefined();
       expect(parsed.toolCalls.length).toBeGreaterThan(0);
     });
+
+    it("should merge timestamps across multiple record calls", () => {
+      const tracker2 = SessionTracker.create(tempDir);
+      tracker2.record({
+        sessionId: "timestamp-merge",
+        timestamps: { start: "2026-05-26T10:00:00.000Z" },
+      });
+      tracker2.record({
+        sessionId: "timestamp-merge",
+        timestamps: { end: "2026-05-26T10:05:00.000Z" },
+      });
+      tracker2.write();
+
+      const sessionsDir = path.join(tempDir, "sessions");
+      const files = fs.readdirSync(sessionsDir);
+      const content = fs.readFileSync(
+        path.join(sessionsDir, files[0]),
+        "utf-8",
+      );
+      const parsed = JSON.parse(content);
+
+      expect(parsed.timestamps).toEqual({
+        start: "2026-05-26T10:00:00.000Z",
+        end: "2026-05-26T10:05:00.000Z",
+      });
+    });
   });
 
   describe("edge cases", () => {

@@ -6,6 +6,23 @@ import type {
 } from "./types.js";
 
 /**
+ * Extract readable text from tool call results.
+ * Handles JSON-encoded content blocks (e.g. {"content":[{"type":"text","text":"..."}]}
+ * and knowledge base answers (e.g. {"answerText":"..."}).
+ */
+export function extractToolText(raw: unknown): string {
+  const str = typeof raw === "string" ? raw : JSON.stringify(raw);
+  try {
+    const parsed = JSON.parse(str);
+    if (parsed?.content?.[0]?.text) return parsed.content[0].text as string;
+    if (parsed?.answerText) return parsed.answerText as string;
+  } catch {
+    // not JSON
+  }
+  return str;
+}
+
+/**
  * Apply filtering and capping to conversation turns based on query mode settings.
  * Restores the logic that was previously inside buildQuery().
  */
@@ -114,6 +131,14 @@ function stripMetadataBlocks(text: string): string {
     .trim();
 }
 
+function isHeartbeatMessage(role: string, text: string): boolean {
+  const trimmed = text.trim();
+  if (role === "assistant" && trimmed === "HEARTBEAT_OK") return true;
+  if (role === "user" && trimmed.toLowerCase().includes("heartbeat poll"))
+    return true;
+  return false;
+}
+
 export function extractRecentTurns(
   messages: unknown[] | undefined,
 ): RecentTurn[] {
@@ -131,6 +156,7 @@ export function extractRecentTurns(
 
     const text = stripMetadataBlocks(extractTextContent(typed.content));
     if (!text) continue;
+    if (isHeartbeatMessage(role, text)) continue;
     turns.push({ role, text });
   }
   return turns;
