@@ -144,6 +144,7 @@ export function createHookHandlers(deps: HookDeps) {
           prompt: latestUserMessage,
           intentInput: conversation,
           intentResult: result,
+          timestamps: { start: new Date().toISOString() },
         });
         defaultTracker.write();
       }
@@ -170,7 +171,9 @@ export function createHookHandlers(deps: HookDeps) {
     if (!defaultTracker.hasIntentData(sessionId)) return;
 
     const output = event.result ?? event.error ?? "";
-    const truncatedOutput = String(output).slice(0, 200) + " (truncated...)";
+    const outputStr =
+      typeof output === "string" ? output : JSON.stringify(output);
+    const truncatedOutput = outputStr.slice(0, 200);
 
     defaultTracker.record({
       sessionId,

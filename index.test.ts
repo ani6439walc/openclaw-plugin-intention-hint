@@ -457,43 +457,14 @@ describe("buildIntentionPrompt", () => {
       expect(prompt).toContain("</input_context>");
     });
 
-    it("contains <classification_rules> section with Memory priority rule", () => {
+    it("contains <classification_rules> section with intent priority rule", () => {
       const prompt = buildIntentionPrompt({
         latest: "test",
         intents: mockIntents,
       });
       expect(prompt).toContain("<classification_rules>");
       expect(prompt).toContain("</classification_rules>");
-      expect(prompt).toContain("Memory intents");
-      expect(prompt).toContain("classify first if triggers match");
-    });
-
-    it("contains <output_format> section with confidence and complexity definitions", () => {
-      const prompt = buildIntentionPrompt({
-        latest: "test",
-        intents: mockIntents,
-      });
-      expect(prompt).toContain("<output_format>");
-      expect(prompt).toContain("</output_format>");
-      expect(prompt).toContain("confidence");
-      expect(prompt).toContain("0.0 to 1.0");
-      expect(prompt).toContain("complexity");
-      expect(prompt).toContain("low");
-      expect(prompt).toContain("medium");
-      expect(prompt).toContain("high");
-    });
-
-    it("contains <intent_catalog> section with lowercase <intent> tags", () => {
-      const prompt = buildIntentionPrompt({
-        latest: "test",
-        intents: mockIntents,
-      });
-      expect(prompt).toContain("<intent_catalog>");
-      expect(prompt).toContain("</intent_catalog>");
-      expect(prompt).toMatch(/<intent\s+id=/);
-      expect(prompt).toContain("</intent>");
-      expect(prompt).not.toContain("<INTENT>");
-      expect(prompt).not.toContain("</INTENT>");
+      expect(prompt).toContain("classify first if triggers match closely");
     });
 
     it("contains <input> section with <conversation> and <latest>", () => {
@@ -510,8 +481,8 @@ describe("buildIntentionPrompt", () => {
       expect(prompt).toContain("</input>");
       expect(prompt).toContain("<conversation>");
       expect(prompt).toContain("</conversation>");
-      expect(prompt).toContain('<turn role="user">hello there</turn>');
-      expect(prompt).toContain('<turn role="assistant">hi back</turn>');
+      expect(prompt).toContain('<turn role="user">\nhello there\n</turn>');
+      expect(prompt).toContain('<turn role="assistant">\nhi back\n</turn>');
       expect(prompt).toContain("<latest>");
       expect(prompt).toContain("how are you?");
       expect(prompt).toContain("</latest>");

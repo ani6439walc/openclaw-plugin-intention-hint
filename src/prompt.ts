@@ -40,11 +40,16 @@ export function buildIntentionPrompt(params: {
   const conversationXml =
     params.conversation && params.conversation.length > 0
       ? params.conversation
-          .map((turn) => `<turn role="${turn.role}">${turn.text}</turn>`)
+          .map((turn) => `<turn role="${turn.role}">\n${turn.text}\n</turn>`)
           .join("\n")
       : "";
 
-  return `<input_context>
+  return `You are an intent classification agent.
+Another model is preparing the final user-facing answer with hints and subagent routing.
+Your job is to analyze conversation context and the user's latest message, then classify which intent best matches.
+You receive conversation history, the latest user message, and available intent definitions with triggers and examples.
+
+<input_context>
 Three input types are provided:
 1. conversation: Recent conversation turns between user and assistant
 2. latest: The latest user message to classify
@@ -56,7 +61,7 @@ Three input types are provided:
 2. Classify based on overall conversational goal
 3. Prefer intent that explains WHY user said this
 4. DO NOT FORCE classification - default to OTHER (Fallback) if uncertain
-5. Memory intents: classify first if triggers match
+5. Prioritize "MEMORY_*" intents - classify first if triggers match closely
 </classification_rules>
 
 <output_format>

@@ -122,7 +122,7 @@ describe("SessionTracker", () => {
 
       const files = fs.readdirSync(sessionsDir);
       expect(files.length).toBeGreaterThan(0);
-      expect(files[0]).toMatch(/test-session-123.*\.json$/);
+      expect(files[0]).toBe("test-session-123.json");
 
       const filePath = path.join(sessionsDir, files[0]);
       const content = fs.readFileSync(filePath, "utf-8");
@@ -195,6 +195,37 @@ describe("SessionTracker", () => {
 
     it("should handle write without prior record calls", () => {
       expect(() => tracker.write()).not.toThrow();
+    });
+
+    it("should overwrite file for same sessionId (not create new files)", () => {
+      const tracker2 = SessionTracker.create(tempDir);
+
+      tracker2.record({
+        sessionId: "overwrite-test",
+        prompt: "first prompt",
+      });
+      tracker2.write();
+
+      tracker2.record({
+        sessionId: "overwrite-test",
+        prompt: "second prompt",
+      });
+      tracker2.write();
+
+      const sessionsDir = path.join(tempDir, "sessions");
+      const files = fs
+        .readdirSync(sessionsDir)
+        .filter((f) => f.startsWith("overwrite-test"));
+
+      expect(files.length).toBe(1);
+      expect(files[0]).toBe("overwrite-test.json");
+
+      const content = fs.readFileSync(
+        path.join(sessionsDir, files[0]),
+        "utf-8",
+      );
+      const parsed = JSON.parse(content);
+      expect(parsed.prompt).toBe("second prompt");
     });
 
     it("should create sessions directory if it does not exist", () => {

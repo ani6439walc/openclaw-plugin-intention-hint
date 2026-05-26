@@ -89,9 +89,9 @@ describe("buildIntentionPrompt", () => {
       conversation,
     });
 
-    expect(result).toContain('<turn role="user">Hello there</turn>');
+    expect(result).toContain('<turn role="user">\nHello there\n</turn>');
     expect(result).toContain(
-      '<turn role="assistant">Hi! How can I help?</turn>',
+      '<turn role="assistant">\nHi! How can I help?\n</turn>',
     );
   });
 

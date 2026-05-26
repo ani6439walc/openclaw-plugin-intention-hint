@@ -83,8 +83,7 @@ export class SessionTracker {
       fs.mkdirSync(sessionsDir, { recursive: true });
     }
 
-    const timestamp = Date.now();
-    const filename = `${this.sessionData.sessionId}-${timestamp}.json`;
+    const filename = `${this.sessionData.sessionId}.json`;
     const filePath = path.join(sessionsDir, filename);
 
     fs.writeFileSync(filePath, JSON.stringify(this.sessionData, null, 2));
