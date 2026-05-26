@@ -560,6 +560,108 @@ describe("extractRecentTurns", () => {
 
     expect(result).toEqual([{ role: "assistant", text: "actual answer" }]);
   });
+
+  it("excludes thinking and redacted_thinking blocks from assistant content", () => {
+    const result = extractRecentTurns([
+      { role: "user", content: "what is 2+2?" },
+      {
+        role: "assistant",
+        content: [
+          { type: "thinking", thinking: "Let me calculate this..." },
+          { type: "text", content: "It's 4." },
+        ],
+      },
+    ]);
+
+    expect(result).toEqual([
+      { role: "user", text: "what is 2+2?" },
+      { role: "assistant", text: "It's 4." },
+    ]);
+  });
+
+  it("excludes redacted_thinking blocks from assistant content", () => {
+    const result = extractRecentTurns([
+      {
+        role: "assistant",
+        content: [
+          { type: "redacted_thinking", thinking: "[redacted]" },
+          { type: "text", content: "Here is my answer." },
+        ],
+      },
+    ]);
+
+    expect(result).toEqual([{ role: "assistant", text: "Here is my answer." }]);
+  });
+
+  it("returns only text when thinking is the only content block", () => {
+    const result = extractRecentTurns([
+      {
+        role: "assistant",
+        content: [{ type: "thinking", thinking: "secret reasoning" }],
+      },
+    ]);
+
+    expect(result).toEqual([]);
+  });
+
+  it("strips <think></think> tags from inline text content", () => {
+    const result = extractRecentTurns([
+      {
+        role: "assistant",
+        content: "<think>let me think</think>The answer is 4.",
+      },
+    ]);
+
+    expect(result).toEqual([{ role: "assistant", text: "The answer is 4." }]);
+  });
+
+  it("strips <think></think> from text type content blocks", () => {
+    const result = extractRecentTurns([
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "text",
+            content: "<think>reasoning</think>Here is the answer.",
+          },
+        ],
+      },
+    ]);
+
+    expect(result).toEqual([
+      { role: "assistant", text: "Here is the answer." },
+    ]);
+  });
+
+  it("handles multiple <think> blocks in a single message", () => {
+    const result = extractRecentTurns([
+      {
+        role: "assistant",
+        content:
+          "<think>first thought</think>part1 <think>second thought</think>part2",
+      },
+    ]);
+
+    expect(result).toEqual([{ role: "assistant", text: "part1 part2" }]);
+  });
+
+  it("excludes tool_use and tool_result blocks from assistant content", () => {
+    const result = extractRecentTurns([
+      { role: "user", content: "search for me" },
+      {
+        role: "assistant",
+        content: [
+          { type: "tool_use", id: "t1", name: "web_search", input: {} },
+          { type: "text", content: "Searching for you..." },
+        ],
+      },
+    ]);
+
+    expect(result).toEqual([
+      { role: "user", text: "search for me" },
+      { role: "assistant", text: "Searching for you..." },
+    ]);
+  });
 });
 
 /* ── Parse Intention Result ─────────── */

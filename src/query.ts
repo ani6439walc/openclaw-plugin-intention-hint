@@ -69,25 +69,31 @@ export function applyQueryFilters(
   return picked;
 }
 
+function stripThinkingTags(text: string): string {
+  return text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+}
+
 function extractTextContent(
   content: string | Array<string | MessageContentPart> | undefined,
 ): string {
-  if (typeof content === "string") return content;
+  if (typeof content === "string") return stripThinkingTags(content);
   if (!Array.isArray(content)) return "";
 
   const parts: string[] = [];
   for (const item of content) {
     if (typeof item === "string") {
-      parts.push(item);
+      parts.push(stripThinkingTags(item));
       continue;
     }
     if (!item || typeof item !== "object") continue;
+    if (item.type === "thinking" || item.type === "redacted_thinking") continue;
+    if (item.type === "tool_use" || item.type === "tool_result") continue;
     if (typeof item.text === "string") {
-      parts.push(item.text);
+      parts.push(stripThinkingTags(item.text));
       continue;
     }
     if (item.type === "text" && typeof item.content === "string") {
-      parts.push(item.content);
+      parts.push(stripThinkingTags(item.content));
     }
   }
   return parts.join(" ").trim();
