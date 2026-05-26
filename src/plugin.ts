@@ -12,7 +12,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
 export function createPlugin(api: OpenClawPluginApi) {
-  let config = resolveConfig(api.pluginConfig);
+  let config = resolveConfig(api.pluginConfig as Record<string, unknown>);
 
   const refreshLiveConfigFromRuntime = () => {
     const livePluginConfig = resolveLivePluginConfigObject(

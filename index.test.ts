@@ -8,7 +8,10 @@ import {
   parseIntentionResult,
 } from "./src/prompt.js";
 import { buildIntentionEmbeddedRunParams } from "./src/subagent.js";
-import { applyQueryFilters, extractRecentTurns } from "./src/query.js";
+import {
+  limitConversationTurns,
+  extractRecentTurns,
+} from "./src/conversation-extract.js";
 import {
   isEnabledForAgent,
   isEligibleInteractiveSession,
@@ -325,19 +328,18 @@ describe("applyQueryFilters", () => {
   ];
 
   it("returns empty in message mode (caller provides latest)", () => {
-    expect(applyQueryFilters(turns, { queryMode: "message" })).toEqual([]);
+    expect(limitConversationTurns(turns, "message")).toEqual([]);
   });
 
   it("returns all turns in full mode", () => {
-    const result = applyQueryFilters(turns, { queryMode: "full" });
+    const result = limitConversationTurns(turns, "full");
     expect(result).toEqual(turns);
   });
 
   it("applies turn limits in recent mode", () => {
-    const result = applyQueryFilters(turns, {
-      queryMode: "recent",
-      recentUserTurns: 1,
-      recentAssistantTurns: 1,
+    const result = limitConversationTurns(turns, "recent", {
+      user: { turns: 1, chars: 220 },
+      assistant: { turns: 1, chars: 180 },
     });
     // Picks last user turn first, then last assistant turn (unshift order)
     expect(result.length).toBe(2);
@@ -350,9 +352,9 @@ describe("applyQueryFilters", () => {
       role: "user" as const,
       text: "This is a very long message that should be truncated because it exceeds the limit",
     };
-    const result = applyQueryFilters([longTurn], {
-      queryMode: "recent",
-      recentUserChars: 20,
+    const result = limitConversationTurns([longTurn], "recent", {
+      user: { turns: 5, chars: 20 },
+      assistant: { turns: 5, chars: 180 },
     });
     expect(result.length).toBe(1);
     expect(result[0].text.length).toBeLessThanOrEqual(35);
@@ -360,7 +362,7 @@ describe("applyQueryFilters", () => {
   });
 
   it("handles empty turns gracefully", () => {
-    expect(applyQueryFilters([], { queryMode: "recent" })).toEqual([]);
+    expect(limitConversationTurns([], "recent")).toEqual([]);
   });
 });
 

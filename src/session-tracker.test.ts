@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { SessionTracker, SessionData } from "./session-tracker.js";
+import { SessionTracker } from "./session-tracker.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
@@ -40,66 +40,57 @@ describe("SessionTracker", () => {
 
   describe("record", () => {
     it("should update session data with record()", () => {
-      const sessionData: Partial<SessionData> = {
-        sessionId: "test-session-123",
-        agentId: "test-agent",
-        prompt: "test prompt",
-      };
-
-      expect(() => tracker.record(sessionData)).not.toThrow();
+      expect(() =>
+        tracker.record({
+          sessionId: "test-session-123",
+          agentId: "test-agent",
+          current: { input: "test prompt", intent: {} },
+        }),
+      ).not.toThrow();
     });
 
     it("should skip recording when sessionId is empty", () => {
-      const sessionData: Partial<SessionData> = {
-        sessionId: "",
-        agentId: "test-agent",
-        prompt: "test prompt",
-      };
-
-      expect(() => tracker.record(sessionData)).not.toThrow();
+      expect(() =>
+        tracker.record({
+          sessionId: "",
+          current: { input: "test prompt", intent: {} },
+        }),
+      ).not.toThrow();
     });
 
     it("should skip recording when sessionId is undefined", () => {
-      const sessionData: Partial<SessionData> = {
-        agentId: "test-agent",
-        prompt: "test prompt",
-      };
-
-      expect(() => tracker.record(sessionData)).not.toThrow();
+      expect(() =>
+        tracker.record({
+          current: { input: "test prompt", intent: {} },
+        } as any),
+      ).not.toThrow();
     });
 
     it("should append toolCalls to array (not overwrite)", () => {
-      const sessionData1: Partial<SessionData> = {
+      tracker.record({
         sessionId: "test-session-123",
-        toolCalls: [
-          {
-            toolName: "tool1",
-            params: { key: "value1" },
-            durationMs: 100,
-          },
-        ],
-      };
-
-      const sessionData2: Partial<SessionData> = {
+        current: {
+          intent: {},
+          toolCalls: [
+            { name: "tool1", params: { key: "value1" }, durationMs: 100 },
+          ],
+        },
+      });
+      tracker.record({
         sessionId: "test-session-123",
-        toolCalls: [
-          {
-            toolName: "tool2",
-            params: { key: "value2" },
-            durationMs: 200,
-          },
-        ],
-      };
-
-      tracker.record(sessionData1);
-      tracker.record(sessionData2);
+        current: {
+          intent: {},
+          toolCalls: [
+            { name: "tool2", params: { key: "value2" }, durationMs: 200 },
+          ],
+        },
+      });
       expect(() => tracker.write()).not.toThrow();
     });
 
     it("should handle multiple record calls", () => {
       tracker.record({ sessionId: "test-session-123", agentId: "agent1" });
       tracker.record({ sessionId: "test-session-123", agentId: "agent2" });
-      tracker.record({ sessionId: "test-session-123", success: true });
 
       expect(() => tracker.write()).not.toThrow();
     });
@@ -107,14 +98,11 @@ describe("SessionTracker", () => {
 
   describe("write", () => {
     it("should create JSON file with correct structure", () => {
-      const sessionData: Partial<SessionData> = {
+      tracker.record({
         sessionId: "test-session-123",
         agentId: "test-agent",
-        prompt: "test prompt",
-        success: true,
-      };
-
-      tracker.record(sessionData);
+        current: { input: "test prompt", intent: {} },
+      });
       tracker.write();
 
       const sessionsDir = path.join(tempDir, "sessions");
@@ -130,42 +118,42 @@ describe("SessionTracker", () => {
 
       expect(parsed.sessionId).toBe("test-session-123");
       expect(parsed.agentId).toBe("test-agent");
-      expect(parsed.prompt).toBe("test prompt");
-      expect(parsed.success).toBe(true);
+      expect(parsed.current.input).toBe("test prompt");
     });
 
     it("should persist data to JSON file", () => {
-      const sessionData: Partial<SessionData> = {
+      const startDate = new Date().toISOString();
+      tracker.record({
         sessionId: "persist-test-456",
         sessionKey: "test-key",
         agentId: "persist-agent",
-        prompt: "persist prompt",
-        intentInput: [{ role: "user", text: "hello" }],
-        intentResult: {
-          reason: "test reasoning",
-          intent: "test-intent",
-          goal: "test goal",
-          confidence: 0.9,
-          complexity: "low",
-        },
-        toolCalls: [
-          {
-            toolName: "testTool",
-            params: { arg: "value" },
-            result: { success: true },
-            durationMs: 150,
+        current: {
+          input: "persist prompt",
+          intent: {
+            input: [{ role: "user", text: "hello" }],
+            result: {
+              reason: "test reasoning",
+              intent: "test-intent",
+              goal: "test goal",
+              confidence: 0.9,
+              complexity: "low",
+            },
           },
-        ],
-        finalResponse: "test response",
-        success: true,
-        error: undefined,
-        timestamps: {
-          start: new Date().toISOString(),
-          end: new Date().toISOString(),
+          toolCalls: [
+            {
+              name: "testTool",
+              params: { arg: "value" },
+              result: "success",
+              durationMs: 150,
+            },
+          ],
+          result: "test response",
+          timestamps: {
+            start: startDate,
+            end: new Date().toISOString(),
+          },
         },
-      };
-
-      tracker.record(sessionData);
+      });
       tracker.write();
 
       const sessionsDir = path.join(tempDir, "sessions");
@@ -177,46 +165,43 @@ describe("SessionTracker", () => {
       expect(parsed.sessionId).toBe("persist-test-456");
       expect(parsed.sessionKey).toBe("test-key");
       expect(parsed.agentId).toBe("persist-agent");
-      expect(parsed.prompt).toBe("persist prompt");
-      expect(parsed.intentInput).toEqual([{ role: "user", text: "hello" }]);
-      expect(parsed.intentResult).toEqual({
+      expect(parsed.current.input).toBe("persist prompt");
+      expect(parsed.current.intent.input).toEqual([
+        { role: "user", text: "hello" },
+      ]);
+      expect(parsed.current.intent.result).toEqual({
         reason: "test reasoning",
         intent: "test-intent",
         goal: "test goal",
         confidence: 0.9,
         complexity: "low",
       });
-      expect(parsed.toolCalls).toHaveLength(1);
-      expect(parsed.toolCalls[0].toolName).toBe("testTool");
-      expect(parsed.finalResponse).toBe("test response");
-      expect(parsed.success).toBe(true);
-      expect(parsed.timestamps).toBeDefined();
+      expect(parsed.current.toolCalls).toHaveLength(1);
+      expect(parsed.current.toolCalls[0].name).toBe("testTool");
+      expect(parsed.current.result).toBe("test response");
+      expect(parsed.current.timestamps.start).toBe(startDate);
     });
 
     it("should handle write without prior record calls", () => {
+      tracker.record({ sessionId: "no-record" });
       expect(() => tracker.write()).not.toThrow();
     });
 
     it("should overwrite file for same sessionId (not create new files)", () => {
-      const tracker2 = SessionTracker.create(tempDir);
-
-      tracker2.record({
+      tracker.record({
         sessionId: "overwrite-test",
-        prompt: "first prompt",
+        current: { input: "first prompt", intent: {} },
       });
-      tracker2.write();
+      tracker.write();
 
-      tracker2.record({
+      tracker.record({
         sessionId: "overwrite-test",
-        prompt: "second prompt",
+        current: { input: "second prompt", intent: {} },
       });
-      tracker2.write();
+      tracker.write();
 
       const sessionsDir = path.join(tempDir, "sessions");
-      const files = fs
-        .readdirSync(sessionsDir)
-        .filter((f) => f.startsWith("overwrite-test"));
-
+      const files = fs.readdirSync(sessionsDir);
       expect(files.length).toBe(1);
       expect(files[0]).toBe("overwrite-test.json");
 
@@ -225,14 +210,15 @@ describe("SessionTracker", () => {
         "utf-8",
       );
       const parsed = JSON.parse(content);
-      expect(parsed.prompt).toBe("second prompt");
+      expect(parsed.current.input).toBe("second prompt");
     });
 
     it("should create sessions directory if it does not exist", () => {
+      tracker.record({ sessionId: "test-789" });
+
       const sessionsDir = path.join(tempDir, "sessions");
       expect(fs.existsSync(sessionsDir)).toBe(false);
 
-      tracker.record({ sessionId: "test-789" });
       tracker.write();
 
       expect(fs.existsSync(sessionsDir)).toBe(true);
@@ -240,63 +226,83 @@ describe("SessionTracker", () => {
 
     it("should handle toolCalls array persistence", () => {
       tracker.record({
-        sessionId: "tool-test",
-        toolCalls: [
-          {
-            toolName: "tool1",
-            params: { a: 1 },
-            durationMs: 100,
-          },
-        ],
+        sessionId: "tool-persist-test",
+        current: {
+          intent: {},
+          toolCalls: [
+            {
+              name: "tool1",
+              params: { key: "value1" },
+              durationMs: 100,
+            },
+          ],
+        },
       });
-
-      tracker.record({
-        sessionId: "tool-test",
-        toolCalls: [
-          {
-            toolName: "tool2",
-            params: { b: 2 },
-            durationMs: 200,
-          },
-        ],
-      });
-
       tracker.write();
 
-      const sessionsDir = path.join(tempDir, "sessions");
-      const files = fs.readdirSync(sessionsDir);
-      const filePath = path.join(sessionsDir, files[0]);
-      const content = fs.readFileSync(filePath, "utf-8");
-      const parsed = JSON.parse(content);
+      let content = fs.readFileSync(
+        path.join(tempDir, "sessions", "tool-persist-test.json"),
+        "utf-8",
+      );
+      let parsed = JSON.parse(content);
+      expect(parsed.current.toolCalls).toEqual([
+        { name: "tool1", params: { key: "value1" }, durationMs: 100 },
+      ]);
 
-      expect(parsed.toolCalls).toBeDefined();
-      expect(parsed.toolCalls.length).toBeGreaterThan(0);
+      tracker.record({
+        sessionId: "tool-persist-test",
+        current: {
+          intent: {},
+          toolCalls: [
+            {
+              name: "tool2",
+              params: { key: "value2" },
+              durationMs: 200,
+            },
+          ],
+        },
+      });
+      tracker.write();
+
+      content = fs.readFileSync(
+        path.join(tempDir, "sessions", "tool-persist-test.json"),
+        "utf-8",
+      );
+      parsed = JSON.parse(content);
+      expect(parsed.current.toolCalls).toEqual([
+        { name: "tool1", params: { key: "value1" }, durationMs: 100 },
+        { name: "tool2", params: { key: "value2" }, durationMs: 200 },
+      ]);
     });
 
     it("should merge timestamps across multiple record calls", () => {
-      const tracker2 = SessionTracker.create(tempDir);
-      tracker2.record({
-        sessionId: "timestamp-merge",
-        timestamps: { start: "2026-05-26T10:00:00.000Z" },
+      const start = new Date().toISOString();
+      tracker.record({
+        sessionId: "timestamp-test",
+        current: {
+          intent: {},
+          timestamps: { start },
+        },
       });
-      tracker2.record({
-        sessionId: "timestamp-merge",
-        timestamps: { end: "2026-05-26T10:05:00.000Z" },
-      });
-      tracker2.write();
 
-      const sessionsDir = path.join(tempDir, "sessions");
-      const files = fs.readdirSync(sessionsDir);
+      const end = new Date().toISOString();
+      tracker.record({
+        sessionId: "timestamp-test",
+        current: {
+          intent: {},
+          timestamps: { end },
+        },
+      });
+      tracker.write();
+
       const content = fs.readFileSync(
-        path.join(sessionsDir, files[0]),
+        path.join(tempDir, "sessions", "timestamp-test.json"),
         "utf-8",
       );
       const parsed = JSON.parse(content);
 
-      expect(parsed.timestamps).toEqual({
-        start: "2026-05-26T10:00:00.000Z",
-        end: "2026-05-26T10:05:00.000Z",
-      });
+      expect(parsed.current.timestamps.start).toBe(start);
+      expect(parsed.current.timestamps.end).toBe(end);
     });
   });
 
@@ -305,20 +311,23 @@ describe("SessionTracker", () => {
       const tracker2 = SessionTracker.create(tempDir);
       tracker2.record({
         sessionId: "skill-dedup",
-        toolCalls: [
-          {
-            toolName: "read",
-            params: { path: "/path/to/gemini/SKILL.md" },
-            result: "---\nname: gemini\n---\ncontent",
-            durationMs: 100,
-          },
-          {
-            toolName: "read",
-            params: { path: "/path/to/gemini/SKILL.md" },
-            result: "---\nname: gemini\n---\ncontent",
-            durationMs: 100,
-          },
-        ],
+        current: {
+          intent: {},
+          toolCalls: [
+            {
+              name: "read",
+              params: { path: "/path/to/gemini/SKILL.md" },
+              result: "---\nname: gemini\n---\ncontent",
+              durationMs: 100,
+            },
+            {
+              name: "read",
+              params: { path: "/path/to/gemini/SKILL.md" },
+              result: "---\nname: gemini\n---\ncontent",
+              durationMs: 100,
+            },
+          ],
+        },
       });
       tracker2.write();
 
@@ -330,30 +339,33 @@ describe("SessionTracker", () => {
       );
       const parsed = JSON.parse(content);
 
-      expect(parsed.skillsUsed).toEqual([
+      expect(parsed.current.skillsUsed).toEqual([
         { name: "gemini", path: "/path/to/gemini/SKILL.md" },
       ]);
-      expect(parsed.skillsUsed.length).toBe(1);
+      expect(parsed.current.skillsUsed.length).toBe(1);
     });
 
     it("should track multiple unique skills", () => {
       const tracker3 = SessionTracker.create(tempDir);
       tracker3.record({
         sessionId: "multi-skills",
-        toolCalls: [
-          {
-            toolName: "read",
-            params: { path: "/path/to/gemini/SKILL.md" },
-            result: "---\nname: gemini\n---\nc",
-            durationMs: 100,
-          },
-          {
-            toolName: "read",
-            params: { path: "/path/to/frontend-ui-engineering/SKILL.md" },
-            result: "---\nname: frontend-ui-engineering\n---\nc",
-            durationMs: 200,
-          },
-        ],
+        current: {
+          intent: {},
+          toolCalls: [
+            {
+              name: "read",
+              params: { path: "/path/to/gemini/SKILL.md" },
+              result: "---\nname: gemini\n---\nc",
+              durationMs: 100,
+            },
+            {
+              name: "read",
+              params: { path: "/path/to/frontend-ui-engineering/SKILL.md" },
+              result: "---\nname: frontend-ui-engineering\n---\nc",
+              durationMs: 200,
+            },
+          ],
+        },
       });
       tracker3.write();
 
@@ -365,7 +377,7 @@ describe("SessionTracker", () => {
       );
       const parsed = JSON.parse(content);
 
-      expect(parsed.skillsUsed).toEqual([
+      expect(parsed.current.skillsUsed).toEqual([
         { name: "gemini", path: "/path/to/gemini/SKILL.md" },
         {
           name: "frontend-ui-engineering",
@@ -378,14 +390,17 @@ describe("SessionTracker", () => {
       const tracker4 = SessionTracker.create(tempDir);
       tracker4.record({
         sessionId: "no-skill-read",
-        toolCalls: [
-          {
-            toolName: "read",
-            params: { path: "/path/to/README.md" },
-            result: "---\nname: test\n---\nc",
-            durationMs: 100,
-          },
-        ],
+        current: {
+          intent: {},
+          toolCalls: [
+            {
+              name: "read",
+              params: { path: "/path/to/README.md" },
+              result: "---\nname: test\n---\nc",
+              durationMs: 100,
+            },
+          ],
+        },
       });
       tracker4.write();
 
@@ -397,40 +412,17 @@ describe("SessionTracker", () => {
       );
       const parsed = JSON.parse(content);
 
-      expect(parsed.skillsUsed).toBeUndefined();
+      expect(parsed.current.skillsUsed).toBeUndefined();
     });
 
-    it("should ignore non-read tool calls", () => {
-      const tracker5 = SessionTracker.create(tempDir);
-      tracker5.record({
-        sessionId: "no-skill-tool",
-        toolCalls: [
-          {
-            toolName: "exec",
-            params: { command: "echo test" },
-            result: "test",
-            durationMs: 100,
-          },
-        ],
-      });
-      tracker5.write();
-
-      const sessionsDir = path.join(tempDir, "sessions");
-      const files = fs.readdirSync(sessionsDir);
-      const content = fs.readFileSync(
-        path.join(sessionsDir, files[0]),
-        "utf-8",
-      );
-      const parsed = JSON.parse(content);
-
-      expect(parsed.skillsUsed).toBeUndefined();
-    });
-
-    it("should handle special characters in session data", () => {
+    it("should handle session data with special characters", () => {
       tracker.record({
         sessionId: "special-chars-test",
-        prompt: 'Hello "world" with \n newlines and \t tabs',
-        finalResponse: "Response with unicode: 你好世界 🌍",
+        current: {
+          input: 'Hello "world" with \n newlines and \t tabs',
+          intent: {},
+          result: "Response with unicode: 你好世界 🌍",
+        },
       });
       tracker.write();
 
@@ -442,14 +434,16 @@ describe("SessionTracker", () => {
       );
       const parsed = JSON.parse(content);
 
-      expect(parsed.prompt).toBe('Hello "world" with \n newlines and \t tabs');
-      expect(parsed.finalResponse).toBe("Response with unicode: 你好世界 🌍");
+      expect(parsed.current.input).toBe(
+        'Hello "world" with \n newlines and \t tabs',
+      );
+      expect(parsed.current.result).toBe("Response with unicode: 你好世界 🌍");
     });
 
     it("should handle empty toolCalls array", () => {
       tracker.record({
         sessionId: "empty-tools-test",
-        toolCalls: [],
+        current: { intent: {}, toolCalls: [] },
       });
       tracker.write();
 
@@ -461,14 +455,12 @@ describe("SessionTracker", () => {
       );
       const parsed = JSON.parse(content);
 
-      expect(parsed.toolCalls).toEqual([]);
+      expect(parsed.current.toolCalls).toEqual([]);
     });
 
     it("should handle undefined optional fields", () => {
       tracker.record({
         sessionId: "undefined-test",
-        agentId: undefined,
-        prompt: undefined,
       });
       tracker.write();
 
@@ -493,12 +485,16 @@ describe("SessionTracker", () => {
       const tracker2 = SessionTracker.create(tempDir);
       tracker2.record({
         sessionId: "intent-session",
-        intentResult: {
-          intent: "test",
-          reason: "test reason",
-          goal: "test goal",
-          confidence: 0.9,
-          complexity: "low",
+        current: {
+          intent: {
+            result: {
+              intent: "test",
+              reason: "test reason",
+              goal: "test goal",
+              confidence: 0.9,
+              complexity: "low",
+            },
+          },
         },
       });
       expect(tracker2.hasIntentData("intent-session")).toBe(true);
@@ -508,7 +504,7 @@ describe("SessionTracker", () => {
       const tracker3 = SessionTracker.create(tempDir);
       tracker3.record({
         sessionId: "no-intent-session",
-        prompt: "hello",
+        current: { input: "hello", intent: {} },
       });
       expect(tracker3.hasIntentData("no-intent-session")).toBe(false);
     });
@@ -517,41 +513,20 @@ describe("SessionTracker", () => {
       const tracker4 = SessionTracker.create(tempDir);
       tracker4.record({
         sessionId: "session-a",
-        intentResult: {
-          intent: "test",
-          reason: "test reason",
-          goal: "test goal",
-          confidence: 0.9,
-          complexity: "low",
+        current: {
+          intent: {
+            result: {
+              intent: "test",
+              reason: "test reason",
+              goal: "test goal",
+              confidence: 0.9,
+              complexity: "low",
+            },
+          },
         },
       });
       expect(tracker4.hasIntentData("session-a")).toBe(true);
       expect(tracker4.hasIntentData("session-b")).toBe(false);
-    });
-
-    it("should persist across multiple record calls for same session", () => {
-      const tracker5 = SessionTracker.create(tempDir);
-      tracker5.record({
-        sessionId: "multi-session",
-        intentResult: {
-          intent: "test",
-          reason: "test reason",
-          goal: "test goal",
-          confidence: 0.9,
-          complexity: "low",
-        },
-      });
-      tracker5.record({
-        sessionId: "multi-session",
-        toolCalls: [
-          {
-            toolName: "testTool",
-            params: { a: 1 },
-            durationMs: 100,
-          },
-        ],
-      });
-      expect(tracker5.hasIntentData("multi-session")).toBe(true);
     });
   });
 });

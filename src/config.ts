@@ -10,7 +10,10 @@ import {
   DEFAULT_MEDIUM_COMPLEXITY_PROMPT,
   DEFAULT_HIGH_COMPLEXITY_PROMPT,
 } from "./constants.js";
-import type { ResolvedIntentionHintPluginConfig } from "./types.js";
+import type {
+  ContextWindow,
+  ResolvedIntentionHintPluginConfig,
+} from "./types.js";
 
 export function clampInt(
   value: number | undefined,
@@ -46,6 +49,49 @@ const asStringArrayMap = (v: unknown): Record<string, string[]> => {
   return result;
 };
 
+function normalizeContextWindow(v: unknown): ContextWindow {
+  const raw = typeof v === "object" && v !== null && !Array.isArray(v) ? v : {};
+  const obj = raw as Record<string, unknown>;
+  const userRaw =
+    typeof obj.user === "object" && obj.user !== null ? obj.user : {};
+  const userObj = userRaw as Record<string, unknown>;
+  const assistantRaw =
+    typeof obj.assistant === "object" && obj.assistant !== null
+      ? obj.assistant
+      : {};
+  const assistantObj = assistantRaw as Record<string, unknown>;
+  return {
+    user: {
+      turns: clampInt(
+        userObj.turns as number,
+        DEFAULT_RECENT_USER_TURNS,
+        0,
+        20,
+      ),
+      chars: clampInt(
+        userObj.chars as number,
+        DEFAULT_RECENT_USER_CHARS,
+        40,
+        1000,
+      ),
+    },
+    assistant: {
+      turns: clampInt(
+        assistantObj.turns as number,
+        DEFAULT_RECENT_ASSISTANT_TURNS,
+        0,
+        10,
+      ),
+      chars: clampInt(
+        assistantObj.chars as number,
+        DEFAULT_RECENT_ASSISTANT_CHARS,
+        40,
+        1000,
+      ),
+    },
+  };
+}
+
 const IntentionHintConfigSchema = z.object({
   agents: preprocess(
     (v) => (asStringArray(v).length ? asStringArray(v) : ["main"]),
@@ -78,29 +124,18 @@ const IntentionHintConfigSchema = z.object({
     },
     z.enum(["message", "recent", "full"]),
   ),
-  recentUserTurns: preprocess(
-    (v) => clampInt(v as number | undefined, DEFAULT_RECENT_USER_TURNS, 0, 20),
-    z.number().int(),
-  ),
-  recentAssistantTurns: preprocess(
-    (v) =>
-      clampInt(v as number | undefined, DEFAULT_RECENT_ASSISTANT_TURNS, 0, 10),
-    z.number().int(),
-  ),
-  recentUserChars: preprocess(
-    (v) =>
-      clampInt(v as number | undefined, DEFAULT_RECENT_USER_CHARS, 40, 1000),
-    z.number().int(),
-  ),
-  recentAssistantChars: preprocess(
-    (v) =>
-      clampInt(
-        v as number | undefined,
-        DEFAULT_RECENT_ASSISTANT_CHARS,
-        40,
-        1000,
-      ),
-    z.number().int(),
+  contextWindow: preprocess(
+    (v) => normalizeContextWindow(v),
+    z.object({
+      user: z.object({
+        turns: z.number().int(),
+        chars: z.number().int(),
+      }),
+      assistant: z.object({
+        turns: z.number().int(),
+        chars: z.number().int(),
+      }),
+    }),
   ),
   timeoutMs: preprocess(
     (v) => clampInt(v as number | undefined, DEFAULT_TIMEOUT_MS, 250, 120_000),

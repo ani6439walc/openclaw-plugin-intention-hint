@@ -73,7 +73,7 @@ function resolveChatType(ctx: {
   }
   if ((ctx.messageProvider ?? "").trim().toLowerCase() === "webchat")
     return "direct";
-  return undefined;
+  return;
 }
 
 export function isAllowedChatType(
@@ -132,7 +132,7 @@ export function resolveCanonicalSessionKeyFromSessionId(params: {
   agentId: string;
   sessionId: string | undefined;
 }): string | undefined {
-  if (!params.sessionId) return undefined;
+  if (!params.sessionId) return;
   try {
     const storePath = params.api.runtime.agent.session.resolveStorePath(
       params.api.config.session?.store,
@@ -148,6 +148,6 @@ export function resolveCanonicalSessionKeyFromSessionId(params: {
     );
     return typeof keyField?.key === "string" ? keyField.key : undefined;
   } catch {
-    return undefined;
+    return;
   }
 }

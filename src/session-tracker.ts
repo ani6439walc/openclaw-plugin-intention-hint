@@ -1,7 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as fs from "node:fs";
-import type { RecentTurn, IntentionResult } from "./types.js";
+import type { RecentTurn, IntentionResult, ContextWindow } from "./types.js";
 import matter from "gray-matter";
 
 export interface SkillRecord {
@@ -9,23 +9,23 @@ export interface SkillRecord {
   path: string;
 }
 
-export interface SessionData {
-  sessionId: string;
-  sessionKey?: string;
-  agentId?: string;
-  prompt?: string;
-  intentInput?: RecentTurn[];
-  intentResult?: IntentionResult;
+export interface IntentState {
+  input?: RecentTurn[];
+  result?: IntentionResult;
+}
+
+export interface SessionState {
+  input?: string;
+  intent?: IntentState;
   skillsUsed?: SkillRecord[];
   toolCalls?: Array<{
-    toolName: string;
+    name: string;
     params: Record<string, unknown>;
-    result?: unknown;
+    result?: string;
     error?: string;
     durationMs?: number;
   }>;
-  finalResponse?: string;
-  success?: boolean;
+  result?: string;
   error?: string;
   timestamps?: {
     start?: string;
@@ -33,17 +33,24 @@ export interface SessionData {
   };
 }
 
+export interface SessionData {
+  sessionId: string;
+  sessionKey?: string;
+  agentId?: string;
+  current: SessionState;
+  history?: SessionState[];
+}
+
 function extractSkillInfo(
   toolName: string,
   toolParams: Record<string, unknown>,
   toolResult: unknown,
 ): { name: string; path: string } | undefined {
-  if (toolName !== "read") return undefined;
+  if (toolName !== "read") return;
   const filePath = toolParams.path;
-  if (typeof filePath !== "string" || !filePath.endsWith("SKILL.md"))
-    return undefined;
+  if (typeof filePath !== "string" || !filePath.endsWith("SKILL.md")) return;
   const text = typeof toolResult === "string" ? toolResult : null;
-  if (text === null) return undefined;
+  if (text === null) return;
 
   try {
     const parsed = matter(text);
@@ -53,12 +60,15 @@ function extractSkillInfo(
   } catch {
     // not valid markdown with frontmatter
   }
-  return undefined;
+  return;
 }
 
 export class SessionTracker {
   private pluginRoot: string;
-  private sessionData: Partial<SessionData> = {};
+  private sessionData: SessionData = {
+    sessionId: "",
+    current: { intent: {} },
+  };
   private sessionsWithIntent: Set<string> = new Set();
 
   private constructor(pluginRoot: string) {
@@ -69,12 +79,26 @@ export class SessionTracker {
     return new SessionTracker(pluginRoot);
   }
 
-  /**
-   * Check if before_prompt_build has recorded intent data for this session.
-   * If false, after_tool_call and agent_end should skip recording.
-   */
   hasIntentData(sessionId: string): boolean {
     return this.sessionsWithIntent.has(sessionId);
+  }
+
+  rotate(): void {
+    const snapshot = this.sessionData.current;
+    if (
+      !snapshot.input &&
+      !snapshot.result &&
+      !snapshot.error &&
+      !snapshot.toolCalls?.length
+    ) {
+      return;
+    }
+
+    if (!this.sessionData.history) {
+      this.sessionData.history = [];
+    }
+    this.sessionData.history.push({ ...snapshot });
+    this.sessionData.current = { intent: {} };
   }
 
   record(data: Partial<SessionData>): void {
@@ -86,41 +110,84 @@ export class SessionTracker {
       this.sessionData.sessionId &&
       this.sessionData.sessionId !== data.sessionId
     ) {
-      this.sessionData = {};
+      this.sessionData = { sessionId: data.sessionId, current: { intent: {} } };
     }
 
-    if (data.intentResult) {
-      this.sessionsWithIntent.add(data.sessionId);
+    this.sessionData.sessionId = data.sessionId;
+
+    if (data.sessionKey !== undefined) {
+      this.sessionData.sessionKey = data.sessionKey;
+    }
+    if (data.agentId !== undefined) {
+      this.sessionData.agentId = data.agentId;
     }
 
-    const processedData = { ...data };
+    const current = this.sessionData.current;
 
-    if (data.toolCalls && data.toolCalls.length > 0) {
-      const existingToolCalls = this.sessionData.toolCalls || [];
-      processedData.toolCalls = [...existingToolCalls, ...data.toolCalls];
-
-      const existing = this.sessionData.skillsUsed || [];
-      const seenNames = new Set(existing.map((s) => s.name));
-      for (const tc of data.toolCalls) {
-        const skill = extractSkillInfo(tc.toolName, tc.params, tc.result);
-        if (skill && !seenNames.has(skill.name)) {
-          seenNames.add(skill.name);
-          existing.push(skill);
+    if (data.current) {
+      if (data.current.input !== undefined) {
+        current.input = data.current.input;
+      }
+      if (data.current.intent) {
+        if (!current.intent) current.intent = {};
+        if (data.current.intent.input !== undefined) {
+          current.intent.input = data.current.intent.input;
+        }
+        if (data.current.intent.result !== undefined) {
+          current.intent.result = data.current.intent.result;
+          this.sessionsWithIntent.add(data.sessionId);
         }
       }
-      if (existing.length > 0) {
-        processedData.skillsUsed = [...existing];
+      if (data.current.result !== undefined) {
+        current.result = data.current.result;
+      }
+      if (data.current.error !== undefined) {
+        current.error = data.current.error;
+      }
+      if (data.current.timestamps) {
+        current.timestamps = {
+          ...(current.timestamps || {}),
+          ...(data.current.timestamps || {}),
+        };
+      }
+
+      if (data.current.toolCalls) {
+        if (data.current.toolCalls.length === 0) {
+          current.toolCalls = [];
+        } else {
+          const existingToolCalls = current.toolCalls || [];
+          current.toolCalls = [...existingToolCalls, ...data.current.toolCalls];
+
+          const existing = current.skillsUsed || [];
+          const seenNames = new Set(existing.map((s) => s.name));
+          for (const tc of data.current.toolCalls) {
+            const skill = extractSkillInfo(tc.name, tc.params, tc.result);
+            if (skill && !seenNames.has(skill.name)) {
+              seenNames.add(skill.name);
+              existing.push(skill);
+            }
+          }
+          if (existing.length > 0) {
+            current.skillsUsed = [...existing];
+          }
+        }
+      }
+      if (data.current.skillsUsed) {
+        const existing = current.skillsUsed || [];
+        const seenNames = new Set(existing.map((s) => s.name));
+        for (const skill of data.current.skillsUsed) {
+          if (!seenNames.has(skill.name)) {
+            seenNames.add(skill.name);
+            existing.push(skill);
+          }
+        }
+        current.skillsUsed = existing;
       }
     }
 
-    if (data.timestamps) {
-      processedData.timestamps = {
-        ...this.sessionData.timestamps,
-        ...data.timestamps,
-      };
+    if (data.history) {
+      this.sessionData.history = data.history;
     }
-
-    this.sessionData = { ...this.sessionData, ...processedData };
   }
 
   write(): void {

@@ -321,10 +321,10 @@ describe("buildPromptPrefix", () => {
     allowedChatIds: [],
     deniedChatIds: [],
     queryMode: "recent",
-    recentUserTurns: 5,
-    recentAssistantTurns: 5,
-    recentUserChars: 220,
-    recentAssistantChars: 180,
+    contextWindow: {
+      user: { turns: 5, chars: 220 },
+      assistant: { turns: 5, chars: 180 },
+    },
     timeoutMs: 3000,
     intentsDir: undefined,
     complexityPrompts: {

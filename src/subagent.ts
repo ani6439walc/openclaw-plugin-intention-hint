@@ -47,7 +47,7 @@ export function getModelRef(
       // skip invalid refs
     }
   }
-  return undefined;
+  return;
 }
 
 export async function runIntentionSubagent(params: {
@@ -112,7 +112,7 @@ export async function runIntentionSubagent(params: {
     return parsed;
   } catch (err) {
     logger.warn("Intention subagent error", { error: err });
-    return undefined;
+    return;
   }
 }
 

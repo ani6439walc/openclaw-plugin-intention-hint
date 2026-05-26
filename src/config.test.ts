@@ -21,10 +21,14 @@ describe("resolveConfig", () => {
       expect(result.intentsDir).toBe("./intents");
       expect(result.queryMode).toBe(DEFAULT_QUERY_MODE);
       expect(result.timeoutMs).toBe(DEFAULT_TIMEOUT_MS);
-      expect(result.recentUserTurns).toBe(DEFAULT_RECENT_USER_TURNS);
-      expect(result.recentAssistantTurns).toBe(DEFAULT_RECENT_ASSISTANT_TURNS);
-      expect(result.recentUserChars).toBe(DEFAULT_RECENT_USER_CHARS);
-      expect(result.recentAssistantChars).toBe(DEFAULT_RECENT_ASSISTANT_CHARS);
+      expect(result.contextWindow.user.turns).toBe(DEFAULT_RECENT_USER_TURNS);
+      expect(result.contextWindow.assistant.turns).toBe(
+        DEFAULT_RECENT_ASSISTANT_TURNS,
+      );
+      expect(result.contextWindow.user.chars).toBe(DEFAULT_RECENT_USER_CHARS);
+      expect(result.contextWindow.assistant.chars).toBe(
+        DEFAULT_RECENT_ASSISTANT_CHARS,
+      );
     });
 
     it("should handle empty object loading", () => {
@@ -119,48 +123,72 @@ describe("resolveConfig", () => {
       expect(validResult.timeoutMs).toBe(5000);
     });
 
-    it("should clamp recentUserTurns within bounds (0-20)", () => {
-      const lowResult = resolveConfig({ recentUserTurns: -5 });
-      expect(lowResult.recentUserTurns).toBe(0);
+    it("should clamp contextWindow.user.turns within bounds (0-20)", () => {
+      const lowResult = resolveConfig({
+        contextWindow: { user: { turns: -5 }, assistant: {} } as never,
+      });
+      expect(lowResult.contextWindow.user.turns).toBe(0);
 
-      const highResult = resolveConfig({ recentUserTurns: 50 });
-      expect(highResult.recentUserTurns).toBe(20);
+      const highResult = resolveConfig({
+        contextWindow: { user: { turns: 50 }, assistant: {} } as never,
+      });
+      expect(highResult.contextWindow.user.turns).toBe(20);
 
-      const validResult = resolveConfig({ recentUserTurns: 10 });
-      expect(validResult.recentUserTurns).toBe(10);
+      const validResult = resolveConfig({
+        contextWindow: { user: { turns: 10 }, assistant: {} } as never,
+      });
+      expect(validResult.contextWindow.user.turns).toBe(10);
     });
 
-    it("should clamp recentAssistantTurns within bounds (0-10)", () => {
-      const lowResult = resolveConfig({ recentAssistantTurns: -1 });
-      expect(lowResult.recentAssistantTurns).toBe(0);
+    it("should clamp contextWindow.assistant.turns within bounds (0-10)", () => {
+      const lowResult = resolveConfig({
+        contextWindow: { user: {}, assistant: { turns: -1 } } as never,
+      });
+      expect(lowResult.contextWindow.assistant.turns).toBe(0);
 
-      const highResult = resolveConfig({ recentAssistantTurns: 20 });
-      expect(highResult.recentAssistantTurns).toBe(10);
+      const highResult = resolveConfig({
+        contextWindow: { user: {}, assistant: { turns: 20 } } as never,
+      });
+      expect(highResult.contextWindow.assistant.turns).toBe(10);
 
-      const validResult = resolveConfig({ recentAssistantTurns: 5 });
-      expect(validResult.recentAssistantTurns).toBe(5);
+      const validResult = resolveConfig({
+        contextWindow: { user: {}, assistant: { turns: 5 } } as never,
+      });
+      expect(validResult.contextWindow.assistant.turns).toBe(5);
     });
 
-    it("should clamp recentUserChars within bounds (40-1000)", () => {
-      const lowResult = resolveConfig({ recentUserChars: 10 });
-      expect(lowResult.recentUserChars).toBe(40);
+    it("should clamp contextWindow.user.chars within bounds (40-1000)", () => {
+      const lowResult = resolveConfig({
+        contextWindow: { user: { chars: 10 }, assistant: {} } as never,
+      });
+      expect(lowResult.contextWindow.user.chars).toBe(40);
 
-      const highResult = resolveConfig({ recentUserChars: 5000 });
-      expect(highResult.recentUserChars).toBe(1000);
+      const highResult = resolveConfig({
+        contextWindow: { user: { chars: 5000 }, assistant: {} } as never,
+      });
+      expect(highResult.contextWindow.user.chars).toBe(1000);
 
-      const validResult = resolveConfig({ recentUserChars: 500 });
-      expect(validResult.recentUserChars).toBe(500);
+      const validResult = resolveConfig({
+        contextWindow: { user: { chars: 500 }, assistant: {} } as never,
+      });
+      expect(validResult.contextWindow.user.chars).toBe(500);
     });
 
-    it("should clamp recentAssistantChars within bounds (40-1000)", () => {
-      const lowResult = resolveConfig({ recentAssistantChars: 20 });
-      expect(lowResult.recentAssistantChars).toBe(40);
+    it("should clamp contextWindow.assistant.chars within bounds (40-1000)", () => {
+      const lowResult = resolveConfig({
+        contextWindow: { user: {}, assistant: { chars: 20 } } as never,
+      });
+      expect(lowResult.contextWindow.assistant.chars).toBe(40);
 
-      const highResult = resolveConfig({ recentAssistantChars: 2000 });
-      expect(highResult.recentAssistantChars).toBe(1000);
+      const highResult = resolveConfig({
+        contextWindow: { user: {}, assistant: { chars: 2000 } } as never,
+      });
+      expect(highResult.contextWindow.assistant.chars).toBe(1000);
 
-      const validResult = resolveConfig({ recentAssistantChars: 300 });
-      expect(validResult.recentAssistantChars).toBe(300);
+      const validResult = resolveConfig({
+        contextWindow: { user: {}, assistant: { chars: 300 } } as never,
+      });
+      expect(validResult.contextWindow.assistant.chars).toBe(300);
     });
 
     it("should use default for NaN values", () => {

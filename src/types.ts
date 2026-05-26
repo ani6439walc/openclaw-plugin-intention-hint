@@ -10,6 +10,11 @@ export type ResolvedComplexityPromptsConfig = {
   high: string;
 };
 
+export type ContextWindow = {
+  user: { turns: number; chars: number };
+  assistant: { turns: number; chars: number };
+};
+
 export type IntentionHintPluginConfig = {
   agents?: string[];
   intentDeny?: Record<string, string[]>;
@@ -19,10 +24,7 @@ export type IntentionHintPluginConfig = {
   allowedChatIds?: string[];
   deniedChatIds?: string[];
   queryMode?: string;
-  recentUserTurns?: number;
-  recentAssistantTurns?: number;
-  recentUserChars?: number;
-  recentAssistantChars?: number;
+  contextWindow?: ContextWindow;
   timeoutMs?: number;
   intentsDir?: string;
   complexityPrompts?: ComplexityPromptsConfig;
@@ -37,10 +39,7 @@ export type ResolvedIntentionHintPluginConfig = {
   allowedChatIds: string[];
   deniedChatIds: string[];
   queryMode: "message" | "recent" | "full";
-  recentUserTurns: number;
-  recentAssistantTurns: number;
-  recentUserChars: number;
-  recentAssistantChars: number;
+  contextWindow: ContextWindow;
   timeoutMs: number;
   intentsDir: string | undefined;
   complexityPrompts: ResolvedComplexityPromptsConfig;

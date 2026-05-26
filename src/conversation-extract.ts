@@ -3,6 +3,7 @@ import type {
   MessageContentPart,
   PromptMessageLike,
   RecentTurn,
+  ContextWindow,
 } from "./types.js";
 
 /**
@@ -26,30 +27,25 @@ export function extractToolText(raw: unknown): string {
  * Apply filtering and capping to conversation turns based on query mode settings.
  * Restores the logic that was previously inside buildQuery().
  */
-export function applyQueryFilters(
+export function limitConversationTurns(
   allTurns: RecentTurn[],
-  params: {
-    queryMode: "message" | "recent" | "full";
-    recentUserTurns?: number;
-    recentAssistantTurns?: number;
-    recentUserChars?: number;
-    recentAssistantChars?: number;
+  queryMode: "message" | "recent" | "full",
+  cWindow: ContextWindow = {
+    user: { turns: 5, chars: 220 },
+    assistant: { turns: 5, chars: 180 },
   },
 ): RecentTurn[] {
-  if (params.queryMode === "message") {
-    // Only return the latest user turn (caller provides latest separately)
+  if (queryMode === "message") {
     return [];
   }
-  if (params.queryMode === "full") {
-    // No filtering - return all turns
+  if (queryMode === "full") {
     return allTurns;
   }
 
-  // recent mode: bounded turns with per-turn char caps
-  const maxUserTurns = params.recentUserTurns ?? 5;
-  const maxAssistantTurns = params.recentAssistantTurns ?? 5;
-  const userCharLimit = params.recentUserChars ?? 220;
-  const assistantCharLimit = params.recentAssistantChars ?? 180;
+  const maxUserTurns = cWindow.user.turns;
+  const maxAssistantTurns = cWindow.assistant.turns;
+  const userCharLimit = cWindow.user.chars;
+  const assistantCharLimit = cWindow.assistant.chars;
 
   const filtered = allTurns.filter((turn) => turn.text.trim().length > 0);
 
@@ -103,8 +99,13 @@ function extractTextContent(
       continue;
     }
     if (!item || typeof item !== "object") continue;
-    if (item.type === "thinking" || item.type === "redacted_thinking") continue;
-    if (item.type === "tool_use" || item.type === "tool_result") continue;
+    if (
+      item.type === "thinking" ||
+      item.type === "redacted_thinking" ||
+      item.type === "tool_use" ||
+      item.type === "tool_result"
+    )
+      continue;
     if (typeof item.text === "string") {
       parts.push(stripThinkingTags(item.text));
       continue;
@@ -131,14 +132,10 @@ function stripMetadataBlocks(text: string): string {
     .trim();
 }
 
-const HEARTBEAT_POLL = "heartbeat poll";
-
 function isHeartbeatMessage(role: string, text: string): boolean {
   const trimmed = text.trim();
   if (role === "assistant" && trimmed === "HEARTBEAT_OK") return true;
-  if (role === "user" && trimmed.toLowerCase().includes(HEARTBEAT_POLL))
-    return true;
-  return false;
+  return role === "user" && trimmed.toLowerCase().includes("heartbeat poll");
 }
 
 /**
@@ -159,11 +156,8 @@ export function extractRecentTurns(
     if (!message || typeof message !== "object") continue;
 
     const typed = message as PromptMessageLike;
-    const role =
-      typed.role === "user" || typed.role === "assistant"
-        ? typed.role
-        : undefined;
-    if (!role) continue;
+    const role = typed.role;
+    if (role !== "user" && role !== "assistant") continue;
 
     const text = stripMetadataBlocks(extractTextContent(typed.content));
     if (!text || isHeartbeatMessage(role, text)) continue;

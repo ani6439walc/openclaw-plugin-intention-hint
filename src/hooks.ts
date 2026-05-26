@@ -11,10 +11,10 @@ import { logger } from "../api.js";
 import { defaultCatalog } from "./intent-loader.js";
 import { defaultTracker } from "./session-tracker.js";
 import {
-  applyQueryFilters,
+  limitConversationTurns,
   extractRecentTurns,
   extractToolText,
-} from "./query.js";
+} from "./conversation-extract.js";
 import {
   isAllowedChatId,
   isAllowedChatType,
@@ -43,7 +43,7 @@ export function createHookHandlers(deps: HookDeps) {
   ): Promise<PluginHookBeforePromptBuildResult | undefined> {
     try {
       // Early return checks FIRST (before refresh calls)
-      if (shouldSkipIntentAnalysis(ctx)) return undefined;
+      if (shouldSkipIntentAnalysis(ctx)) return;
 
       const resolvedAgentId = resolveStatusUpdateAgentId(ctx);
       const resolvedSessionKey =
@@ -59,8 +59,8 @@ export function createHookHandlers(deps: HookDeps) {
 
       // Use current config for early checks
       const currentConfig = config();
-      if (!isEnabledForAgent(currentConfig, effectiveAgentId)) return undefined;
-      if (!isEligibleInteractiveSession(ctx)) return undefined;
+      if (!isEnabledForAgent(currentConfig, effectiveAgentId)) return;
+      if (!isEligibleInteractiveSession(ctx)) return;
 
       const resolvedSessionKeyForChecks = resolvedSessionKey ?? ctx.sessionKey;
       if (
@@ -70,7 +70,7 @@ export function createHookHandlers(deps: HookDeps) {
           mainKey: api.config.session?.mainKey,
         })
       ) {
-        return undefined;
+        return;
       }
       if (
         !isAllowedChatId(currentConfig, {
@@ -78,7 +78,7 @@ export function createHookHandlers(deps: HookDeps) {
           messageProvider: ctx.messageProvider,
         })
       ) {
-        return undefined;
+        return;
       }
 
       // THEN refresh config and intents
@@ -88,24 +88,22 @@ export function createHookHandlers(deps: HookDeps) {
       const allTurns = extractRecentTurns(event.messages);
       const latestUserMessage = event.prompt ?? "";
 
-      const conversation = applyQueryFilters(allTurns, {
-        queryMode: refreshedConfig.queryMode,
-        recentUserTurns: refreshedConfig.recentUserTurns,
-        recentAssistantTurns: refreshedConfig.recentAssistantTurns,
-        recentUserChars: refreshedConfig.recentUserChars,
-        recentAssistantChars: refreshedConfig.recentAssistantChars,
-      });
+      const conversation = limitConversationTurns(
+        allTurns,
+        refreshedConfig.queryMode,
+        refreshedConfig.contextWindow,
+      );
 
       const modelRef = getModelRef(api, effectiveAgentId, refreshedConfig, {
         modelProviderId: ctx.modelProviderId,
         modelId: ctx.modelId,
       });
-      if (!modelRef) return undefined;
+      if (!modelRef) return;
 
       refreshIntents();
       if (defaultCatalog.count === 0) {
         logger.debug("no intents loaded; skipping intention scan.");
-        return undefined;
+        return;
       }
 
       logger.debug(
@@ -133,7 +131,7 @@ export function createHookHandlers(deps: HookDeps) {
 
       if (!result) {
         logger.debug("intention subagent failed; skipping hint injection.");
-        return undefined;
+        return;
       }
 
       logger.debug(`intention subagent result: ${JSON.stringify(result)}`);
@@ -141,14 +139,19 @@ export function createHookHandlers(deps: HookDeps) {
       // Record session data for tracking
       const sessionId = ctx.sessionId;
       if (sessionId) {
+        defaultTracker.rotate();
         defaultTracker.record({
           sessionId,
           sessionKey: resolvedSessionKey ?? ctx.sessionKey,
           agentId: effectiveAgentId,
-          prompt: latestUserMessage,
-          intentInput: conversation,
-          intentResult: result,
-          timestamps: { start: new Date().toISOString() },
+          current: {
+            input: latestUserMessage,
+            intent: {
+              input: conversation,
+              result: result,
+            },
+            timestamps: { start: new Date().toISOString() },
+          },
         });
         defaultTracker.write();
       }
@@ -158,11 +161,11 @@ export function createHookHandlers(deps: HookDeps) {
         availableIntents,
         refreshedConfig,
       );
-      if (!promptPrefix) return undefined;
+      if (!promptPrefix) return;
 
       return { prependContext: promptPrefix };
     } catch {
-      return undefined;
+      return;
     }
   }
 
@@ -181,15 +184,17 @@ export function createHookHandlers(deps: HookDeps) {
 
     defaultTracker.record({
       sessionId,
-      toolCalls: [
-        {
-          toolName: event.toolName,
-          params: event.params,
-          result: event.error ? undefined : truncatedOutput,
-          error: event.error ? truncatedOutput : undefined,
-          durationMs: event.durationMs,
-        },
-      ],
+      current: {
+        toolCalls: [
+          {
+            name: event.toolName,
+            params: event.params,
+            result: event.error ? undefined : truncatedOutput,
+            error: event.error ? truncatedOutput : undefined,
+            durationMs: event.durationMs,
+          },
+        ],
+      },
     });
     defaultTracker.write();
   }
@@ -215,10 +220,11 @@ export function createHookHandlers(deps: HookDeps) {
 
     defaultTracker.record({
       sessionId,
-      finalResponse: lastAssistantTurn?.text?.slice(0, 500),
-      success: event.success,
-      error: event.error,
-      timestamps: { end: new Date().toISOString() },
+      current: {
+        result: lastAssistantTurn?.text,
+        error: event.error,
+        timestamps: { end: new Date().toISOString() },
+      },
     });
     defaultTracker.write();
   }

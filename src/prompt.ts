@@ -167,7 +167,7 @@ export function parseIntentionResult(
     result.confidence === undefined ||
     !result.complexity
   ) {
-    return undefined;
+    return;
   }
 
   return {
