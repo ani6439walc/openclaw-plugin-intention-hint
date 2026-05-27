@@ -53,10 +53,16 @@ export function buildIntentionPrompt(params: {
     categoryMap.get(prefix)!.push(intent.id);
   }
   const categoryLines: string[] = [];
+  const standaloneIntents: string[] = [];
   for (const [prefix, ids] of categoryMap) {
     if (ids.length >= 2) {
       categoryLines.push(`- ${prefix}_*: ${ids.join(", ")}`);
+    } else {
+      standaloneIntents.push(...ids);
     }
+  }
+  if (standaloneIntents.length > 0) {
+    categoryLines.push(`- STANDALONE: ${standaloneIntents.join(", ")}`);
   }
   const intentCategories =
     categoryLines.length > 0
@@ -70,7 +76,7 @@ export function buildIntentionPrompt(params: {
           .join("\n")}\n</conversation>`
       : "";
 
-  const conversationSection = conversationXml ? `\n${conversationXml}` : "";
+  const conversationSection = conversationXml ? `\n${conversationXml}\n` : "";
 
   return `You are an intent classification agent.
 Another model is preparing the final user-facing answer with hints and subagent routing.
