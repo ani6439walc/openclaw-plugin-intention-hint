@@ -34,8 +34,8 @@ export function getModelRef(
     try {
       const parsed = parseModelRef(ref, DEFAULT_PROVIDER);
       if (parsed) return { provider: parsed.provider, model: parsed.model };
-    } catch {
-      // skip invalid refs
+    } catch (err) {
+      logger.debug("skipping invalid model ref", { error: err });
     }
   }
   const agentModelRef = resolveAgentEffectiveModelPrimary(api.config, agentId);
@@ -43,8 +43,11 @@ export function getModelRef(
     try {
       const parsed = parseModelRef(agentModelRef, DEFAULT_PROVIDER);
       if (parsed) return { provider: parsed.provider, model: parsed.model };
-    } catch {
-      // skip invalid refs
+    } catch (err) {
+      logger.debug("skipping invalid agent model ref", {
+        error: err,
+        agentModelRef,
+      });
     }
   }
   return;

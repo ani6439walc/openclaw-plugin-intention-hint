@@ -1,3 +1,4 @@
+import { logger } from "../api.js";
 import { UNTRUSTED_CONTEXT_HEADER } from "./constants.js";
 import type {
   MessageContentPart,
@@ -17,8 +18,11 @@ export function extractToolText(raw: unknown): string {
     const parsed = JSON.parse(str);
     if (parsed?.content?.[0]?.text) return parsed.content[0].text as string;
     if (parsed?.answerText) return parsed.answerText as string;
-  } catch {
-    // not JSON
+  } catch (err) {
+    logger.warn("failed to parse tool response as JSON, returning raw string", {
+      error: err,
+      raw: str,
+    });
   }
   return str;
 }

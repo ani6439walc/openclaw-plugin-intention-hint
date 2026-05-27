@@ -1,4 +1,5 @@
 import type { OpenClawPluginApi } from "../api.js";
+import { logger } from "../api.js";
 import type { ResolvedIntentionHintPluginConfig } from "./types.js";
 
 export function isEnabledForAgent(
@@ -147,7 +148,8 @@ export function resolveCanonicalSessionKeyFromSessionId(params: {
       (e: Record<string, unknown>) => e.key !== undefined,
     );
     return typeof keyField?.key === "string" ? keyField.key : undefined;
-  } catch {
+  } catch (err) {
+    logger.warn("failed to resolve canonical session key", { error: err });
     return;
   }
 }

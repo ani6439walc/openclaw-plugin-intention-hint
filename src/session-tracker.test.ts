@@ -36,13 +36,65 @@ describe("SessionTracker", () => {
       const customTracker = SessionTracker.create(customDir);
       expect(customTracker).toBeInstanceOf(SessionTracker);
     });
+
+    it("should load existing session files from sessions folder", () => {
+      // Create sessions directory with a test file
+      const sessionsDir = path.join(tempDir, "sessions");
+      fs.mkdirSync(sessionsDir, { recursive: true });
+
+      const testSession = {
+        sessionId: "existing-session-123",
+        current: {
+          input: "existing test prompt",
+          intent: { result: { intentions: [] } },
+        },
+      };
+      fs.writeFileSync(
+        path.join(sessionsDir, "existing-session-123.json"),
+        JSON.stringify(testSession),
+      );
+
+      // Create new tracker - should load existing session
+      const loadedTracker = SessionTracker.create(tempDir);
+      expect(loadedTracker.hasIntentData("existing-session-123")).toBe(true);
+    });
+
+    it("should skip corrupted JSON files and log warning", () => {
+      const sessionsDir = path.join(tempDir, "sessions");
+      fs.mkdirSync(sessionsDir, { recursive: true });
+
+      // Create valid file
+      const validSession = {
+        sessionId: "valid-session",
+        current: { intent: {} },
+      };
+      fs.writeFileSync(
+        path.join(sessionsDir, "valid-session.json"),
+        JSON.stringify(validSession),
+      );
+
+      // Create corrupted file
+      fs.writeFileSync(
+        path.join(sessionsDir, "corrupted.json"),
+        "this is not valid json {{{",
+      );
+
+      // Create new tracker - should load valid file, skip corrupted
+      const loadedTracker = SessionTracker.create(tempDir);
+      expect(loadedTracker.hasIntentData("valid-session")).toBe(false); // no intent result
+    });
+
+    it("should handle missing sessions folder gracefully", () => {
+      // No sessions folder created
+      const trackerNoSessions = SessionTracker.create(tempDir);
+      expect(trackerNoSessions).toBeInstanceOf(SessionTracker);
+    });
   });
 
   describe("record", () => {
     it("should update session data with record()", () => {
       expect(() =>
-        tracker.record({
-          sessionId: "test-session-123",
+        tracker.record("test-session-123", {
           agentId: "test-agent",
           current: { input: "test prompt", intent: {} },
         }),
@@ -51,8 +103,7 @@ describe("SessionTracker", () => {
 
     it("should skip recording when sessionId is empty", () => {
       expect(() =>
-        tracker.record({
-          sessionId: "",
+        tracker.record("", {
           current: { input: "test prompt", intent: {} },
         }),
       ).not.toThrow();
@@ -60,15 +111,17 @@ describe("SessionTracker", () => {
 
     it("should skip recording when sessionId is undefined", () => {
       expect(() =>
-        tracker.record({
-          current: { input: "test prompt", intent: {} },
-        } as any),
+        tracker.record(
+          undefined as any,
+          {
+            current: { input: "test prompt", intent: {} },
+          } as any,
+        ),
       ).not.toThrow();
     });
 
     it("should append toolCalls to array (not overwrite)", () => {
-      tracker.record({
-        sessionId: "test-session-123",
+      tracker.record("test-session-123", {
         current: {
           intent: {},
           toolCalls: [
@@ -76,8 +129,7 @@ describe("SessionTracker", () => {
           ],
         },
       });
-      tracker.record({
-        sessionId: "test-session-123",
+      tracker.record("test-session-123", {
         current: {
           intent: {},
           toolCalls: [
@@ -85,25 +137,24 @@ describe("SessionTracker", () => {
           ],
         },
       });
-      expect(() => tracker.write()).not.toThrow();
+      expect(() => tracker.write("test-session-123")).not.toThrow();
     });
 
     it("should handle multiple record calls", () => {
-      tracker.record({ sessionId: "test-session-123", agentId: "agent1" });
-      tracker.record({ sessionId: "test-session-123", agentId: "agent2" });
+      tracker.record("test-session-123", { agentId: "agent1" });
+      tracker.record("test-session-123", { agentId: "agent2" });
 
-      expect(() => tracker.write()).not.toThrow();
+      expect(() => tracker.write("test-session-123")).not.toThrow();
     });
   });
 
   describe("write", () => {
     it("should create JSON file with correct structure", () => {
-      tracker.record({
-        sessionId: "test-session-123",
+      tracker.record("test-session-123", {
         agentId: "test-agent",
         current: { input: "test prompt", intent: {} },
       });
-      tracker.write();
+      tracker.write("test-session-123");
 
       const sessionsDir = path.join(tempDir, "sessions");
       expect(fs.existsSync(sessionsDir)).toBe(true);
@@ -123,8 +174,7 @@ describe("SessionTracker", () => {
 
     it("should persist data to JSON file", () => {
       const startDate = new Date().toISOString();
-      tracker.record({
-        sessionId: "persist-test-456",
+      tracker.record("persist-test-456", {
         sessionKey: "test-key",
         agentId: "persist-agent",
         current: {
@@ -154,7 +204,7 @@ describe("SessionTracker", () => {
           },
         },
       });
-      tracker.write();
+      tracker.write("persist-test-456");
 
       const sessionsDir = path.join(tempDir, "sessions");
       const files = fs.readdirSync(sessionsDir);
@@ -183,22 +233,20 @@ describe("SessionTracker", () => {
     });
 
     it("should handle write without prior record calls", () => {
-      tracker.record({ sessionId: "no-record" });
-      expect(() => tracker.write()).not.toThrow();
+      tracker.record("no-record", {});
+      expect(() => tracker.write("no-record")).not.toThrow();
     });
 
     it("should overwrite file for same sessionId (not create new files)", () => {
-      tracker.record({
-        sessionId: "overwrite-test",
+      tracker.record("overwrite-test", {
         current: { input: "first prompt", intent: {} },
       });
-      tracker.write();
+      tracker.write("overwrite-test");
 
-      tracker.record({
-        sessionId: "overwrite-test",
+      tracker.record("overwrite-test", {
         current: { input: "second prompt", intent: {} },
       });
-      tracker.write();
+      tracker.write("overwrite-test");
 
       const sessionsDir = path.join(tempDir, "sessions");
       const files = fs.readdirSync(sessionsDir);
@@ -214,19 +262,18 @@ describe("SessionTracker", () => {
     });
 
     it("should create sessions directory if it does not exist", () => {
-      tracker.record({ sessionId: "test-789" });
+      tracker.record("test-789", {});
 
       const sessionsDir = path.join(tempDir, "sessions");
       expect(fs.existsSync(sessionsDir)).toBe(false);
 
-      tracker.write();
+      tracker.write("test-789");
 
       expect(fs.existsSync(sessionsDir)).toBe(true);
     });
 
     it("should handle toolCalls array persistence", () => {
-      tracker.record({
-        sessionId: "tool-persist-test",
+      tracker.record("tool-persist-test", {
         current: {
           intent: {},
           toolCalls: [
@@ -238,7 +285,7 @@ describe("SessionTracker", () => {
           ],
         },
       });
-      tracker.write();
+      tracker.write("tool-persist-test");
 
       let content = fs.readFileSync(
         path.join(tempDir, "sessions", "tool-persist-test.json"),
@@ -249,8 +296,7 @@ describe("SessionTracker", () => {
         { name: "tool1", params: { key: "value1" }, durationMs: 100 },
       ]);
 
-      tracker.record({
-        sessionId: "tool-persist-test",
+      tracker.record("tool-persist-test", {
         current: {
           intent: {},
           toolCalls: [
@@ -262,7 +308,7 @@ describe("SessionTracker", () => {
           ],
         },
       });
-      tracker.write();
+      tracker.write("tool-persist-test");
 
       content = fs.readFileSync(
         path.join(tempDir, "sessions", "tool-persist-test.json"),
@@ -277,8 +323,7 @@ describe("SessionTracker", () => {
 
     it("should merge timestamps across multiple record calls", () => {
       const start = new Date().toISOString();
-      tracker.record({
-        sessionId: "timestamp-test",
+      tracker.record("timestamp-test", {
         current: {
           intent: {},
           timestamps: { start },
@@ -286,14 +331,13 @@ describe("SessionTracker", () => {
       });
 
       const end = new Date().toISOString();
-      tracker.record({
-        sessionId: "timestamp-test",
+      tracker.record("timestamp-test", {
         current: {
           intent: {},
           timestamps: { end },
         },
       });
-      tracker.write();
+      tracker.write("timestamp-test");
 
       const content = fs.readFileSync(
         path.join(tempDir, "sessions", "timestamp-test.json"),
@@ -309,8 +353,7 @@ describe("SessionTracker", () => {
   describe("edge cases", () => {
     it("should deduplicate skillsUsed across multiple toolCalls", () => {
       const tracker2 = SessionTracker.create(tempDir);
-      tracker2.record({
-        sessionId: "skill-dedup",
+      tracker2.record("skill-dedup", {
         current: {
           intent: {},
           toolCalls: [
@@ -329,7 +372,7 @@ describe("SessionTracker", () => {
           ],
         },
       });
-      tracker2.write();
+      tracker2.write("skill-dedup");
 
       const sessionsDir = path.join(tempDir, "sessions");
       const files = fs.readdirSync(sessionsDir);
@@ -347,8 +390,7 @@ describe("SessionTracker", () => {
 
     it("should track multiple unique skills", () => {
       const tracker3 = SessionTracker.create(tempDir);
-      tracker3.record({
-        sessionId: "multi-skills",
+      tracker3.record("multi-skills", {
         current: {
           intent: {},
           toolCalls: [
@@ -367,7 +409,7 @@ describe("SessionTracker", () => {
           ],
         },
       });
-      tracker3.write();
+      tracker3.write("multi-skills");
 
       const sessionsDir = path.join(tempDir, "sessions");
       const files = fs.readdirSync(sessionsDir);
@@ -388,8 +430,7 @@ describe("SessionTracker", () => {
 
     it("should ignore non-SKILL.md read calls", () => {
       const tracker4 = SessionTracker.create(tempDir);
-      tracker4.record({
-        sessionId: "no-skill-read",
+      tracker4.record("no-skill-read", {
         current: {
           intent: {},
           toolCalls: [
@@ -402,7 +443,7 @@ describe("SessionTracker", () => {
           ],
         },
       });
-      tracker4.write();
+      tracker4.write("no-skill-read");
 
       const sessionsDir = path.join(tempDir, "sessions");
       const files = fs.readdirSync(sessionsDir);
@@ -416,15 +457,14 @@ describe("SessionTracker", () => {
     });
 
     it("should handle session data with special characters", () => {
-      tracker.record({
-        sessionId: "special-chars-test",
+      tracker.record("special-chars-test", {
         current: {
           input: 'Hello "world" with \n newlines and \t tabs',
           intent: {},
           result: "Response with unicode: 你好世界 🌍",
         },
       });
-      tracker.write();
+      tracker.write("special-chars-test");
 
       const sessionsDir = path.join(tempDir, "sessions");
       const files = fs.readdirSync(sessionsDir);
@@ -441,11 +481,10 @@ describe("SessionTracker", () => {
     });
 
     it("should handle empty toolCalls array", () => {
-      tracker.record({
-        sessionId: "empty-tools-test",
+      tracker.record("empty-tools-test", {
         current: { intent: {}, toolCalls: [] },
       });
-      tracker.write();
+      tracker.write("empty-tools-test");
 
       const sessionsDir = path.join(tempDir, "sessions");
       const files = fs.readdirSync(sessionsDir);
@@ -459,10 +498,8 @@ describe("SessionTracker", () => {
     });
 
     it("should handle undefined optional fields", () => {
-      tracker.record({
-        sessionId: "undefined-test",
-      });
-      tracker.write();
+      tracker.record("undefined-test", {});
+      tracker.write("undefined-test");
 
       const sessionsDir = path.join(tempDir, "sessions");
       const files = fs.readdirSync(sessionsDir);
@@ -483,8 +520,7 @@ describe("SessionTracker", () => {
 
     it("should return true after record with intentResult", () => {
       const tracker2 = SessionTracker.create(tempDir);
-      tracker2.record({
-        sessionId: "intent-session",
+      tracker2.record("intent-session", {
         current: {
           intent: {
             result: {
@@ -502,8 +538,7 @@ describe("SessionTracker", () => {
 
     it("should return false after record without intentResult", () => {
       const tracker3 = SessionTracker.create(tempDir);
-      tracker3.record({
-        sessionId: "no-intent-session",
+      tracker3.record("no-intent-session", {
         current: { input: "hello", intent: {} },
       });
       expect(tracker3.hasIntentData("no-intent-session")).toBe(false);
@@ -511,8 +546,7 @@ describe("SessionTracker", () => {
 
     it("should return false for different sessionId", () => {
       const tracker4 = SessionTracker.create(tempDir);
-      tracker4.record({
-        sessionId: "session-a",
+      tracker4.record("session-a", {
         current: {
           intent: {
             result: {

@@ -139,9 +139,8 @@ export function createHookHandlers(deps: HookDeps) {
       // Record session data for tracking
       const sessionId = ctx.sessionId;
       if (sessionId) {
-        defaultTracker.rotate();
-        defaultTracker.record({
-          sessionId,
+        defaultTracker.rotate(sessionId);
+        defaultTracker.record(sessionId, {
           sessionKey: resolvedSessionKey ?? ctx.sessionKey,
           agentId: effectiveAgentId,
           current: {
@@ -153,7 +152,7 @@ export function createHookHandlers(deps: HookDeps) {
             timestamps: { start: new Date().toISOString() },
           },
         });
-        defaultTracker.write();
+        defaultTracker.write(sessionId);
       }
 
       const promptPrefix = buildPromptPrefix(
@@ -164,7 +163,8 @@ export function createHookHandlers(deps: HookDeps) {
       if (!promptPrefix) return;
 
       return { prependContext: promptPrefix };
-    } catch {
+    } catch (err) {
+      logger.warn("before_prompt_build hook error", { error: err });
       return;
     }
   }
@@ -182,8 +182,7 @@ export function createHookHandlers(deps: HookDeps) {
       typeof output === "string" ? output : extractToolText(output);
     const truncatedOutput = outputStr.slice(0, 200);
 
-    defaultTracker.record({
-      sessionId,
+    defaultTracker.record(sessionId, {
       current: {
         toolCalls: [
           {
@@ -196,7 +195,7 @@ export function createHookHandlers(deps: HookDeps) {
         ],
       },
     });
-    defaultTracker.write();
+    defaultTracker.write(sessionId);
   }
 
   async function onAgentEnd(
@@ -218,15 +217,14 @@ export function createHookHandlers(deps: HookDeps) {
       .reverse()
       .find((t) => t.role === "assistant");
 
-    defaultTracker.record({
-      sessionId,
+    defaultTracker.record(sessionId, {
       current: {
         result: lastAssistantTurn?.text,
         error: event.error,
         timestamps: { end: new Date().toISOString() },
       },
     });
-    defaultTracker.write();
+    defaultTracker.write(sessionId);
   }
 
   return {

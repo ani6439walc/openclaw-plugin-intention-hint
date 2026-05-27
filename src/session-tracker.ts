@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import * as fs from "node:fs";
 import type { RecentTurn, IntentionResult, ContextWindow } from "./types.js";
 import matter from "gray-matter";
+import { logger } from "../api.js";
 
 export interface SkillRecord {
   name: string;
@@ -57,34 +58,62 @@ function extractSkillInfo(
     if (parsed.data?.name && typeof parsed.data.name === "string") {
       return { name: parsed.data.name, path: filePath };
     }
-  } catch {
-    // not valid markdown with frontmatter
+  } catch (err) {
+    logger.warn("not valid skill markdown with frontmatter", {
+      error: err,
+      path: filePath,
+    });
   }
   return;
 }
 
 export class SessionTracker {
   private pluginRoot: string;
-  private sessionData: SessionData = {
-    sessionId: "",
-    current: { intent: {} },
-  };
-  private sessionsWithIntent: Set<string> = new Set();
+  private sessionData: Map<string, SessionData> = new Map();
 
   private constructor(pluginRoot: string) {
     this.pluginRoot = pluginRoot;
   }
 
   static create(pluginRoot: string): SessionTracker {
-    return new SessionTracker(pluginRoot);
+    const tracker = new SessionTracker(pluginRoot);
+    tracker.loadSessionsFromDisk();
+    return tracker;
+  }
+
+  private loadSessionsFromDisk(): void {
+    const sessionsDir = path.join(this.pluginRoot, "sessions");
+    if (!fs.existsSync(sessionsDir)) {
+      return;
+    }
+
+    const files = fs.readdirSync(sessionsDir);
+    for (const file of files) {
+      if (!file.endsWith(".json")) continue;
+
+      const filePath = path.join(sessionsDir, file);
+      try {
+        const content = fs.readFileSync(filePath, "utf-8");
+        const sessionData: SessionData = JSON.parse(content);
+        this.sessionData.set(sessionData.sessionId, sessionData);
+      } catch (err) {
+        logger.warn("failed to load session file", {
+          error: err,
+          path: filePath,
+        });
+      }
+    }
   }
 
   hasIntentData(sessionId: string): boolean {
-    return this.sessionsWithIntent.has(sessionId);
+    const session = this.sessionData.get(sessionId);
+    return !!session?.current?.intent?.result;
   }
 
-  rotate(): void {
-    const snapshot = this.sessionData.current;
+  rotate(sessionId: string): void {
+    const session = this.sessionData.get(sessionId);
+    if (!session) return;
+    const snapshot = session.current;
     if (
       !snapshot.input &&
       !snapshot.result &&
@@ -94,35 +123,32 @@ export class SessionTracker {
       return;
     }
 
-    if (!this.sessionData.history) {
-      this.sessionData.history = [];
+    if (!session.history) {
+      session.history = [];
     }
-    this.sessionData.history.push({ ...snapshot });
-    this.sessionData.current = { intent: {} };
+    session.history.push({ ...snapshot });
+    session.current = { intent: {} };
   }
 
-  record(data: Partial<SessionData>): void {
-    if (!data.sessionId) {
+  record(sessionId: string, data: Partial<SessionData>): void {
+    if (!sessionId) {
       return;
     }
 
-    if (
-      this.sessionData.sessionId &&
-      this.sessionData.sessionId !== data.sessionId
-    ) {
-      this.sessionData = { sessionId: data.sessionId, current: { intent: {} } };
+    let session = this.sessionData.get(sessionId);
+    if (!session) {
+      session = { sessionId: sessionId, current: { intent: {} } };
+      this.sessionData.set(sessionId, session);
     }
-
-    this.sessionData.sessionId = data.sessionId;
 
     if (data.sessionKey !== undefined) {
-      this.sessionData.sessionKey = data.sessionKey;
+      session.sessionKey = data.sessionKey;
     }
     if (data.agentId !== undefined) {
-      this.sessionData.agentId = data.agentId;
+      session.agentId = data.agentId;
     }
 
-    const current = this.sessionData.current;
+    const current = session.current;
 
     if (data.current) {
       if (data.current.input !== undefined) {
@@ -135,7 +161,6 @@ export class SessionTracker {
         }
         if (data.current.intent.result !== undefined) {
           current.intent.result = data.current.intent.result;
-          this.sessionsWithIntent.add(data.sessionId);
         }
       }
       if (data.current.result !== undefined) {
@@ -186,24 +211,23 @@ export class SessionTracker {
     }
 
     if (data.history) {
-      this.sessionData.history = data.history;
+      session.history = data.history;
     }
   }
 
-  write(): void {
-    if (!this.sessionData.sessionId) {
-      return;
-    }
+  write(sessionId: string): void {
+    const session = this.sessionData.get(sessionId);
+    if (!session) return;
 
     const sessionsDir = path.join(this.pluginRoot, "sessions");
     if (!fs.existsSync(sessionsDir)) {
       fs.mkdirSync(sessionsDir, { recursive: true });
     }
 
-    const filename = `${this.sessionData.sessionId}.json`;
+    const filename = `${sessionId}.json`;
     const filePath = path.join(sessionsDir, filename);
 
-    fs.writeFileSync(filePath, JSON.stringify(this.sessionData, null, 2));
+    fs.writeFileSync(filePath, JSON.stringify(session, null, 2));
   }
 }
 
