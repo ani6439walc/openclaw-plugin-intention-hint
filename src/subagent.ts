@@ -85,6 +85,7 @@ export async function runIntentionSubagent(params: {
     conversation: params.conversation,
     latest: params.latest,
     intents: params.intents,
+    currentTime: resolveCurrentTime(params.api),
   });
   const embeddedRunParams = buildIntentionEmbeddedRunParams({
     params,
@@ -160,4 +161,12 @@ export function buildIntentionEmbeddedRunParams(params: {
     authProfileFailurePolicy: "local" as const,
     cleanupBundleMcpOnRunEnd: true,
   };
+}
+
+function resolveCurrentTime(api: OpenClawPluginApi): string {
+  const userTimezone =
+    api.runtime.config?.current?.()?.agents?.defaults?.userTimezone ??
+    Intl.DateTimeFormat().resolvedOptions().timeZone ??
+    "UTC";
+  return `${new Date().toISOString()} (timezone: ${userTimezone})`;
 }

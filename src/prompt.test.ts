@@ -73,7 +73,7 @@ describe("buildIntentionPrompt", () => {
       latest: "hello",
     });
 
-    expect(result).toContain(`intent: ${FALLBACK_INTENT.id}`);
+    expect(result).toContain(FALLBACK_INTENT.id);
     expect(result).toContain(FALLBACK_INTENT.name);
   });
 
@@ -112,8 +112,8 @@ describe("buildIntentionPrompt", () => {
       latest: "test message",
     });
 
-    expect(result).toContain("<conversation>");
-    expect(result).toContain("</conversation>");
+    expect(result).not.toContain("<conversation>");
+    expect(result).not.toContain("</conversation>");
     expect(result).toContain("<latest>");
     expect(result).toContain("test message");
   });
@@ -126,21 +126,23 @@ describe("buildIntentionPrompt", () => {
 
     expect(result).toContain("<classification_rules>");
     expect(result).toContain("<output_format>");
-    expect(result).toContain("intent:");
-    expect(result).toContain("reason:");
-    expect(result).toContain("goal:");
-    expect(result).toContain("confidence:");
-    expect(result).toContain("complexity:");
+    expect(result).toContain('"intent":');
+    expect(result).toContain('"reason":');
+    expect(result).toContain('"goal":');
+    expect(result).toContain('"confidence":');
+    expect(result).toContain('"complexity":');
   });
 });
 
 describe("parseIntentionResult", () => {
   it("should parse valid intention result", () => {
-    const raw = `intent: coding (Coding Task)
-reason: User wants to write code
-goal: Implement a sorting function
-confidence: 0.85
-complexity: medium`;
+    const raw = JSON.stringify({
+      intent: "coding",
+      reason: "User wants to write code",
+      goal: "Implement a sorting function",
+      confidence: 0.85,
+      complexity: "medium",
+    });
 
     const result = parseIntentionResult(raw, ["coding", "debugging", "other"]);
 
@@ -152,13 +154,40 @@ complexity: medium`;
     expect(result!.complexity).toBe("medium");
   });
 
+  it("should parse intent with id and name format", () => {
+    const raw = JSON.stringify({
+      intent: "MEMORY_LOOKUP (Memory Lookup)",
+      reason: "User asked to recall previous conversation topic",
+      goal: "Retrieve memory of past discussion",
+      confidence: 0.9,
+      complexity: "medium",
+    });
+
+    const result = parseIntentionResult(raw, [
+      "memory_lookup",
+      "coding",
+      "other",
+    ]);
+
+    expect(result).toBeDefined();
+    expect(result!.intent).toBe("MEMORY_LOOKUP (Memory Lookup)");
+    expect(result!.reason).toBe(
+      "User asked to recall previous conversation topic",
+    );
+    expect(result!.goal).toBe("Retrieve memory of past discussion");
+    expect(result!.confidence).toBe(0.9);
+    expect(result!.complexity).toBe("medium");
+  });
+
   it("should parse with suggestion when confidence is low", () => {
-    const raw = `intent: other (Unclassified)
-reason: Unable to confidently classify
-goal: User is asking something unclear
-confidence: 0.45
-complexity: low
-suggestion: Please clarify what you need help with`;
+    const raw = JSON.stringify({
+      intent: "other",
+      reason: "Unable to confidently classify",
+      goal: "User is asking something unclear",
+      confidence: 0.45,
+      complexity: "low",
+      suggestion: "Please clarify what you need help with",
+    });
 
     const result = parseIntentionResult(raw, ["coding", "debugging", "other"]);
 
@@ -167,23 +196,26 @@ suggestion: Please clarify what you need help with`;
     expect(result!.suggestion).toBe("Please clarify what you need help with");
   });
 
-  it("should handle case-insensitive field names", () => {
-    const raw = `INTENT: coding
-REASON: User wants code
-GOAL: Sort function
-CONFIDENCE: 0.9
-COMPLEXITY: HIGH`;
+  it("should handle case-insensitive intent matching", () => {
+    const raw = JSON.stringify({
+      intent: "CODING",
+      reason: "User wants code",
+      goal: "Sort function",
+      confidence: 0.8,
+      complexity: "medium",
+    });
 
     const result = parseIntentionResult(raw, ["coding", "other"]);
 
     expect(result).toBeDefined();
     expect(result!.intent).toBe("coding");
-    expect(result!.complexity).toBe("high");
   });
 
   it("should return undefined for incomplete results", () => {
-    const raw = `intent: coding
-reason: User wants code`;
+    const raw = JSON.stringify({
+      intent: "coding",
+      reason: "User wants code",
+    });
 
     const result = parseIntentionResult(raw, ["coding", "other"]);
 
@@ -191,11 +223,13 @@ reason: User wants code`;
   });
 
   it("should fallback to valid intent when intent not in list", () => {
-    const raw = `intent: unknown-intent
-reason: Some reason
-goal: Some goal
-confidence: 0.8
-complexity: medium`;
+    const raw = JSON.stringify({
+      intent: "unknown-intent",
+      reason: "Some reason",
+      goal: "Some goal",
+      confidence: 0.8,
+      complexity: "medium",
+    });
 
     const result = parseIntentionResult(raw, ["coding", "other"]);
 
@@ -203,25 +237,14 @@ complexity: medium`;
     expect(result!.intent).toBe("other");
   });
 
-  it("should handle case-insensitive intent matching", () => {
-    const raw = `intent: CODING
-reason: User wants code
-goal: Sort function
-confidence: 0.8
-complexity: medium`;
-
-    const result = parseIntentionResult(raw, ["coding", "other"]);
-
-    expect(result).toBeDefined();
-    expect(result!.intent).toBe("coding");
-  });
-
   it("should handle confidence as integer", () => {
-    const raw = `intent: coding
-reason: User wants code
-goal: Sort function
-confidence: 1
-complexity: low`;
+    const raw = JSON.stringify({
+      intent: "coding",
+      reason: "User wants code",
+      goal: "Sort function",
+      confidence: 1,
+      complexity: "low",
+    });
 
     const result = parseIntentionResult(raw, ["coding"]);
 
@@ -230,11 +253,13 @@ complexity: low`;
   });
 
   it("should ignore invalid confidence values", () => {
-    const raw = `intent: coding
-reason: User wants code
-goal: Sort function
-confidence: invalid
-complexity: low`;
+    const raw = JSON.stringify({
+      intent: "coding",
+      reason: "User wants code",
+      goal: "Sort function",
+      confidence: "invalid",
+      complexity: "low",
+    });
 
     const result = parseIntentionResult(raw, ["coding"]);
 
@@ -242,11 +267,13 @@ complexity: low`;
   });
 
   it("should ignore out-of-range confidence values", () => {
-    const raw = `intent: coding
-reason: User wants code
-goal: Sort function
-confidence: 1.5
-complexity: low`;
+    const raw = JSON.stringify({
+      intent: "coding",
+      reason: "User wants code",
+      goal: "Sort function",
+      confidence: 1.5,
+      complexity: "low",
+    });
 
     const result = parseIntentionResult(raw, ["coding"]);
 
@@ -254,12 +281,14 @@ complexity: low`;
   });
 
   it("should handle empty suggestion", () => {
-    const raw = `intent: coding
-reason: User wants code
-goal: Sort function
-confidence: 0.8
-complexity: low
-suggestion:`;
+    const raw = JSON.stringify({
+      intent: "coding",
+      reason: "User wants code",
+      goal: "Sort function",
+      confidence: 0.8,
+      complexity: "low",
+      suggestion: "",
+    });
 
     const result = parseIntentionResult(raw, ["coding"]);
 
@@ -267,19 +296,75 @@ suggestion:`;
     expect(result!.suggestion).toBeUndefined();
   });
 
-  it("should strip output_format tags", () => {
-    const raw = `<output_format>
-intent: coding
-reason: User wants code
-goal: Sort function
-confidence: 0.8
-complexity: low
-</output_format>`;
-
+  it("should parse JSON wrapped in ```json code block", () => {
+    const raw =
+      '```json\n{"intent": "coding", "reason": "test", "goal": "build", "confidence": 0.9, "complexity": "medium"}\n```';
     const result = parseIntentionResult(raw, ["coding"]);
-
     expect(result).toBeDefined();
     expect(result!.intent).toBe("coding");
+  });
+
+  it("should parse JSON wrapped in ``` without json tag", () => {
+    const raw =
+      '```\n{"intent": "coding", "reason": "test", "goal": "build", "confidence": 0.9, "complexity": "low"}\n```';
+    const result = parseIntentionResult(raw, ["coding"]);
+    expect(result).toBeDefined();
+  });
+
+  it("should return undefined for malformed JSON", () => {
+    const raw = "{bad json here";
+    const result = parseIntentionResult(raw, ["coding"]);
+    expect(result).toBeUndefined();
+  });
+
+  it("should return undefined for empty string", () => {
+    const result = parseIntentionResult("", ["coding"]);
+    expect(result).toBeUndefined();
+  });
+
+  it("should return undefined when required fields missing", () => {
+    const raw = JSON.stringify({ intent: "coding", reason: "test" });
+    const result = parseIntentionResult(raw, ["coding"]);
+    expect(result).toBeUndefined();
+  });
+
+  it("should return undefined for invalid complexity", () => {
+    const raw = JSON.stringify({
+      intent: "coding",
+      reason: "test",
+      goal: "build",
+      confidence: 0.9,
+      complexity: "invalid",
+    });
+    const result = parseIntentionResult(raw, ["coding"]);
+    expect(result).toBeUndefined();
+  });
+
+  it("should handle optional suggestion only when present", () => {
+    const raw = JSON.stringify({
+      intent: "coding",
+      reason: "test",
+      goal: "build",
+      confidence: 0.5,
+      complexity: "high",
+      suggestion: "Consider breaking into smaller tasks",
+    });
+    const result = parseIntentionResult(raw, ["coding"]);
+    expect(result).toBeDefined();
+    expect(result!.suggestion).toBe("Consider breaking into smaller tasks");
+  });
+
+  it("should NOT have suggestion when not in JSON", () => {
+    const raw = JSON.stringify({
+      intent: "coding",
+      reason: "test",
+      goal: "build",
+      confidence: 0.9,
+      complexity: "low",
+    });
+    const result = parseIntentionResult(raw, ["coding"]);
+    expect(result).toBeDefined();
+    expect(result!.suggestion).toBeUndefined();
   });
 });
 

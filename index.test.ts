@@ -459,14 +459,14 @@ describe("buildIntentionPrompt", () => {
       expect(prompt).toContain("</input_context>");
     });
 
-    it("contains <classification_rules> section with intent priority rule", () => {
+    it("contains <classification_rules> section with validation rule", () => {
       const prompt = buildIntentionPrompt({
         latest: "test",
         intents: mockIntents,
       });
       expect(prompt).toContain("<classification_rules>");
       expect(prompt).toContain("</classification_rules>");
-      expect(prompt).toContain("classify first if triggers match closely");
+      expect(prompt).toContain("Validate output");
     });
 
     it("contains <input> section with <conversation> and <latest>", () => {
@@ -495,8 +495,8 @@ describe("buildIntentionPrompt", () => {
         latest: "hello",
         intents: mockIntents,
       });
-      expect(prompt).toContain("<conversation>");
-      expect(prompt).toContain("</conversation>");
+      expect(prompt).not.toContain("<conversation>");
+      expect(prompt).not.toContain("</conversation>");
       expect(prompt).toContain("<latest>");
       expect(prompt).toContain("hello");
       expect(prompt).toContain("</latest>");
@@ -515,8 +515,8 @@ describe("buildIntentionPrompt", () => {
       },
     ];
     const prompt = buildIntentionPrompt({ latest: "test", intents });
-    expect(prompt).toContain("intent: OTHER (Unclassified)");
-    expect(prompt).toContain("Unable to confidently classify");
+    expect(prompt).toContain("OTHER (Fallback)");
+    expect(prompt).toContain('"OTHER"');
   });
 });
 
@@ -758,14 +758,36 @@ describe("extractRecentTurns", () => {
 /* ── Parse Intention Result ─────────── */
 
 describe("parseIntentionResult", () => {
-  it("parses intent from key-value format", () => {
+  it("parses intent from JSON format", () => {
     const result = parseIntentionResult(
-      "intent: chat (閒聊)\nreason: greeting\ngoal: social\nconfidence: 0.9\ncomplexity: low",
+      JSON.stringify({
+        intent: "chat",
+        reason: "greeting",
+        goal: "social",
+        confidence: 0.9,
+        complexity: "low",
+      }),
       ["chat", "other"],
     );
     expect(result?.intent).toBe("chat");
     expect(result?.reason).toBe("greeting");
     expect(result?.goal).toBe("social");
+  });
+
+  it("parses intent with id and name format", () => {
+    const result = parseIntentionResult(
+      JSON.stringify({
+        intent: "MEMORY_LOOKUP (Memory Lookup)",
+        reason: "User asked to recall previous conversation",
+        goal: "Retrieve memory",
+        confidence: 0.9,
+        complexity: "medium",
+      }),
+      ["memory_lookup", "other"],
+    );
+    expect(result?.intent).toBe("MEMORY_LOOKUP (Memory Lookup)");
+    expect(result?.reason).toBe("User asked to recall previous conversation");
+    expect(result?.goal).toBe("Retrieve memory");
   });
 
   it("returns undefined for empty string", () => {
@@ -775,7 +797,14 @@ describe("parseIntentionResult", () => {
 
   it("parses required fields and optional suggestion", () => {
     const result = parseIntentionResult(
-      "intent: research (研究查詢)\nreason: need data\ngoal: check news\nsuggestion: try news\nconfidence: 0.8\ncomplexity: medium",
+      JSON.stringify({
+        intent: "research",
+        reason: "need data",
+        goal: "check news",
+        suggestion: "try news",
+        confidence: 0.8,
+        complexity: "medium",
+      }),
       ["research", "other"],
     );
     expect(result?.intent).toBe("research");
@@ -786,7 +815,13 @@ describe("parseIntentionResult", () => {
 
   it("falls back to other when intent not in valid list", () => {
     const result = parseIntentionResult(
-      "intent: invalid\nreason: test\ngoal: test\nconfidence: 0.3\ncomplexity: medium",
+      JSON.stringify({
+        intent: "invalid",
+        reason: "test",
+        goal: "test",
+        confidence: 0.3,
+        complexity: "medium",
+      }),
       ["chat", "other"],
     );
     expect(result?.intent).toBe("other");
@@ -794,20 +829,34 @@ describe("parseIntentionResult", () => {
 
   it("falls back to first valid intent when no other available", () => {
     const result = parseIntentionResult(
-      "intent: invalid\nreason: test\ngoal: test\nconfidence: 0.5\ncomplexity: low",
+      JSON.stringify({
+        intent: "invalid",
+        reason: "test",
+        goal: "test",
+        confidence: 0.5,
+        complexity: "low",
+      }),
       ["chat"],
     );
     expect(result?.intent).toBe("chat");
   });
 
   it("returns undefined when missing required fields", () => {
-    const result = parseIntentionResult("intent: chat", ["chat"]);
+    const result = parseIntentionResult(JSON.stringify({ intent: "chat" }), [
+      "chat",
+    ]);
     expect(result).toBeUndefined();
   });
 
   it("ignores unsupported fields from parsing", () => {
-    const raw =
-      "intent: chat\nreason: test\ngoal: test\nconfidence: 0.7\ncomplexity: medium\nmemorySubIntent: recent";
+    const raw = JSON.stringify({
+      intent: "chat",
+      reason: "test",
+      goal: "test",
+      confidence: 0.7,
+      complexity: "medium",
+      memorySubIntent: "recent",
+    });
     const result = parseIntentionResult(raw, ["chat"]);
     expect(result).toBeDefined();
     expect(result?.intent).toBe("chat");
@@ -816,9 +865,9 @@ describe("parseIntentionResult", () => {
     expect((result as any).memorySubIntent).toBeUndefined();
   });
 
-  it("strips OUTPUT_FORMAT XML tags", () => {
+  it("strips ```json code block markers", () => {
     const result = parseIntentionResult(
-      "<OUTPUT_FORMAT>\nintent: CHAT (Casual Chat)\nreason: greeting\ngoal: social\nconfidence: 0.95\ncomplexity: low\n</OUTPUT_FORMAT>",
+      '```json\n{"intent": "CHAT", "reason": "greeting", "goal": "social", "confidence": 0.95, "complexity": "low"}\n```',
       ["CHAT", "OTHER"],
     );
     expect(result?.intent).toBe("CHAT");
@@ -828,24 +877,30 @@ describe("parseIntentionResult", () => {
 
   it("skips empty optional fields", () => {
     const result = parseIntentionResult(
-      "intent: CHAT\nreason: greeting\ngoal: social\nsuggestion: \nconfidence: 0.9\ncomplexity: low",
+      JSON.stringify({
+        intent: "CHAT",
+        reason: "greeting",
+        goal: "social",
+        suggestion: "",
+        confidence: 0.9,
+        complexity: "low",
+      }),
       ["CHAT", "OTHER"],
     );
     expect(result?.intent).toBe("CHAT");
     expect(result?.suggestion).toBeUndefined();
   });
 
-  it("skips whitespace-only suggestion", () => {
+  it("skips whitespace-only optional fields", () => {
     const result = parseIntentionResult(
-      "intent: CHAT\nreason: greeting\ngoal: social\nsuggestion:    \nconfidence: 0.85\ncomplexity: medium",
-      ["CHAT", "OTHER"],
-    );
-    expect(result?.suggestion).toBeUndefined();
-  });
-
-  it("parses confidence when valid", () => {
-    const result = parseIntentionResult(
-      "intent: CHAT\nreason: test\ngoal: social\nconfidence: 0.85\ncomplexity: medium",
+      JSON.stringify({
+        intent: "CHAT",
+        reason: "greeting",
+        goal: "social",
+        suggestion: "   ",
+        confidence: 0.85,
+        complexity: "low",
+      }),
       ["CHAT", "OTHER"],
     );
     expect(result?.confidence).toBe(0.85);
@@ -853,7 +908,13 @@ describe("parseIntentionResult", () => {
 
   it("parses complexity when valid", () => {
     const result = parseIntentionResult(
-      "intent: CHAT\nreason: test\ngoal: social\nconfidence: 0.7\ncomplexity: high",
+      JSON.stringify({
+        intent: "CHAT",
+        reason: "test",
+        goal: "social",
+        confidence: 0.7,
+        complexity: "high",
+      }),
       ["CHAT", "OTHER"],
     );
     expect(result?.complexity).toBe("high");
@@ -861,7 +922,11 @@ describe("parseIntentionResult", () => {
 
   it("returns undefined when confidence absent", () => {
     const result = parseIntentionResult(
-      "intent: CHAT\nreason: test\ngoal: social",
+      JSON.stringify({
+        intent: "CHAT",
+        reason: "test",
+        goal: "social",
+      }),
       ["CHAT", "OTHER"],
     );
     expect(result).toBeUndefined();
@@ -869,7 +934,11 @@ describe("parseIntentionResult", () => {
 
   it("returns undefined when complexity absent", () => {
     const result = parseIntentionResult(
-      "intent: CHAT\nreason: test\ngoal: social",
+      JSON.stringify({
+        intent: "CHAT",
+        reason: "test",
+        goal: "social",
+      }),
       ["CHAT", "OTHER"],
     );
     expect(result).toBeUndefined();
@@ -877,7 +946,12 @@ describe("parseIntentionResult", () => {
 
   it("returns undefined when confidence invalid", () => {
     const result = parseIntentionResult(
-      "intent: CHAT\nreason: test\ngoal: social\nconfidence: unsure",
+      JSON.stringify({
+        intent: "CHAT",
+        reason: "test",
+        goal: "social",
+        confidence: "unsure",
+      }),
       ["CHAT", "OTHER"],
     );
     expect(result).toBeUndefined();
@@ -885,7 +959,12 @@ describe("parseIntentionResult", () => {
 
   it("returns undefined when complexity invalid", () => {
     const result = parseIntentionResult(
-      "intent: CHAT\nreason: test\ngoal: social\ncomplexity: hard",
+      JSON.stringify({
+        intent: "CHAT",
+        reason: "test",
+        goal: "social",
+        complexity: "hard",
+      }),
       ["CHAT", "OTHER"],
     );
     expect(result).toBeUndefined();
@@ -893,7 +972,13 @@ describe("parseIntentionResult", () => {
 
   it("parses both confidence and complexity when both valid", () => {
     const result = parseIntentionResult(
-      "intent: CHAT\nreason: test\ngoal: social\nconfidence: 0.75\ncomplexity: medium",
+      JSON.stringify({
+        intent: "CHAT",
+        reason: "test",
+        goal: "social",
+        confidence: 0.75,
+        complexity: "medium",
+      }),
       ["CHAT", "OTHER"],
     );
     expect(result?.confidence).toBe(0.75);
@@ -902,7 +987,13 @@ describe("parseIntentionResult", () => {
 
   it("parses mixed valid/invalid — returns undefined when complexity invalid", () => {
     const result = parseIntentionResult(
-      "intent: CHAT\nreason: test\ngoal: social\nconfidence: 0.9\ncomplexity: weird",
+      JSON.stringify({
+        intent: "CHAT",
+        reason: "test",
+        goal: "social",
+        confidence: 0.9,
+        complexity: "weird",
+      }),
       ["CHAT", "OTHER"],
     );
     expect(result).toBeUndefined();

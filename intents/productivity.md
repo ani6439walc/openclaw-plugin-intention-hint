@@ -35,7 +35,7 @@ Detected "productivity" intent. The user is interacting with the productivity va
   skill: treemd
 
 - Read vault content with Obsidian CLI:
-  skill: obsidian-cli
+  skill: obsidian
 
 - Edit vault files following Obsidian Markdown conventions:
   skill: obsidian-markdown

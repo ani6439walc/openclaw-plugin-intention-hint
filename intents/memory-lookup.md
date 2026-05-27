@@ -26,7 +26,7 @@ Detected "general memory lookup" intent. The user wants past records or prior in
   skill: treemd
 
 - List tags or inspect linked memory notes after a relevant file is found:
-  skill: obsidian-cli
+  skill: obsidian
 
 - Extract tags from memory files for sentiment/context analysis:
   ```bash

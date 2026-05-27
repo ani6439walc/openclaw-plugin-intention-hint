@@ -25,7 +25,7 @@ Detected "emotional memory" intent. The user wants to understand feelings, mood,
   skill: treemd
 
 - List tags or inspect linked memory notes after relevant files are found:
-  skill: obsidian-cli
+  skill: obsidian
 
 - Search recorded memory for emotional or context-relevant records:
   memory_search({ query: "<event_keywords> 心情 壓力 開心 緊張", corpus: "memory", maxResults: 5, minScore: 0.1 })

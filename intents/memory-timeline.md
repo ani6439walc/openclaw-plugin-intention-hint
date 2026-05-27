@@ -25,7 +25,7 @@ Detected "memory timeline" intent. The user wants a time-ordered view of how som
   skill: treemd
 
 - List tags or inspect linked memory notes after relevant files are found:
-  skill: obsidian-cli
+  skill: obsidian
 
 - Search recorded memory for timeline-related records:
   memory_search({ query: "<topic_keywords> 進度 演進 變化", corpus: "memory", maxResults: 10, minScore: 0.1 })
