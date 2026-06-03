@@ -68,6 +68,9 @@ Detected "agent self-administration" intent. The user is issuing a direct comman
 - Scan, audit, and clean skills (budget, duplicates, unused):
   skill: skill-cleaner
 
+- Scan, audit, rank, and visualize skill collections (complexity scoring, tier ranking, fusion detection, dreaming):
+  skill: medusa
+
 - Run structured workflow cycles for complex multi-step tasks:
   skill: cycle
 
