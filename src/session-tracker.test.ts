@@ -563,4 +563,41 @@ describe("SessionTracker", () => {
       expect(tracker4.hasIntentData("session-b")).toBe(false);
     });
   });
+
+  describe("getCurrentIntentResult", () => {
+    it("should return the current intent result when present", () => {
+      tracker.record("intent-session", {
+        current: {
+          intent: {
+            result: {
+              intent: "AGENT_ADMIN (Agent Self-Administration)",
+              reason: "User confirmed a previous plan",
+              goal: "Execute the plan",
+              confidence: 0.75,
+              complexity: "medium",
+            },
+          },
+        },
+      });
+
+      expect(tracker.getCurrentIntentResult("intent-session")).toEqual({
+        intent: "AGENT_ADMIN (Agent Self-Administration)",
+        reason: "User confirmed a previous plan",
+        goal: "Execute the plan",
+        confidence: 0.75,
+        complexity: "medium",
+      });
+    });
+
+    it("should return undefined when no current intent result exists", () => {
+      tracker.record("no-intent-result", {
+        current: { intent: {} },
+      });
+
+      expect(
+        tracker.getCurrentIntentResult("no-intent-result"),
+      ).toBeUndefined();
+      expect(tracker.getCurrentIntentResult("missing-session")).toBeUndefined();
+    });
+  });
 });

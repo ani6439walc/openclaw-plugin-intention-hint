@@ -125,6 +125,9 @@ export function createHookHandlers(deps: HookDeps) {
         refreshedConfig,
         effectiveAgentId,
       );
+      const previousIntentResult = ctx.sessionId
+        ? defaultTracker.getCurrentIntentResult(ctx.sessionId)
+        : undefined;
 
       const result = await runIntentionSubagent({
         api,
@@ -133,6 +136,7 @@ export function createHookHandlers(deps: HookDeps) {
         sessionKey: resolvedSessionKey,
         sessionId: ctx.sessionId,
         conversation,
+        previousIntentResult,
         latest: latestUserMessage,
         messageProvider: ctx.messageProvider,
         channelId: ctx.channelId,

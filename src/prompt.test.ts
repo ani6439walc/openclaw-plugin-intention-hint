@@ -106,6 +106,40 @@ describe("buildIntentionPrompt", () => {
     expect(result).toContain("</latest>");
   });
 
+  it("should include previous intent result in input section when provided", () => {
+    const result = buildIntentionPrompt({
+      intents: mockIntents,
+      latest: "動手",
+      previousIntentResult: {
+        intent: "ARCHITECTURE_DESIGN (Architecture Design)",
+        reason: "User discussed reorganizing a markdown tree",
+        goal: "Plan the file reorganization",
+        confidence: 0.82,
+        complexity: "medium",
+      },
+    });
+
+    const inputStart = result.indexOf("<input>");
+    const inputEnd = result.indexOf("</input>");
+    const inputSection = result.slice(inputStart, inputEnd);
+
+    expect(inputSection).toContain("<previous_intent_result>");
+    expect(inputSection).toContain(
+      '"intent": "ARCHITECTURE_DESIGN (Architecture Design)"',
+    );
+    expect(inputSection).toContain('"goal": "Plan the file reorganization"');
+    expect(inputSection).toContain("</previous_intent_result>");
+  });
+
+  it("should omit previous intent result when not provided", () => {
+    const result = buildIntentionPrompt({
+      intents: mockIntents,
+      latest: "test message",
+    });
+
+    expect(result).not.toContain("<previous_intent_result>");
+  });
+
   it("should work with empty conversation", () => {
     const result = buildIntentionPrompt({
       intents: mockIntents,
@@ -388,6 +422,14 @@ describe("buildPromptPrefix", () => {
       prompt: "You are helping debug issues. Be thorough in your analysis.",
     },
     {
+      id: "AGENT_ADMIN",
+      name: "Agent Self-Administration",
+      triggers: [],
+      examples: [],
+      enabled: true,
+      prompt: "Detected agent self-administration intent.",
+    },
+    {
       id: "disabled-intent",
       name: "Disabled",
       triggers: [],
@@ -437,6 +479,22 @@ describe("buildPromptPrefix", () => {
     expect(prefix).toContain("complexity: medium");
     expect(prefix).toContain("You are helping with coding tasks");
     expect(prefix).toContain("MEDIUM_COMPLEXITY_PROMPT");
+  });
+
+  it("should match intent ids when result includes display name", () => {
+    const result: IntentionResult = {
+      intent: "AGENT_ADMIN (Agent Self-Administration)",
+      reason:
+        "User is confirming/approving a prior proposal to organize a file",
+      goal: "Execute the file reorganization plan",
+      confidence: 0.75,
+      complexity: "medium",
+    };
+
+    const prefix = buildPromptPrefix(result, mockIntents, mockConfig);
+
+    expect(prefix).toContain("Detected agent self-administration intent.");
+    expect(prefix).not.toContain(FALLBACK_INTENT.prompt);
   });
 
   it("should include suggestion when present", () => {

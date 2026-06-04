@@ -76,11 +76,19 @@ function buildConversationXml(conversation: RecentTurn[] | undefined): string {
   return `<conversation>\n${turns}\n</conversation>`;
 }
 
+function buildPreviousIntentResultXml(
+  result: IntentionResult | undefined,
+): string {
+  if (!result) return "";
+  return `<previous_intent_result>\n${JSON.stringify(result, null, 2)}\n</previous_intent_result>`;
+}
+
 export function buildIntentionPrompt(params: {
   conversation?: RecentTurn[];
   latest: string;
   intents: readonly IntentDefinition[];
   currentTime?: string;
+  previousIntentResult?: IntentionResult;
 }): string {
   const timeTag = params.currentTime
     ? `<current_time>\n${params.currentTime}\n</current_time>\n`
@@ -89,6 +97,12 @@ export function buildIntentionPrompt(params: {
   const intentCatalog = buildIntentCatalog(params.intents);
   const intentCategories = buildIntentCategories(params.intents);
   const conversationXml = buildConversationXml(params.conversation);
+  const previousIntentResultXml = buildPreviousIntentResultXml(
+    params.previousIntentResult,
+  );
+  const previousIntentResultSection = previousIntentResultXml
+    ? `\n${previousIntentResultXml}\n`
+    : "";
   const conversationSection = conversationXml ? `\n${conversationXml}\n` : "";
 
   return `You are an intent classification agent.
@@ -153,7 +167,7 @@ ${intentCatalog}
 </intent_catalog>
 
 <input>
-${timeTag}${conversationSection}
+${timeTag}${previousIntentResultSection}${conversationSection}
 <latest>
 ${params.latest}
 </latest>
@@ -277,12 +291,28 @@ function buildPromptPrefixLines(
   return lines;
 }
 
+function resolveIntentId(intent: string): string {
+  const trimmed = intent.trim();
+  const idNameMatch = trimmed.match(/^([A-Za-z0-9_-]+)\s*\(/);
+  return idNameMatch ? idNameMatch[1] : trimmed;
+}
+
+function findEnabledIntent(
+  result: IntentionResult,
+  intents: readonly IntentDefinition[],
+): IntentDefinition | undefined {
+  const intentId = resolveIntentId(result.intent).toLowerCase();
+  return intents.find(
+    (intent) => intent.enabled && intent.id.toLowerCase() === intentId,
+  );
+}
+
 export function buildPromptPrefix(
   result: IntentionResult,
   intents: readonly IntentDefinition[],
   config: ResolvedIntentionHintPluginConfig,
 ): string | undefined {
-  const intentDef = intents.find((i) => i.id === result.intent && i.enabled);
+  const intentDef = findEnabledIntent(result, intents);
   const effectiveDef = intentDef ?? FALLBACK_INTENT;
   const lines = buildPromptPrefixLines(result, effectiveDef, config);
 

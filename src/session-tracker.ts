@@ -145,6 +145,10 @@ export class SessionTracker {
     return !!session?.current?.intent?.result;
   }
 
+  getCurrentIntentResult(sessionId: string): IntentionResult | undefined {
+    return this.sessionData.get(sessionId)?.current?.intent?.result;
+  }
+
   rotate(sessionId: string): void {
     const session = this.sessionData.get(sessionId);
     if (!session) return;
