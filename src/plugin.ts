@@ -2,6 +2,7 @@ import {
   definePluginEntry,
   type OpenClawConfig,
   type OpenClawPluginApi,
+  type OpenClawPluginDefinition,
 } from "../api.js";
 import { resolveLivePluginConfigObject } from "openclaw/plugin-sdk/plugin-config-runtime";
 import { resolveConfig } from "./config.js";
@@ -11,7 +12,11 @@ import { existsSync, mkdirSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
-export function createPlugin(api: OpenClawPluginApi) {
+export function createPlugin(
+  api: OpenClawPluginApi,
+): OpenClawPluginDefinition & {
+  register: NonNullable<OpenClawPluginDefinition["register"]>;
+} {
   let config = resolveConfig(api.pluginConfig as Record<string, unknown>);
 
   const refreshLiveConfigFromRuntime = () => {

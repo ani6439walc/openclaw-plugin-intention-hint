@@ -1,6 +1,7 @@
 export {
   definePluginEntry,
   type OpenClawPluginApi,
+  type OpenClawPluginDefinition,
 } from "openclaw/plugin-sdk/plugin-entry";
 
 import { createSubsystemLogger } from "openclaw/plugin-sdk/runtime-env";
