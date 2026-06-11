@@ -61,6 +61,52 @@ describe("createHookHandlers tracking guards", () => {
   });
 });
 
+describe("createHookHandlers session cleanup", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it.each(["new", "reset", "idle", "daily", "compaction", "deleted"] as const)(
+    "deletes persisted session data when session_end reason is %s",
+    async (reason) => {
+      const cleanup = vi.spyOn(defaultTracker, "cleanup");
+
+      await createHandlers().onSessionEnd(
+        {
+          sessionId: "ended-session",
+          messageCount: 1,
+          reason,
+        },
+        { sessionId: "ended-session" },
+      );
+
+      expect(cleanup).toHaveBeenCalledWith("ended-session", {
+        deleteFile: true,
+      });
+    },
+  );
+
+  it.each(["shutdown", "restart", "unknown", undefined] as const)(
+    "preserves persisted session data when session_end reason is %s",
+    async (reason) => {
+      const cleanup = vi.spyOn(defaultTracker, "cleanup");
+
+      await createHandlers().onSessionEnd(
+        {
+          sessionId: "ended-session",
+          messageCount: 1,
+          reason,
+        },
+        { sessionId: "ended-session" },
+      );
+
+      expect(cleanup).toHaveBeenCalledWith("ended-session", {
+        deleteFile: false,
+      });
+    },
+  );
+});
+
 describe("createHookHandlers internal turn guards", () => {
   afterEach(() => {
     vi.restoreAllMocks();

@@ -6,6 +6,8 @@ import type {
   PluginHookBeforePromptBuildResult,
   PluginHookAfterToolCallEvent,
   PluginHookAgentEndEvent,
+  PluginHookSessionEndEvent,
+  PluginHookSessionContext,
 } from "openclaw/plugin-sdk/types";
 import { logger } from "../api.js";
 import { defaultCatalog } from "./intent-loader.js";
@@ -45,6 +47,15 @@ function recordTrackedSession(
   defaultTracker.record(sessionId, data);
   defaultTracker.write(sessionId);
 }
+
+const SESSION_END_REASONS_THAT_DELETE_FILE = new Set([
+  "new",
+  "reset",
+  "idle",
+  "daily",
+  "compaction",
+  "deleted",
+]);
 
 export function createHookHandlers(deps: HookDeps) {
   const { api, config, refreshLiveConfigFromRuntime, refreshIntents } = deps;
@@ -234,9 +245,19 @@ export function createHookHandlers(deps: HookDeps) {
     });
   }
 
+  async function onSessionEnd(
+    event: PluginHookSessionEndEvent,
+    ctx: PluginHookSessionContext,
+  ): Promise<void> {
+    defaultTracker.cleanup(ctx.sessionId, {
+      deleteFile: SESSION_END_REASONS_THAT_DELETE_FILE.has(event.reason ?? ""),
+    });
+  }
+
   return {
     onBeforePromptBuild,
     onAfterToolCall,
     onAgentEnd,
+    onSessionEnd,
   };
 }

@@ -350,6 +350,89 @@ describe("SessionTracker", () => {
     });
   });
 
+  describe("cleanup", () => {
+    it("should remove session data and its persisted JSON file", () => {
+      tracker.record("cleanup-test", {
+        current: {
+          intent: {
+            result: {
+              intent: "test",
+              reason: "test reason",
+              goal: "test goal",
+              confidence: 0.9,
+              complexity: "low",
+            },
+          },
+        },
+      });
+      tracker.write("cleanup-test");
+
+      tracker.cleanup("cleanup-test", { deleteFile: true });
+
+      expect(tracker.hasIntentData("cleanup-test")).toBe(false);
+      expect(
+        fs.existsSync(path.join(tempDir, "sessions", "cleanup-test.json")),
+      ).toBe(false);
+    });
+
+    it("should remove session data while preserving its persisted JSON file", () => {
+      tracker.record("preserve-test", {
+        current: {
+          intent: {
+            result: {
+              intent: "test",
+              reason: "test reason",
+              goal: "test goal",
+              confidence: 0.9,
+              complexity: "low",
+            },
+          },
+        },
+      });
+      tracker.write("preserve-test");
+
+      tracker.cleanup("preserve-test", { deleteFile: false });
+
+      expect(tracker.hasIntentData("preserve-test")).toBe(false);
+      expect(
+        fs.existsSync(path.join(tempDir, "sessions", "preserve-test.json")),
+      ).toBe(true);
+    });
+
+    it("should be idempotent when the session or file does not exist", () => {
+      expect(() =>
+        tracker.cleanup("missing-session", { deleteFile: true }),
+      ).not.toThrow();
+      expect(() =>
+        tracker.cleanup("missing-session", { deleteFile: true }),
+      ).not.toThrow();
+    });
+
+    it("should fail open when the persisted session path cannot be deleted", () => {
+      const invalidSessionPath = path.join(
+        tempDir,
+        "sessions",
+        "directory-session.json",
+      );
+      fs.mkdirSync(invalidSessionPath, { recursive: true });
+
+      expect(() =>
+        tracker.cleanup("directory-session", { deleteFile: true }),
+      ).not.toThrow();
+      expect(fs.existsSync(invalidSessionPath)).toBe(true);
+    });
+
+    it("should never delete files outside the sessions directory", () => {
+      const outsideFile = path.join(tempDir, "outside.json");
+      fs.writeFileSync(outsideFile, "keep");
+
+      expect(() =>
+        tracker.cleanup("../outside", { deleteFile: true }),
+      ).not.toThrow();
+      expect(fs.existsSync(outsideFile)).toBe(true);
+    });
+  });
+
   describe("edge cases", () => {
     it("should deduplicate skillsUsed across multiple toolCalls", () => {
       const tracker2 = SessionTracker.create(tempDir);

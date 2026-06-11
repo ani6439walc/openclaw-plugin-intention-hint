@@ -79,33 +79,49 @@
         "description": "Context sent to scanner: latest message only, recent turns, or full history.",
         "default": "recent"
       },
-      "recentUserTurns": {
-        "type": "integer",
-        "minimum": 0,
-        "maximum": 20,
-        "description": "Number of recent user turns to include when queryMode is 'recent'.",
-        "default": 5
-      },
-      "recentAssistantTurns": {
-        "type": "integer",
-        "minimum": 0,
-        "maximum": 10,
-        "description": "Number of recent assistant turns to include when queryMode is 'recent'.",
-        "default": 5
-      },
-      "recentUserChars": {
-        "type": "integer",
-        "minimum": 40,
-        "maximum": 1000,
-        "description": "Max characters per recent user turn when queryMode is 'recent'.",
-        "default": 220
-      },
-      "recentAssistantChars": {
-        "type": "integer",
-        "minimum": 40,
-        "maximum": 1000,
-        "description": "Max characters per recent assistant turn when queryMode is 'recent'.",
-        "default": 180
+      "contextWindow": {
+        "type": "object",
+        "description": "Turn and character limits for recent conversation context.",
+        "additionalProperties": false,
+        "properties": {
+          "user": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "turns": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 20,
+                "default": 5
+              },
+              "chars": {
+                "type": "integer",
+                "minimum": 40,
+                "maximum": 1000,
+                "default": 220
+              }
+            }
+          },
+          "assistant": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "turns": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10,
+                "default": 5
+              },
+              "chars": {
+                "type": "integer",
+                "minimum": 40,
+                "maximum": 1000,
+                "default": 180
+              }
+            }
+          }
+        },
+        "default": {}
       },
       "intentsDir": {
         "type": "string",

@@ -3,7 +3,7 @@
 [![OpenClaw](https://img.shields.io/badge/Platform-OpenClaw-blue.svg)](https://github.com/openclaw/openclaw)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-An OpenClaw plugin that pre-scans user intent before main-agent replies and injects routing hints via the `before_prompt_build` hook. It also tracks session-level metrics (tool calls, skills used, timestamps) via `after_tool_call` and `agent_end` hooks.
+An OpenClaw plugin that pre-scans user intent before main-agent replies and injects routing hints via the `before_prompt_build` hook. It also tracks session-level metrics via `after_tool_call` and `agent_end`, then cleans up tracker state via `session_end`.
 
 ## Architecture
 
@@ -19,7 +19,8 @@ index.ts
        ├─ hooks.ts → createHookHandlers()
        │    ├─ onBeforePromptBuild → rotate() → record() → write() → inject hint
        │    ├─ onAfterToolCall → record() → write() (tracks tool usage)
-       │    └─ onAgentEnd → record() → write() (tracks final result)
+       │    ├─ onAgentEnd → record() → write() (tracks final result)
+       │    └─ onSessionEnd → cleanup() (cleans tracker state and finalized session files)
        │
        ├─ prompt.ts → buildIntentionPrompt() (pure function — no API dependency)
        │    ├─ JSON output format with <id> (<name>) intent style
@@ -46,10 +47,10 @@ index.ts
 | Module                    | Purpose                                                                          |
 | ------------------------- | -------------------------------------------------------------------------------- |
 | `plugin.ts`               | Plugin entry point, registers hooks on OpenClaw lifecycle events                 |
-| `hooks.ts`                | Event handlers for `before_prompt_build`, `after_tool_call`, `agent_end`         |
+| `hooks.ts`                | Event handlers for prompt building, tool/agent tracking, and session cleanup     |
 | `subagent.ts`             | Runs the intention classification sub-agent with model selection                 |
 | `intent-loader.ts`        | Loads and catalogs intent definitions from YAML-frontmatter `.md` files          |
-| `session-tracker.ts`      | Persist session data (intents, tools, skills) to `sessions/` JSON files          |
+| `session-tracker.ts`      | Persist and clean up session data in `sessions/` JSON files                      |
 | `conversation-extract.ts` | Extract and truncate recent conversation turns for intent context                |
 | `prompt.ts`               | **Core prompt & parser** — builds classification prompt, parses JSON result      |
 | `session.ts`              | Session eligibility guards (agent allow-list, chat type, internal run detection) |
@@ -166,7 +167,7 @@ pnpm run build
 | `deniedChatIds`     | `string[]` | `[]`          | Blocklist of chat IDs. Plugin skips intent analysis for listed IDs.                                   |
 | `queryMode`         | `string`   | `"recent"`    | Context window mode: `recent` (recent turns), `message` (latest message only), `full` (full history). |
 | `contextWindow`     | `object`   | see below     | Turn/char limits for conversation extraction.                                                         |
-| `timeoutMs`         | `number`   | `3000`        | Max wait time for subagent response. Clamped to 500–60000ms.                                          |
+| `timeoutMs`         | `number`   | `3000`        | Max wait time for subagent response. Clamped to 250–120000ms.                                         |
 | `intentsDir`        | `string`   | `"./intents"` | Directory containing intent definition `.md` files with YAML frontmatter.                             |
 | `complexityPrompts` | `object`   | built-in      | Custom classification prompt overrides per complexity level.                                          |
 

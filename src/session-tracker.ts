@@ -245,6 +245,29 @@ export class SessionTracker {
 
     fs.writeFileSync(filePath, JSON.stringify(session, null, 2));
   }
+
+  cleanup(sessionId: string, options: { deleteFile: boolean }): void {
+    this.sessionData.delete(sessionId);
+    if (!options.deleteFile) return;
+
+    const filename = `${sessionId}.json`;
+    if (path.basename(filename) !== filename) {
+      logger.warn("refusing to delete invalid session file path", {
+        sessionId,
+      });
+      return;
+    }
+
+    const filePath = path.join(this.pluginRoot, "sessions", filename);
+    try {
+      fs.rmSync(filePath, { force: true });
+    } catch (err) {
+      logger.warn("failed to delete session file", {
+        error: err,
+        path: filePath,
+      });
+    }
+  }
 }
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));

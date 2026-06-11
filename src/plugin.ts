@@ -72,6 +72,7 @@ export function createPlugin(
       });
       api.on("agent_end", handlers.onAgentEnd);
       api.on("after_tool_call", handlers.onAfterToolCall);
+      api.on("session_end", handlers.onSessionEnd);
     },
   });
 }
