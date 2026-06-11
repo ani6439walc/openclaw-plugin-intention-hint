@@ -252,6 +252,7 @@ export function createHookHandlers(deps: HookDeps) {
     defaultTracker.cleanup(ctx.sessionId, {
       deleteFile: SESSION_END_REASONS_THAT_DELETE_FILE.has(event.reason ?? ""),
     });
+    defaultTracker.cleanupExpired();
   }
 
   return {

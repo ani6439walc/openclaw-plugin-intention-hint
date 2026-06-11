@@ -105,6 +105,24 @@ describe("createHookHandlers session cleanup", () => {
       });
     },
   );
+
+  it.each(["new", "shutdown", undefined] as const)(
+    "runs expired session retention cleanup when session_end reason is %s",
+    async (reason) => {
+      const cleanupExpired = vi.spyOn(defaultTracker, "cleanupExpired");
+
+      await createHandlers().onSessionEnd(
+        {
+          sessionId: "ended-session",
+          messageCount: 1,
+          reason,
+        },
+        { sessionId: "ended-session" },
+      );
+
+      expect(cleanupExpired).toHaveBeenCalledOnce();
+    },
+  );
 });
 
 describe("createHookHandlers internal turn guards", () => {

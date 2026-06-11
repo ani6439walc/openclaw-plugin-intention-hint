@@ -431,6 +431,62 @@ describe("SessionTracker", () => {
       ).not.toThrow();
       expect(fs.existsSync(outsideFile)).toBe(true);
     });
+
+    it("should delete expired session JSON and memory only", () => {
+      const nowMs = Date.UTC(2026, 5, 11);
+      const dayMs = 24 * 60 * 60 * 1000;
+      const sessionsDir = path.join(tempDir, "sessions");
+
+      for (const sessionId of ["expired", "boundary", "fresh"]) {
+        tracker.record(sessionId, {
+          current: {
+            intent: {
+              result: {
+                intent: sessionId,
+                reason: "test",
+                goal: "test",
+                confidence: 1,
+                complexity: "low",
+              },
+            },
+          },
+        });
+        tracker.write(sessionId);
+      }
+
+      const expiredFile = path.join(sessionsDir, "expired.json");
+      const boundaryFile = path.join(sessionsDir, "boundary.json");
+      const freshFile = path.join(sessionsDir, "fresh.json");
+      const ignoredFile = path.join(sessionsDir, "ignored.txt");
+      const nestedDir = path.join(sessionsDir, "nested");
+      const nestedFile = path.join(nestedDir, "expired.json");
+      fs.writeFileSync(ignoredFile, "{}");
+      fs.mkdirSync(nestedDir);
+      fs.writeFileSync(nestedFile, "{}");
+
+      fs.utimesSync(expiredFile, new Date(nowMs), new Date(nowMs - 15 * dayMs));
+      fs.utimesSync(
+        boundaryFile,
+        new Date(nowMs),
+        new Date(nowMs - 14 * dayMs),
+      );
+      fs.utimesSync(freshFile, new Date(nowMs), new Date(nowMs - dayMs));
+      fs.utimesSync(ignoredFile, new Date(nowMs), new Date(nowMs - 15 * dayMs));
+      fs.utimesSync(nestedFile, new Date(nowMs), new Date(nowMs - 15 * dayMs));
+
+      expect(tracker.cleanupExpired(nowMs)).toBe(1);
+
+      expect(fs.existsSync(expiredFile)).toBe(false);
+      expect(tracker.hasIntentData("expired")).toBe(false);
+      expect(fs.existsSync(boundaryFile)).toBe(true);
+      expect(fs.existsSync(freshFile)).toBe(true);
+      expect(fs.existsSync(ignoredFile)).toBe(true);
+      expect(fs.existsSync(nestedFile)).toBe(true);
+    });
+
+    it("should safely sweep when the sessions directory is missing", () => {
+      expect(tracker.cleanupExpired()).toBe(0);
+    });
   });
 
   describe("edge cases", () => {

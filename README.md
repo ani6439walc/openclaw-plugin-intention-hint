@@ -3,7 +3,7 @@
 [![OpenClaw](https://img.shields.io/badge/Platform-OpenClaw-blue.svg)](https://github.com/openclaw/openclaw)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-An OpenClaw plugin that pre-scans user intent before main-agent replies and injects routing hints via the `before_prompt_build` hook. It also tracks session-level metrics via `after_tool_call` and `agent_end`, then cleans up tracker state via `session_end`.
+An OpenClaw plugin that pre-scans user intent before main-agent replies and injects routing hints via the `before_prompt_build` hook. It also tracks session-level metrics via `after_tool_call` and `agent_end`, then cleans up tracker state and session JSON retention via `session_end`.
 
 ## Architecture
 
@@ -20,7 +20,7 @@ index.ts
        │    ├─ onBeforePromptBuild → rotate() → record() → write() → inject hint
        │    ├─ onAfterToolCall → record() → write() (tracks tool usage)
        │    ├─ onAgentEnd → record() → write() (tracks final result)
-       │    └─ onSessionEnd → cleanup() (cleans tracker state and finalized session files)
+       │    └─ onSessionEnd → cleanup() + cleanupExpired() (lifecycle cleanup + 14-day retention)
        │
        ├─ prompt.ts → buildIntentionPrompt() (pure function — no API dependency)
        │    ├─ JSON output format with <id> (<name>) intent style
@@ -55,6 +55,8 @@ index.ts
 | `prompt.ts`               | **Core prompt & parser** — builds classification prompt, parses JSON result      |
 | `session.ts`              | Session eligibility guards (agent allow-list, chat type, internal run detection) |
 | `config.ts`               | Zod schema validation with defaults and clamping for plugin configuration        |
+
+Every `session_end` removes the ended session from tracker memory. Final lifecycle reasons (`new`, `reset`, `idle`, `daily`, `compaction`, and `deleted`) also delete that session's JSON; restart-oriented reasons preserve it for reload. Each `session_end` additionally removes top-level `sessions/*.json` files whose modification time is strictly older than 14 days. Cleanup is fail-open and does not touch transcripts or other plugin data.
 
 ### Hook Execution Flow
 

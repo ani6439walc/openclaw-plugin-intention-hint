@@ -5,6 +5,8 @@ import type { RecentTurn, IntentionResult, ContextWindow } from "./types.js";
 import matter from "gray-matter";
 import { logger } from "../api.js";
 
+const SESSION_RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
+
 export interface SkillRecord {
   name: string;
   path: string;
@@ -267,6 +269,44 @@ export class SessionTracker {
         path: filePath,
       });
     }
+  }
+
+  cleanupExpired(nowMs = Date.now()): number {
+    const sessionsDir = path.join(this.pluginRoot, "sessions");
+    if (!fs.existsSync(sessionsDir)) return 0;
+
+    const cutoffMs = nowMs - SESSION_RETENTION_MS;
+    let deletedCount = 0;
+
+    try {
+      for (const entry of fs.readdirSync(sessionsDir, {
+        withFileTypes: true,
+      })) {
+        if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+
+        const filePath = path.join(sessionsDir, entry.name);
+        try {
+          if (fs.statSync(filePath).mtimeMs >= cutoffMs) continue;
+
+          const sessionId = entry.name.slice(0, -".json".length);
+          this.sessionData.delete(sessionId);
+          fs.rmSync(filePath, { force: true });
+          deletedCount += 1;
+        } catch (err) {
+          logger.warn("failed to delete expired session file", {
+            error: err,
+            path: filePath,
+          });
+        }
+      }
+    } catch (err) {
+      logger.warn("failed to scan expired session files", {
+        error: err,
+        path: sessionsDir,
+      });
+    }
+
+    return deletedCount;
   }
 }
 
