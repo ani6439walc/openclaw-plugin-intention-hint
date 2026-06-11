@@ -17,6 +17,7 @@ import {
   extractRecentTurns,
   extractToolText,
   isInternalUserTurn,
+  attachHistoricalIntents,
 } from "./conversation-extract.js";
 import {
   isAllowedChatId,
@@ -109,8 +110,14 @@ export function createHookHandlers(deps: HookDeps) {
       refreshLiveConfigFromRuntime();
       const refreshedConfig = config();
 
-      const allTurns = extractRecentTurns(event.messages);
       const latestUserMessage = event.prompt ?? "";
+      const historicalIntents = ctx.sessionId
+        ? defaultTracker.getHistoricalIntentRecords(ctx.sessionId)
+        : [];
+      const allTurns = attachHistoricalIntents(
+        extractRecentTurns(event.messages),
+        historicalIntents,
+      );
 
       const conversation = limitConversationTurns(
         allTurns,
@@ -138,9 +145,6 @@ export function createHookHandlers(deps: HookDeps) {
         refreshedConfig,
         effectiveAgentId,
       );
-      const previousIntentResult = ctx.sessionId
-        ? defaultTracker.getCurrentIntentResult(ctx.sessionId)
-        : undefined;
 
       const result = await runIntentionSubagent({
         api,
@@ -149,7 +153,6 @@ export function createHookHandlers(deps: HookDeps) {
         sessionKey: resolvedSessionKey,
         sessionId: ctx.sessionId,
         conversation,
-        previousIntentResult,
         latest: latestUserMessage,
         messageProvider: ctx.messageProvider,
         channelId: ctx.channelId,

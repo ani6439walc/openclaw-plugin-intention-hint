@@ -60,7 +60,6 @@ export async function runIntentionSubagent(params: {
   sessionKey?: string;
   sessionId?: string;
   conversation?: RecentTurn[];
-  previousIntentResult?: IntentionResult;
   latest: string;
   messageProvider?: string;
   channelId?: string;
@@ -84,7 +83,6 @@ export async function runIntentionSubagent(params: {
 
   const prompt = buildIntentionPrompt({
     conversation: params.conversation,
-    previousIntentResult: params.previousIntentResult,
     latest: params.latest,
     intents: params.intents,
     currentTime: resolveCurrentTime(params.api),

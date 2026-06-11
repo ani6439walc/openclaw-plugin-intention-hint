@@ -30,8 +30,8 @@ index.ts
        │    ├─ <conversation> — omitted when empty
        │    └─ buildPromptPrefix() — builds injected hint text
        │
-       ├─ hooks.ts → limitConversationTurns() → extract recent user/assistant turns
-       │    └─ conversation-extract.ts (internal-turn detection + turn extraction)
+       ├─ hooks.ts → attachHistoricalIntents() → limitConversationTurns()
+       │    └─ conversation-extract.ts (internal-turn filtering + per-turn historical intent context)
        │
        ├─ session-tracker.ts → SessionTracker (JSON session persistence)
        │    └─ sessions/<sessionId>.json
@@ -228,7 +228,10 @@ The following categories group intents by their ID prefix:
 ### Conversation Handling
 
 - `<conversation>` block is **omitted entirely** when conversation is empty or undefined
-- When present, wraps turns XML inside `<conversation>...</conversation>` tags
+- Each turn wraps its text in `<message>` inside `<turn role="...">`
+- Matching historical user turns include `<historical_intent>` with only the prior `intent` and `goal`; assistant, unmatched, and latest user turns do not
+- Historical records are matched by normalized user-message text, with duplicate messages paired newest-first
+- Classification rules use historical goals as context while requiring fresh classification on topic switches
 - Extracted via `conversation-extract.ts` with configurable turn/char limits from `contextWindow` config
 
 ### Internal User Turns
@@ -276,7 +279,7 @@ pnpm run typecheck # tsc --noEmit
 pnpm run test:unit # vitest run
 ```
 
-179 tests covering:
+193 tests covering:
 
 - `buildIntentionPrompt()` prompt structure
 - `parseIntentionResult()` JSON parsing (plain, code blocks, malformed, missing fields)
@@ -286,3 +289,4 @@ pnpm run test:unit # vitest run
 - Session tracker persistence
 - Intent filtering via deny patterns
 - Internal/inter-session turn detection and conversation-history filtering
+- Per-turn historical intent matching, duplicate handling, and prompt injection

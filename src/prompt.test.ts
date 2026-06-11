@@ -79,7 +79,14 @@ describe("buildIntentionPrompt", () => {
 
   it("should include conversation history when provided", () => {
     const conversation: RecentTurn[] = [
-      { role: "user", text: "Hello there" },
+      {
+        role: "user",
+        text: "Hello there",
+        historicalIntent: {
+          intent: "coding",
+          goal: "Implement the feature",
+        },
+      },
       { role: "assistant", text: "Hi! How can I help?" },
     ];
 
@@ -89,9 +96,11 @@ describe("buildIntentionPrompt", () => {
       conversation,
     });
 
-    expect(result).toContain('<turn role="user">\nHello there\n</turn>');
     expect(result).toContain(
-      '<turn role="assistant">\nHi! How can I help?\n</turn>',
+      '<turn role="user">\n<message>\nHello there\n</message>\n<historical_intent>\n{"intent":"coding","goal":"Implement the feature"}\n</historical_intent>\n</turn>',
+    );
+    expect(result).toContain(
+      '<turn role="assistant">\n<message>\nHi! How can I help?\n</message>\n</turn>',
     );
   });
 
@@ -106,38 +115,15 @@ describe("buildIntentionPrompt", () => {
     expect(result).toContain("</latest>");
   });
 
-  it("should include previous intent result in input section when provided", () => {
+  it("should not include a previous intent result section", () => {
     const result = buildIntentionPrompt({
       intents: mockIntents,
       latest: "動手",
-      previousIntentResult: {
-        intent: "ARCHITECTURE_DESIGN (Architecture Design)",
-        reason: "User discussed reorganizing a markdown tree",
-        goal: "Plan the file reorganization",
-        confidence: 0.82,
-        complexity: "medium",
-      },
-    });
-
-    const inputStart = result.indexOf("<input>");
-    const inputEnd = result.indexOf("</input>");
-    const inputSection = result.slice(inputStart, inputEnd);
-
-    expect(inputSection).toContain("<previous_intent_result>");
-    expect(inputSection).toContain(
-      '"intent": "ARCHITECTURE_DESIGN (Architecture Design)"',
-    );
-    expect(inputSection).toContain('"goal": "Plan the file reorganization"');
-    expect(inputSection).toContain("</previous_intent_result>");
-  });
-
-  it("should omit previous intent result when not provided", () => {
-    const result = buildIntentionPrompt({
-      intents: mockIntents,
-      latest: "test message",
     });
 
     expect(result).not.toContain("<previous_intent_result>");
+    expect(result).not.toContain("previousIntentResult");
+    expect(result).not.toContain("Previous Intent Continuity");
   });
 
   it("should work with empty conversation", () => {
@@ -165,6 +151,10 @@ describe("buildIntentionPrompt", () => {
     expect(result).toContain('"goal":');
     expect(result).toContain('"confidence":');
     expect(result).toContain('"complexity":');
+    expect(result).toContain("historical_intent");
+    expect(result).toContain("historical goals");
+    expect(result).toContain("Topic switch");
+    expect(result).toContain("refine the relevant historical goal");
   });
 });
 

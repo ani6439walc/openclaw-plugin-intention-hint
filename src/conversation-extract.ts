@@ -5,6 +5,7 @@ import type {
   PromptMessageLike,
   RecentTurn,
   ContextWindow,
+  HistoricalIntentRecord,
 } from "./types.js";
 
 const INTER_SESSION_PROMPT_MARKER = "[Inter-session message]";
@@ -19,6 +20,46 @@ const INPUT_PROVENANCE_KINDS = new Set([
   "inter_session",
   "internal_system",
 ]);
+
+function normalizeTurnText(text: string): string {
+  return text.trim().replace(/\s+/g, " ");
+}
+
+export function attachHistoricalIntents(
+  conversation: RecentTurn[],
+  records: HistoricalIntentRecord[],
+): RecentTurn[] {
+  const enriched = conversation.map((turn) => ({ ...turn }));
+  let latestUserIndex = -1;
+  for (let index = enriched.length - 1; index >= 0; index--) {
+    if (enriched[index].role === "user") {
+      latestUserIndex = index;
+      break;
+    }
+  }
+  const recordsByInput = new Map<string, HistoricalIntentRecord[]>();
+  for (const record of records) {
+    const normalizedInput = normalizeTurnText(record.input);
+    const matchingRecords = recordsByInput.get(normalizedInput) ?? [];
+    matchingRecords.push(record);
+    recordsByInput.set(normalizedInput, matchingRecords);
+  }
+
+  for (let turnIndex = latestUserIndex - 1; turnIndex >= 0; turnIndex--) {
+    const turn = enriched[turnIndex];
+    if (turn.role !== "user") continue;
+
+    const normalizedText = normalizeTurnText(turn.text);
+    const record = recordsByInput.get(normalizedText)?.pop();
+    if (!record) continue;
+    turn.historicalIntent = {
+      intent: record.intent,
+      goal: record.goal,
+    };
+  }
+
+  return enriched;
+}
 
 /**
  * Extract readable text from tool call results.
@@ -76,6 +117,7 @@ export function limitConversationTurns(
       remainingUser--;
       const cleaned = turn.text.trim().replace(/\s+/g, " ");
       picked.unshift({
+        ...turn,
         role: turn.role,
         text:
           cleaned.length > userCharLimit
@@ -86,6 +128,7 @@ export function limitConversationTurns(
       remainingAssistant--;
       const cleaned = turn.text.trim().replace(/\s+/g, " ");
       picked.unshift({
+        ...turn,
         role: turn.role,
         text:
           cleaned.length > assistantCharLimit

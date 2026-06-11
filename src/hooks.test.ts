@@ -223,6 +223,10 @@ describe("createHookHandlers internal turn guards", () => {
 
   it("does not skip a normal external-user turn", async () => {
     const refreshLiveConfigFromRuntime = vi.fn();
+    const getHistoricalIntentRecords = vi.spyOn(
+      defaultTracker,
+      "getHistoricalIntentRecords",
+    );
     const handlers = createHookHandlers({
       api: { config: {} } as OpenClawPluginApi,
       config: () => resolveConfig({}),
@@ -244,10 +248,12 @@ describe("createHookHandlers internal turn guards", () => {
       {
         trigger: "user",
         agentId: "main",
+        sessionId: "normal-session",
         sessionKey: "agent:main:direct:123",
       },
     );
 
     expect(refreshLiveConfigFromRuntime).toHaveBeenCalledOnce();
+    expect(getHistoricalIntentRecords).toHaveBeenCalledWith("normal-session");
   });
 });

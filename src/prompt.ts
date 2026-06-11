@@ -71,16 +71,25 @@ function buildConversationXml(conversation: RecentTurn[] | undefined): string {
   if (!conversation || conversation.length === 0) return "";
 
   const turns = conversation
-    .map((turn) => `<turn role="${turn.role}">\n${turn.text}\n</turn>`)
+    .map((turn) => {
+      const lines = [
+        `<turn role="${turn.role}">`,
+        "<message>",
+        turn.text,
+        "</message>",
+      ];
+      if (turn.role === "user" && turn.historicalIntent) {
+        lines.push(
+          "<historical_intent>",
+          JSON.stringify(turn.historicalIntent),
+          "</historical_intent>",
+        );
+      }
+      lines.push("</turn>");
+      return lines.join("\n");
+    })
     .join("\n");
   return `<conversation>\n${turns}\n</conversation>`;
-}
-
-function buildPreviousIntentResultXml(
-  result: IntentionResult | undefined,
-): string {
-  if (!result) return "";
-  return `<previous_intent_result>\n${JSON.stringify(result, null, 2)}\n</previous_intent_result>`;
 }
 
 export function buildIntentionPrompt(params: {
@@ -88,7 +97,6 @@ export function buildIntentionPrompt(params: {
   latest: string;
   intents: readonly IntentDefinition[];
   currentTime?: string;
-  previousIntentResult?: IntentionResult;
 }): string {
   const timeTag = params.currentTime
     ? `<current_time>\n${params.currentTime}\n</current_time>\n`
@@ -97,12 +105,6 @@ export function buildIntentionPrompt(params: {
   const intentCatalog = buildIntentCatalog(params.intents);
   const intentCategories = buildIntentCategories(params.intents);
   const conversationXml = buildConversationXml(params.conversation);
-  const previousIntentResultXml = buildPreviousIntentResultXml(
-    params.previousIntentResult,
-  );
-  const previousIntentResultSection = previousIntentResultXml
-    ? `\n${previousIntentResultXml}\n`
-    : "";
   const conversationSection = conversationXml ? `\n${conversationXml}\n` : "";
 
   return `You are an intent classification agent.
@@ -113,27 +115,18 @@ You receive conversation history, the latest user message, and available intent 
 <input_context>
 Three input types are provided:
 1. intent_catalog: Available intent definitions with triggers and examples
-2. conversation: Recent conversation turns between user and assistant
+2. conversation: Recent conversation turns between user and assistant; historical user turns may include historical_intent with the intent and goal classified at that time
 3. latest: The latest user message to classify
 </input_context>
 
 <classification_rules>
-1. Use conversation history to understand context
-2. Classify based on overall conversational goal
-3. Prefer intent that explains WHY user said this
-4. DO NOT FORCE classification - default to OTHER (Fallback) if uncertain
-5. Validate output: ensure all required JSON fields are present, intent exists in catalog (or OTHER), confidence is 0.0-1.0, complexity is low|medium|high
-6. **Previous Intent Continuity**: If "previous_intent_result" is provided and the latest message appears to be a follow-up (short, action-oriented, or contextually linked), prefer the previous intent unless there's a clear topic switch.
-7. **Topic Continuity vs Switch**:
-   - **Continuity**: Latest message references entities/topics from conversation history
-   - **Switch**: Latest message introduces new topic, uses transition phrases (現在來說、換個話題、另外), or is a standalone action command
-   - When uncertain, prefer continuity if conversation context is recent (< 3 turns ago)
-8. **Follow-up Detection**: If the latest message is short (< 15 chars) or contains continuation markers (那、再、然後、還有、先這樣、看起來、好、ok), check if it's a follow-up to the previous turn. If yes, inherit the previous intent rather than classifying fresh.
-9. **Short Message Handling**: For messages < 15 characters:
-   - First check: Is this a follow-up to previous turn? → Inherit previous intent
-   - Second check: Is this a simple action command (commit, push, run, check)? → ACTION_REQUEST or similar action intent
-   - Third check: Is this an acknowledgment (ok, good, thanks)? → CONVERSATIONAL
-   - Avoid classifying short messages as complex intents unless explicitly clear
+1. Use conversation history and historical_intent annotations to understand context. Treat historical intents and historical goals as evidence, not answers that must be inherited.
+2. Classify the latest message based on the user's current goal and prefer the intent that best explains WHY the user said it.
+3. **Goal continuity**: If the latest message continues, corrects, refines, or asks to execute a relevant historical goal, prefer its related intent and preserve or refine the relevant historical goal in the new output goal.
+4. **Topic switch**: If the latest message introduces an independent topic, a different subject, or a different desired outcome, classify it fresh and replace the output goal with the new goal.
+5. **Short messages**: First determine whether the message points to a specific historical goal. Do not inherit the most recent intent merely because the message is short or contains a continuation marker.
+6. DO NOT FORCE classification - default to OTHER (Fallback) if uncertain.
+7. Validate output: ensure all required JSON fields are present, intent exists in catalog (or OTHER), confidence is 0.0-1.0, complexity is low|medium|high.
 </classification_rules>
 
 <output_format>
@@ -178,7 +171,7 @@ ${intentCatalog}
 </intent_catalog>
 
 <input>
-${timeTag}${previousIntentResultSection}${conversationSection}
+${timeTag}${conversationSection}
 <latest>
 ${params.latest}
 </latest>

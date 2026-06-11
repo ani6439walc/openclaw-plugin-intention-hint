@@ -703,15 +703,42 @@ describe("SessionTracker", () => {
     });
   });
 
-  describe("getCurrentIntentResult", () => {
-    it("should return the current intent result when present", () => {
+  describe("getHistoricalIntentRecords", () => {
+    it("should return history and current intent records in order", () => {
       tracker.record("intent-session", {
+        history: [
+          {
+            input: "Plan the change",
+            intent: {
+              result: {
+                intent: "PLANNING",
+                reason: "test",
+                goal: "Create a plan",
+                confidence: 0.8,
+                complexity: "medium",
+              },
+            },
+          },
+          { input: "missing result", intent: {} },
+          {
+            intent: {
+              result: {
+                intent: "MISSING_INPUT",
+                reason: "test",
+                goal: "Skip this",
+                confidence: 0.8,
+                complexity: "low",
+              },
+            },
+          },
+        ],
         current: {
+          input: "Implement the change",
           intent: {
             result: {
-              intent: "AGENT_ADMIN (Agent Self-Administration)",
-              reason: "User confirmed a previous plan",
-              goal: "Execute the plan",
+              intent: "CODING",
+              reason: "test",
+              goal: "Implement the plan",
               confidence: 0.75,
               complexity: "medium",
             },
@@ -719,24 +746,22 @@ describe("SessionTracker", () => {
         },
       });
 
-      expect(tracker.getCurrentIntentResult("intent-session")).toEqual({
-        intent: "AGENT_ADMIN (Agent Self-Administration)",
-        reason: "User confirmed a previous plan",
-        goal: "Execute the plan",
-        confidence: 0.75,
-        complexity: "medium",
-      });
+      expect(tracker.getHistoricalIntentRecords("intent-session")).toEqual([
+        {
+          input: "Plan the change",
+          intent: "PLANNING",
+          goal: "Create a plan",
+        },
+        {
+          input: "Implement the change",
+          intent: "CODING",
+          goal: "Implement the plan",
+        },
+      ]);
     });
 
-    it("should return undefined when no current intent result exists", () => {
-      tracker.record("no-intent-result", {
-        current: { intent: {} },
-      });
-
-      expect(
-        tracker.getCurrentIntentResult("no-intent-result"),
-      ).toBeUndefined();
-      expect(tracker.getCurrentIntentResult("missing-session")).toBeUndefined();
+    it("should return an empty array when the session does not exist", () => {
+      expect(tracker.getHistoricalIntentRecords("missing-session")).toEqual([]);
     });
   });
 });

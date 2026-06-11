@@ -63,9 +63,16 @@ export type IntentionResult = {
   complexity: "low" | "medium" | "high";
 };
 
+export type HistoricalIntent = Pick<IntentionResult, "intent" | "goal">;
+
+export type HistoricalIntentRecord = HistoricalIntent & {
+  input: string;
+};
+
 export type RecentTurn = {
   role: string;
   text: string;
+  historicalIntent?: HistoricalIntent;
 };
 
 export type MessageContentPart = {

@@ -1,7 +1,11 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as fs from "node:fs";
-import type { RecentTurn, IntentionResult, ContextWindow } from "./types.js";
+import type {
+  RecentTurn,
+  IntentionResult,
+  HistoricalIntentRecord,
+} from "./types.js";
 import matter from "gray-matter";
 import { logger } from "../api.js";
 
@@ -147,8 +151,21 @@ export class SessionTracker {
     return !!session?.current?.intent?.result;
   }
 
-  getCurrentIntentResult(sessionId: string): IntentionResult | undefined {
-    return this.sessionData.get(sessionId)?.current?.intent?.result;
+  getHistoricalIntentRecords(sessionId: string): HistoricalIntentRecord[] {
+    const session = this.sessionData.get(sessionId);
+    if (!session) return [];
+
+    return [...(session.history ?? []), session.current].flatMap((state) => {
+      const result = state.intent?.result;
+      if (!state.input || !result) return [];
+      return [
+        {
+          input: state.input,
+          intent: result.intent,
+          goal: result.goal,
+        },
+      ];
+    });
   }
 
   rotate(sessionId: string): void {
