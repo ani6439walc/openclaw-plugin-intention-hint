@@ -1,6 +1,6 @@
 # Format Rules
 
-Rules for generating intent definition files. Source of truth: `extensions/intention-hint/README.md`.
+Rules for generating intent definition files. The canonical format spec lives in the plugin's `README.md` — this file is the agent-facing summary.
 
 ## Required section order
 
@@ -44,4 +44,4 @@ Rules for generating intent definition files. Source of truth: `extensions/inten
 
 ## No cross-references
 
-Body must never mention other intents by name or id. Classification sub-agent only sees frontmatter (triggers + examples).
+Body must never mention other intents by name or id. Classification sub-agent only sees frontmatter (triggers + examples). See `references/interview.md` for the full rule context.

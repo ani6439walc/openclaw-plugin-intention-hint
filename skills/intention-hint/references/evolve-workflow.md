@@ -1,4 +1,4 @@
-# Process Backlog Mode
+# Evolve Workflow
 
 Process exactly one pending finding from `sessions/evolution.json`. Enter this
 mode only when the user explicitly asks to process the evolution backlog.
@@ -7,7 +7,7 @@ mode only when the user explicitly asks to process the evolution backlog.
 
 - Treat current `intents/*.md` and the loaded catalog as the source of truth.
   `suggestedChange` is evidence and advice, not a patch to apply blindly.
-- Follow `format-rules.md` and the relevant single/audit references for intent
+- Follow `references/format-rules.md` and the relevant design/inventory references for intent
   boundaries, collision checks, and workflow quality.
 - Do not edit `sessions/evolution.json` directly. Use `pnpm run backlog -- ...`
   for every backlog read or mutation.

@@ -10,7 +10,12 @@ Goal: Build a complete inventory of all actionable capabilities.
    ```
    Read each `SKILL.md` frontmatter (`name`, `description`) to extract capability summaries.
 
-2. **Scan tool schema:** Review currently available tool schemas to list built-in tools (exec, web_search, web_fetch, memory_search, etc.).
+2. **Scan tool schema:** List currently available tools by running:
+   ```bash
+   # List tool schemas from OpenClaw config
+   cat ~/.openclaw/config.yaml | grep -A 50 "tools:" || echo "Check OpenClaw dashboard for tool list"
+   ```
+   Alternatively, review the tool documentation in OpenClaw's built-in help or dashboard to enumerate: exec, web_search, web_fetch, memory_search, browser, image_generate, etc.
 
 3. **Scan existing intents:**
    ```bash
@@ -18,7 +23,7 @@ Goal: Build a complete inventory of all actionable capabilities.
    ```
    To see what intent coverage already exists.
 
-4. **Read format rules:** Read `extensions/intention-hint/README.md` to refresh intent format rules.
+4. **Read format rules:** Read `references/format-rules.md` (this directory) to refresh intent format rules.
 
 ## Output
 

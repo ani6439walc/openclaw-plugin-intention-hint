@@ -33,7 +33,7 @@ Confirm these fields in order:
 - If the user is describing an existing intent, say so directly.
 - If two intents are colliding, recommend the smallest clean split.
 - Do not write the final intent file until the boundary is clear.
-- **No cross-references in body**: the markdown body must never mention other intents by name or id. All scope boundaries must be expressed through triggers and examples alone.
+- **No cross-references in body**: the markdown body must never mention other intents by name or id. All scope boundaries must be expressed through triggers and examples alone. (See `references/format-rules.md` for full spec.)
 
 ## User-specified flow override
 

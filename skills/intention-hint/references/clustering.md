@@ -17,7 +17,19 @@ Goal: Group all capabilities by usage intent, not by directory name.
 
 ## Output
 
-- Cluster map + gap analysis + recommended new intent list.
+Cluster map table:
+
+```
+| Cluster Name | Capabilities | Existing Intent | Recommended ID |
+|--------------|--------------|-----------------|----------------|
+| Memory Retrieval | memory_search, wiki_search, memory_get | memory-lookup | (existing) |
+| Code Review | git diff, skill-vetter | (none) | code-review |
+```
+
+Gap analysis:
+- **Covered**: clusters that map to existing intents
+- **Gaps**: clusters with no existing intent → recommend new intent ID
+- **Overlaps**: one cluster maps to multiple existing intents → recommend merge or split
 
 ## Validation
 
