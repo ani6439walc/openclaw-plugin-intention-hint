@@ -15,6 +15,20 @@ When enough information is collected, stop asking discovery questions and switch
 - Use the README's required skill/tool format (see `references/format-rules.md`).
 - Do not invent ad-hoc labels or freeform tool prose when a concrete call shape is more appropriate.
 
+## Collision warning format
+
+When a collision is detected, present:
+
+```
+⚠️ Collision detected:
+- Proposed intent: <new-intent-id>
+- Overlaps with: <existing-intent-id>
+- Overlap reason: <shared triggers or examples>
+- Recommendation: split (narrow scope) / merge (combine into existing) / rename (different boundary)
+```
+
+Ask user to confirm resolution before proceeding to final draft.
+
 ## Delivery
 
 1. Write to a staging location first (e.g., `/tmp/intent-drafts/`)
