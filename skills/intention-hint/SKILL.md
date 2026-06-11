@@ -1,11 +1,21 @@
 ---
 name: intention-hint
-description: "Manage the intention-hint plugin's intent system. Use when designing or refining intent definitions, auditing the catalog, or explicitly processing a Self-Evolution backlog finding."
+description: "Design, inventory, or evolve intent definitions for the intention-hint plugin. Use when creating/refining a single intent (design), bootstrapping or re-auditing the full catalog (inventory), or processing a self-evolution backlog finding (evolve)."
 ---
 
 Manage intent definitions and Self-Evolution findings for the intention-hint
 plugin.
-Three modes — pick based on user request scope.
+
+### Mode routing
+
+```
+user request scope?
+├── one intent (create/rename/split/merge/refine) → design
+├── full catalog bootstrap or re-audit            → inventory
+└── explicit "process backlog finding"            → evolve
+```
+
+Pick one mode, then follow its workflow.
 
 ## First-time setup (assets)
 
