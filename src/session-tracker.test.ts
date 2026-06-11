@@ -89,6 +89,21 @@ describe("SessionTracker", () => {
       const trackerNoSessions = SessionTracker.create(tempDir);
       expect(trackerNoSessions).toBeInstanceOf(SessionTracker);
     });
+
+    it("should never load stats.json as session data", () => {
+      const sessionsDir = path.join(tempDir, "sessions");
+      fs.mkdirSync(sessionsDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(sessionsDir, "stats.json"),
+        JSON.stringify({
+          sessionId: "stats-session",
+          current: { intent: { result: { intent: "fake" } } },
+        }),
+      );
+
+      const loadedTracker = SessionTracker.create(tempDir);
+      expect(loadedTracker.hasIntentData("stats-session")).toBe(false);
+    });
   });
 
   describe("record", () => {
@@ -487,6 +502,18 @@ describe("SessionTracker", () => {
     it("should safely sweep when the sessions directory is missing", () => {
       expect(tracker.cleanupExpired()).toBe(0);
     });
+
+    it("should never remove stats.json during retention cleanup", () => {
+      const sessionsDir = path.join(tempDir, "sessions");
+      fs.mkdirSync(sessionsDir, { recursive: true });
+      const statsPath = path.join(sessionsDir, "stats.json");
+      fs.writeFileSync(statsPath, "{}");
+      fs.utimesSync(statsPath, new Date(0), new Date(0));
+
+      tracker.cleanupExpired(Date.now());
+
+      expect(fs.existsSync(statsPath)).toBe(true);
+    });
   });
 
   describe("edge cases", () => {
@@ -762,6 +789,28 @@ describe("SessionTracker", () => {
 
     it("should return an empty array when the session does not exist", () => {
       expect(tracker.getHistoricalIntentRecords("missing-session")).toEqual([]);
+    });
+  });
+
+  describe("getCurrentState", () => {
+    it("should return the current session state", () => {
+      tracker.record("current-session", {
+        current: {
+          input: "hello",
+          intent: {
+            result: {
+              intent: "CHAT",
+              reason: "test",
+              goal: "Chat",
+              confidence: 0.9,
+              complexity: "low",
+            },
+          },
+        },
+      });
+
+      expect(tracker.getCurrentState("current-session")?.input).toBe("hello");
+      expect(tracker.getCurrentState("missing-session")).toBeUndefined();
     });
   });
 });

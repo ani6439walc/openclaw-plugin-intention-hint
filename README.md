@@ -19,7 +19,7 @@ index.ts
        ├─ hooks.ts → createHookHandlers()
        │    ├─ onBeforePromptBuild → rotate() → record() → write() → inject hint
        │    ├─ onAfterToolCall → record() → write() (tracks tool usage)
-       │    ├─ onAgentEnd → record() → write() (tracks final result)
+       │    ├─ onAgentEnd → record() → write() → aggregate stats
        │    └─ onSessionEnd → cleanup() + cleanupExpired() (lifecycle cleanup + 14-day retention)
        │
        ├─ prompt.ts → buildIntentionPrompt() (pure function — no API dependency)
@@ -36,6 +36,9 @@ index.ts
        ├─ session-tracker.ts → SessionTracker (JSON session persistence)
        │    └─ sessions/<sessionId>.json
        │
+       ├─ stats-aggregator.ts → StatsAggregator (atomic runtime usage aggregation)
+       │    └─ sessions/stats.json
+       │
        ├─ session.ts → session guards (isEnabledForAgent, isEligibleInteractiveSession, etc.)
        │
        └─ config.ts → resolveConfig() (zod schema validation with contextWindow)
@@ -51,12 +54,13 @@ index.ts
 | `subagent.ts`             | Runs the intention classification sub-agent with model selection                 |
 | `intent-loader.ts`        | Loads and catalogs intent definitions from YAML-frontmatter `.md` files          |
 | `session-tracker.ts`      | Persist and clean up session data in `sessions/` JSON files                      |
+| `stats-aggregator.ts`     | Aggregate idempotent runtime usage statistics into `sessions/stats.json`         |
 | `conversation-extract.ts` | Extract and truncate recent conversation turns for intent context                |
 | `prompt.ts`               | **Core prompt & parser** — builds classification prompt, parses JSON result      |
 | `session.ts`              | Session eligibility guards (agent allow-list, chat type, internal run detection) |
 | `config.ts`               | Zod schema validation with defaults and clamping for plugin configuration        |
 
-Every `session_end` removes the ended session from tracker memory. Final lifecycle reasons (`new`, `reset`, `idle`, `daily`, `compaction`, and `deleted`) also delete that session's JSON; restart-oriented reasons preserve it for reload. Each `session_end` additionally removes top-level `sessions/*.json` files whose modification time is strictly older than 14 days. Cleanup is fail-open and does not touch transcripts or other plugin data.
+Every `session_end` removes the ended session from tracker memory. Final lifecycle reasons (`new`, `reset`, `idle`, `daily`, `compaction`, and `deleted`) also delete that session's JSON; restart-oriented reasons preserve it for reload. Each `session_end` additionally removes top-level session JSON files whose modification time is strictly older than 14 days. Cleanup is fail-open and does not touch `stats.json`, transcripts, or other plugin data.
 
 ### Hook Execution Flow
 
@@ -106,6 +110,22 @@ interface SessionData {
   history?: (typeof current)[];
 }
 ```
+
+### Runtime Usage Statistics
+
+After a tracked turn is persisted, `agent_end` synchronously updates `sessions/stats.json`. The aggregator is observation-only, fail-open, and idempotent by `sessionId + timestamps.start`; it never scans existing session JSON for backfill. Writes use a temporary file and atomic rename. Invalid or corrupt existing stats are preserved and the update is skipped.
+
+The versioned stats document contains:
+
+- `summary`: all-time turn, completion/error, skill/tool assistance, confidence, and `OTHER` totals and rates
+- `intents`: per-intent share, confidence, complexity, assistance/error counts, and 7-day activity
+- `skills`: actual usage, recommendations parsed from exact `skill: <name>` intent lines, adoption, 7-day activity, lifecycle, and review status
+- `routing`: global and per-intent recommendation/adoption counts for turns and individual skill opportunities
+- `tools`: calls, assisted turns, errors, average duration, and 7-day calls
+- `daily`: UTC daily buckets retained for 90 days
+- `processedEvents`: event IDs retained for 90 days to prevent duplicate `agent_end` counting
+
+Rates use `0.0–1.0`. Skill lifecycle is `active` within 30 days, `stale` after 30 days, `archive` after 90 days, or `never_used` when recommended but never used. `needsReview` becomes true after at least five recommendations with adoption below `0.7`. All-time counters do not decrease when rolling data is pruned. Weekly Cron aggregation and evolution proposal writing are not implemented.
 
 ## Installation
 
@@ -279,7 +299,7 @@ pnpm run typecheck # tsc --noEmit
 pnpm run test:unit # vitest run
 ```
 
-193 tests covering:
+207 tests covering:
 
 - `buildIntentionPrompt()` prompt structure
 - `parseIntentionResult()` JSON parsing (plain, code blocks, malformed, missing fields)

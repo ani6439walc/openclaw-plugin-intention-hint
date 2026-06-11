@@ -1,8 +1,10 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { OpenClawPluginApi } from "../api.js";
 import { resolveConfig } from "./config.js";
 import { createHookHandlers } from "./hooks.js";
 import { defaultTracker } from "./session-tracker.js";
+import { defaultStatsAggregator } from "./stats-aggregator.js";
+import { defaultCatalog } from "./intent-loader.js";
 
 function createHandlers() {
   return createHookHandlers({
@@ -59,9 +61,61 @@ describe("createHookHandlers tracking guards", () => {
     expect(record).not.toHaveBeenCalled();
     expect(write).not.toHaveBeenCalled();
   });
+
+  it("aggregates the completed current turn on agent_end", async () => {
+    const state = {
+      input: "commit this",
+      intent: {
+        result: {
+          intent: "VERSION_CONTROL (Version Control)",
+          reason: "test",
+          goal: "Commit changes",
+          confidence: 0.9,
+          complexity: "low" as const,
+        },
+      },
+      timestamps: { start: "2026-06-11T00:00:00.000Z" },
+    };
+    const definition = {
+      id: "VERSION_CONTROL",
+      name: "Version Control",
+      enabled: true,
+      triggers: ["commit"],
+      examples: [],
+      prompt: "skill: git-master",
+    };
+    vi.spyOn(defaultTracker, "hasIntentData").mockReturnValue(true);
+    vi.spyOn(defaultTracker, "record").mockImplementation(() => undefined);
+    vi.spyOn(defaultTracker, "write").mockImplementation(() => undefined);
+    vi.spyOn(defaultTracker, "getCurrentState").mockReturnValue(state);
+    vi.spyOn(defaultCatalog, "get").mockReturnValue([definition]);
+    const recordStats = vi
+      .spyOn(defaultStatsAggregator, "record")
+      .mockReturnValue(true);
+
+    await createHandlers().onAgentEnd(
+      { messages: [{ role: "assistant", content: "done" }] } as never,
+      { sessionId: "session-1" },
+    );
+
+    expect(recordStats).toHaveBeenCalledWith("session-1", state, definition);
+  });
+
+  it("does not aggregate agent_end without a tracked current turn", async () => {
+    vi.spyOn(defaultTracker, "hasIntentData").mockReturnValue(false);
+    const recordStats = vi.spyOn(defaultStatsAggregator, "record");
+
+    await createHandlers().onAgentEnd({ messages: [] } as never, {});
+
+    expect(recordStats).not.toHaveBeenCalled();
+  });
 });
 
 describe("createHookHandlers session cleanup", () => {
+  beforeEach(() => {
+    vi.spyOn(defaultTracker, "cleanupExpired").mockReturnValue(0);
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });

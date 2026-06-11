@@ -12,6 +12,7 @@ import type {
 import { logger } from "../api.js";
 import { defaultCatalog } from "./intent-loader.js";
 import { defaultTracker } from "./session-tracker.js";
+import { defaultStatsAggregator } from "./stats-aggregator.js";
 import {
   limitConversationTurns,
   extractRecentTurns,
@@ -47,6 +48,16 @@ function recordTrackedSession(
 
   defaultTracker.record(sessionId, data);
   defaultTracker.write(sessionId);
+}
+
+function findIntentDefinition(intent: string | undefined) {
+  const intentId = intent?.match(/^([A-Za-z0-9_-]+)/)?.[1];
+  if (!intentId) return;
+  return defaultCatalog
+    .get()
+    .find(
+      (definition) => definition.id.toLowerCase() === intentId.toLowerCase(),
+    );
 }
 
 const SESSION_END_REASONS_THAT_DELETE_FILE = new Set([
@@ -246,6 +257,15 @@ export function createHookHandlers(deps: HookDeps) {
         timestamps: { end: new Date().toISOString() },
       },
     });
+
+    if (!ctx.sessionId) return;
+    const state = defaultTracker.getCurrentState(ctx.sessionId);
+    if (!state) return;
+    defaultStatsAggregator.record(
+      ctx.sessionId,
+      state,
+      findIntentDefinition(state.intent?.result?.intent),
+    );
   }
 
   async function onSessionEnd(

@@ -10,6 +10,7 @@ import matter from "gray-matter";
 import { logger } from "../api.js";
 
 const SESSION_RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
+const RESERVED_SESSION_FILENAMES = new Set(["stats.json"]);
 
 export interface SkillRecord {
   name: string;
@@ -130,7 +131,9 @@ export class SessionTracker {
 
     const files = fs.readdirSync(sessionsDir);
     for (const file of files) {
-      if (!file.endsWith(".json")) continue;
+      if (!file.endsWith(".json") || RESERVED_SESSION_FILENAMES.has(file)) {
+        continue;
+      }
 
       const filePath = path.join(sessionsDir, file);
       try {
@@ -149,6 +152,10 @@ export class SessionTracker {
   hasIntentData(sessionId: string): boolean {
     const session = this.sessionData.get(sessionId);
     return !!session?.current?.intent?.result;
+  }
+
+  getCurrentState(sessionId: string): SessionState | undefined {
+    return this.sessionData.get(sessionId)?.current;
   }
 
   getHistoricalIntentRecords(sessionId: string): HistoricalIntentRecord[] {
@@ -299,7 +306,13 @@ export class SessionTracker {
       for (const entry of fs.readdirSync(sessionsDir, {
         withFileTypes: true,
       })) {
-        if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+        if (
+          !entry.isFile() ||
+          !entry.name.endsWith(".json") ||
+          RESERVED_SESSION_FILENAMES.has(entry.name)
+        ) {
+          continue;
+        }
 
         const filePath = path.join(sessionsDir, entry.name);
         try {
