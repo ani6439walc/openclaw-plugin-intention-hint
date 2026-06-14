@@ -81,6 +81,12 @@ function extractSkillInfo(
   const text = typeof toolResult === "string" ? toolResult : null;
   if (text === null) return;
 
+  // Tool results may be truncated before the closing frontmatter delimiter.
+  // gray-matter treats that as malformed YAML and logs a noisy warning even
+  // though the underlying SKILL.md file is valid. Only parse complete
+  // frontmatter captured in the tool result.
+  if (!/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/.test(text)) return;
+
   try {
     const parsed = matter(text);
     if (parsed.data?.name && typeof parsed.data.name === "string") {

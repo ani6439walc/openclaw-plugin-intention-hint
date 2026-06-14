@@ -629,6 +629,35 @@ describe("SessionTracker", () => {
       ]);
     });
 
+    it("should ignore truncated SKILL.md frontmatter tool results", () => {
+      const tracker5 = SessionTracker.create(tempDir);
+      tracker5.record("truncated-skill-read", {
+        current: {
+          intent: {},
+          toolCalls: [
+            {
+              name: "read",
+              params: { path: "/path/to/intention-hint/SKILL.md" },
+              result:
+                '---\nname: intention-hint\ndescription: "Design, inventory, or evolve intent definitions for the intention-hint plugin. Use when creating/refining a single intent (design), bootstrapping or re-auditing \n',
+              durationMs: 100,
+            },
+          ],
+        },
+      });
+      tracker5.write("truncated-skill-read");
+
+      const sessionsDir = path.join(tempDir, "sessions");
+      const files = fs.readdirSync(sessionsDir);
+      const content = fs.readFileSync(
+        path.join(sessionsDir, files[0]),
+        "utf-8",
+      );
+      const parsed = JSON.parse(content);
+
+      expect(parsed.current.skillsUsed).toBeUndefined();
+    });
+
     it("should ignore non-SKILL.md read calls", () => {
       const tracker4 = SessionTracker.create(tempDir);
       tracker4.record("no-skill-read", {

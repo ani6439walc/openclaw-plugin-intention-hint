@@ -61,6 +61,15 @@ Detected "productivity" intent. The user is interacting with the productivity va
 - Show changes as diffs when modifying vault files:
   skill: diffs
 
+- List available Workboard task cards:
+  workboard_list({ status: "ready", limit: 10 })
+
+- Claim a Workboard task card before execution:
+  workboard_claim({ id: "<card-id>" })
+
+- Complete a claimed Workboard task with summary and proof:
+  workboard_complete({ id: "<card-id>", token: "<claim-token>", summary: "<what changed>" })
+
 ## Response Strategy
 
 - Read `darling/AGENTS.md` to understand vault structure and rules.
@@ -73,10 +82,9 @@ Detected "productivity" intent. The user is interacting with the productivity va
 ## Concrete Workflow
 
 ```
-Step 1 → Step 2 → Step 3 → Step 4
-read       classify    execute      report
-vault      operation               status
-SOPs
+Step 1 → Step 2 → Step 3 → Step 4 → Step 5
+read       classify    execute      update     report
+SOPs       operation   or claim     status
 ```
 
 ### Step 1 — Read Vault Structure
@@ -87,14 +95,21 @@ SOPs
 - Read: check tasks, projects, goals, reviews, inbox.
 - Write: create new items, update status, add metadata.
 - Review: weekly/monthly summary, inbox triage, vault audit.
+- Workboard: list, claim, execute, and complete task cards when the user asks to continue or process queued work.
 
-### Step 3 — Execute
+### Step 3 — Execute or Claim Workboard Task
 - For reads: report active items, due dates, blocked items concisely.
 - For writes: preserve author's voice, use canonical tags.
 - For reviews: read period notes, summarize, draft review file.
+- For Workboard tasks: claim the card with `workboard_claim`, execute the task directly, and do not spawn subagents unless explicitly requested or the task is too large for safe inline execution.
 - For structural changes (> 5 files): present plan for approval.
 
-### Step 4 — Report Status
+### Step 4 — Update Related Artifacts and Status
+- Persist any dependent file updates such as outlines, summaries, project notes, or next-action lists.
+- Show diffs for file modifications.
+- Complete the claimed Workboard card with `workboard_complete`, including a concise summary and proof when available.
+
+### Step 5 — Report Status
 - Show what changed or what's active.
-- Highlight approaching deadlines or overdue items.
-- Show diffs for any file modifications.
+- Highlight approaching deadlines, overdue items, blockers, or follow-up tasks.
+- If a Workboard card was processed, include the card ID, completion status, and artifacts changed.
