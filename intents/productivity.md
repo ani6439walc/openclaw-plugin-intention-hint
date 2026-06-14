@@ -61,13 +61,20 @@ Detected "productivity" intent. The user is interacting with the productivity va
 - Show changes as diffs when modifying vault files:
   skill: diffs
 
-- List available Workboard task cards:
+- Extract transcripts or structured content from learning platforms when course work requires browser interaction:
+  skill: browser-automation
+
+- Preserve incremental progress with safe branch, diff, and commit practices when the project lives in Git:
+  skill: git-workflow-and-versioning
+
+- Manage Workboard task cards and dependency chains:
   workboard_list({ status: "ready", limit: 10 })
-
-- Claim a Workboard task card before execution:
+  workboard_create({ title: "<task>", notes: "<context>", parents: ["<parent-id>"] })
+  workboard_link({ parentId: "<parent-id>", childId: "<child-id>" })
+  workboard_comment({ id: "<card-id>", body: "<context update>" })
+  workboard_read({ id: "<card-id>" })
   workboard_claim({ id: "<card-id>" })
-
-- Complete a claimed Workboard task with summary and proof:
+  workboard_release({ id: "<card-id>", status: "todo" })
   workboard_complete({ id: "<card-id>", token: "<claim-token>", summary: "<what changed>" })
 
 ## Response Strategy
@@ -95,13 +102,14 @@ SOPs       operation   or claim     status
 - Read: check tasks, projects, goals, reviews, inbox.
 - Write: create new items, update status, add metadata.
 - Review: weekly/monthly summary, inbox triage, vault audit.
-- Workboard: list, claim, execute, and complete task cards when the user asks to continue or process queued work.
+- Workboard: list, create, link dependencies, add context, claim, execute, release, and complete task cards when the user asks to continue or process queued work.
 
 ### Step 3 — Execute or Claim Workboard Task
 - For reads: report active items, due dates, blocked items concisely.
 - For writes: preserve author's voice, use canonical tags.
 - For reviews: read period notes, summarize, draft review file.
-- For Workboard tasks: claim the card with `workboard_claim`, execute the task directly, and do not spawn subagents unless explicitly requested or the task is too large for safe inline execution.
+- For Workboard operations: use `workboard_list` to inspect cards, `workboard_read` for details, `workboard_create` for new tasks, `workboard_link` for dependencies, and `workboard_comment` for added context.
+- For Workboard task execution: claim the card with `workboard_claim`, execute the task directly, release it with `workboard_release` if pausing or handing off, and do not spawn subagents unless explicitly requested or the task is too large for safe inline execution.
 - For structural changes (> 5 files): present plan for approval.
 
 ### Step 4 — Update Related Artifacts and Status
@@ -113,3 +121,26 @@ SOPs       operation   or claim     status
 - Show what changed or what's active.
 - Highlight approaching deadlines, overdue items, blockers, or follow-up tasks.
 - If a Workboard card was processed, include the card ID, completion status, and artifacts changed.
+
+### Workboard Task Execution Workflow
+
+Use this workflow when the user asks to continue queued work, process the next Workboard item, or complete a sequence of task cards directly.
+
+1. **Claim and read** — Use `workboard_claim`, then `workboard_read` with the claim token to verify scope, acceptance criteria, links, and dependencies.
+2. **Inspect source material** — Read the referenced files or artifacts before changing anything; use `treemd` for large Markdown documents.
+3. **Process and write** — Create or update the requested notes, outlines, project files, or vault artifacts with `write` / `edit`, preserving exact structure and author voice.
+4. **Recover edit conflicts** — If `edit` fails due to non-unique or mismatched text, re-read the target section, expand the exact context, then retry once with a precise replacement.
+5. **Verify and preserve progress** — Run the smallest meaningful check (diff, grep, lint, test, or direct readback). Commit/push only when explicitly requested or required by the active workflow.
+6. **Complete or release** — Use `workboard_complete` with proof when done; use `workboard_release` with the next status when pausing or handing off.
+7. **Report results** — Include card ID, files changed, verification result, blockers, and the next queued item when relevant.
+
+### Structured Course / Learning Project Workflow
+
+Use this workflow when the user asks to organize a multi-lecture, multi-section, or course-note project that combines content extraction, note writing, and progress tracking.
+
+1. **Verify scope and structure** — Confirm section boundaries, lecture numbers, expected output files, and existing project trackers before changing notes.
+2. **Extract content in small batches** — Use browser automation or delegated browser work only for the lecture pages needed; process one lecture at a time or a small explicit range.
+3. **Organize notes incrementally** — Convert each transcript or source chunk into the established note format, update project tracking files, and preserve existing headings and links.
+4. **Checkpoint with version control** — After each lecture or logical batch, inspect the diff and preserve progress with the repository's approved Git workflow if commits were requested.
+5. **Handle extraction failures clearly** — If browser/CDP/network/platform access fails, report the exact failing step, avoid inventing transcript content, and pause until the access issue is resolved.
+6. **Report progress cadence** — Summarize completed lectures, changed files, remaining range, and any blockers before continuing to the next batch.

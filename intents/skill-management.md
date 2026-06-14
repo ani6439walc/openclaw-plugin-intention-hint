@@ -41,6 +41,9 @@ Detected "skill management" intent. The user wants to vet, audit, clean, or anal
 - Scan, audit, rank, visualize skill collections (complexity, tier ranking, fusion detection):
   skill: medusa
 
+- Deep audit, review, and quality scoring of a specific skill with rubric dimensions or reference checks:
+  skill: darwin-skill
+
 - Convert a book or document into a structured agent skill:
   skill: book-to-skill
 
@@ -49,6 +52,21 @@ Detected "skill management" intent. The user wants to vet, audit, clean, or anal
 
 ## Response Strategy
 
-- Determine the user's goal: vet (pre-install), scan (security audit), clean (remove unused/duplicates), or analyze (medusa ranking).
+- Determine the user's goal: vet (pre-install), scan (security audit), clean (remove unused/duplicates), analyze (medusa ranking), or optimize a specific skill.
 - Execute the appropriate skill with the target path or name.
+- For optimization cycles, audit first, apply targeted edits, then re-check the weakest dimensions or failure modes.
 - Report findings concisely — what was found, what action is recommended.
+
+## Concrete Workflow
+
+### Step 1 — Audit & Baseline
+Run `darwin-skill` or the relevant audit skill against the target skill. Capture the initial score, critical failures, and lowest-scoring dimensions.
+
+### Step 2 — Iterative Optimization
+For each confirmed issue or weak dimension:
+1. Read the relevant `SKILL.md` or reference files.
+2. Apply targeted fixes with the smallest safe file edit.
+3. Re-evaluate the affected dimension when needed.
+
+### Step 3 — Finalize & Report
+When the quality threshold is met, summarize the before/after results, affected files, and remaining risks. Do not commit unless the user explicitly requested a commit.
