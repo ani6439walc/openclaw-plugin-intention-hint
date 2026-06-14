@@ -412,12 +412,12 @@ describe("buildPromptPrefix", () => {
       prompt: "You are helping debug issues. Be thorough in your analysis.",
     },
     {
-      id: "AGENT_ADMIN",
-      name: "Agent Self-Administration",
+      id: "AGENT_DISPATCH",
+      name: "Agent Dispatch & Orchestration",
       triggers: [],
       examples: [],
       enabled: true,
-      prompt: "Detected agent self-administration intent.",
+      prompt: "Detected agent dispatch and orchestration intent.",
     },
     {
       id: "disabled-intent",
@@ -473,7 +473,7 @@ describe("buildPromptPrefix", () => {
 
   it("should match intent ids when result includes display name", () => {
     const result: IntentionResult = {
-      intent: "AGENT_ADMIN (Agent Self-Administration)",
+      intent: "AGENT_DISPATCH (Agent Dispatch & Orchestration)",
       reason:
         "User is confirming/approving a prior proposal to organize a file",
       goal: "Execute the file reorganization plan",
@@ -483,7 +483,7 @@ describe("buildPromptPrefix", () => {
 
     const prefix = buildPromptPrefix(result, mockIntents, mockConfig);
 
-    expect(prefix).toContain("Detected agent self-administration intent.");
+    expect(prefix).toContain("Detected agent dispatch and orchestration intent.");
     expect(prefix).not.toContain(FALLBACK_INTENT.prompt);
   });
 

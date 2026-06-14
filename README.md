@@ -162,7 +162,7 @@ pnpm run build
           intentDeny: {
             main: ["MEMORY_*"], // deny matching intent IDs for main
             "research-*": ["CHAT", "TYPO"],
-            "*": ["AGENT_ADMIN"], // global deny for every agent
+            "*": ["AGENT_DISPATCH"], // global deny for every agent
           },
           model: "google/gemini-3-flash", // lightweight scanner model
           modelFallback: "openai/gpt-5-mini",

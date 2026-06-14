@@ -14,6 +14,7 @@ examples:
   - "新增一個 Framework Laptop 設定的 next action"
   - "這個 PDF 放在哪個資料夾比較好？按照 vault 的規範"
   - "幫我下載這個 PDF 存到 productivity 然後建一個任務之後翻譯"
+  - "幫我找 iPhone 上同步 Obsidian 的方式，並評估哪個最適合我的 vault workflow"
 ---
 
 Detected "productivity" intent. The user is interacting with the productivity vault (darling/) for task management, project tracking, goal monitoring, reviews, or organizational workflows.
@@ -32,6 +33,7 @@ Detected "productivity" intent. The user is interacting with the productivity va
 - For `.canvas` files: follow the `json-canvas` skill constraints for node/edge structure.
 - For `.base` files: follow the `obsidian-bases` skill constraints for YAML syntax and formula rules.
 - When reporting task or project status, verify completion against the actual work artifact (notes, code, documents, or generated deliverables) instead of relying only on kanban/card metadata, which may be stale.
+- When the user asks to check or verify status, capture their stated expectation first; if evidence contradicts it, explicitly surface the mismatch before reporting raw findings or cleanup recommendations.
 
 ## Skills & Tools
 
@@ -95,42 +97,51 @@ Detected "productivity" intent. The user is interacting with the productivity va
 - For reviews: read relevant period notes, summarize outcomes, draft review file.
 - For inbox triage: classify new notes into PARA structure and update wikilinks.
 - For vault audit: check orphans, broken links, misplaced files; fix minor issues autonomously.
+- For workflow research or tool integration: check existing vault setup and memory first, research external options, evaluate them against current constraints, then recommend the most compatible workflow.
 
 ## Concrete Workflow
 
 ```
 Step 1 → Step 2 → Step 3 → Step 4 → Step 5
-read       classify    execute      update     report
+read       classify    execute      verify     report
 SOPs       operation   or claim     status
 ```
 
-### Step 1 — Read Vault Structure
-- Read `darling/AGENTS.md` for vault rules and SOPs.
-- Survey target file structure with `treemd` if it's large.
+### Step 1 — Read Vault SOPs & Structure
+- Read `darling/AGENTS.md` for vault rules and specific SOPs before any productivity operation.
+- For named routines such as weekly review, monthly review, inbox triage, kanban cleanup, or vault audit, follow the matching SOP in `darling/AGENTS.md` instead of inventing a new sequence.
+- Survey target file structure with `treemd` if the file is large.
 
-### Step 2 — Classify Operation Type
+### Step 2 — Classify Operation Type and Reconcile Expectations
 - Read: check tasks, projects, goals, reviews, inbox.
 - Write: create new items, update status, add metadata.
 - Ingest: download external content (PDF, article, or file), store it in the appropriate vault folder, then create related tasks or next actions.
-- Review: weekly/monthly summary, inbox triage, vault audit.
+- Review: weekly/monthly summary, inbox triage, vault audit, kanban cleanup, or recurring SOP-driven maintenance.
 - Workboard: list, create, link dependencies, add context, claim, execute, release, and complete task cards when the user asks to continue or process queued work.
+- Research: workflow improvements, third-party integrations, sync methods, plugin choices, or tool evaluations for the productivity system.
+- Status checks: note the user's stated belief such as "should be done" or "already cleared", compare file and artifact evidence against it, and lead with any discrepancy before proceeding.
 
 ### Step 2.5 — Verify Completion Status
 - For tasks marked in progress or done, inspect the actual work product (notes file, code commit, document, or deliverable) when available.
 - If metadata and artifact disagree, trust the verified artifact and update the task tracker when appropriate.
 - Report the verified status, not just the claimed kanban or Workboard status.
 
-### Step 3 — Execute or Claim Workboard Task
+### Step 3 — Execute Safely or Claim Workboard Task
 - For reads: report active items, due dates, blocked items concisely.
 - For writes: preserve author's voice, use canonical tags.
+- Before using `edit`, immediately read the exact target section or file excerpt and copy the exact text to avoid whitespace or stale-content mismatches.
+- If `edit` fails because text is missing, non-unique, or stale, re-read the target section, expand the context, then retry once with a precise replacement.
+- If precise replacement still fails and the change is safe and local, use `write` only after reconstructing the whole file from the latest read content; otherwise roll back or ask for confirmation.
 - For ingests: download the external file, verify the saved path and size, then create a follow-up task or next action that references the stored file.
-- For reviews: read period notes, summarize, draft review file.
+- For reviews: execute the specific SOP from `darling/AGENTS.md` (for example: sync state, triage inbox, update kanban, archive done tasks, and write the review note when that SOP requires it).
+- For workflow research: survey current setup via `memory_search` and targeted vault reads, research external options with `web_search`, evaluate options against existing constraints such as OS, plugins, Git workflow, mobile access, and data ownership, then recommend the safest compatible workflow.
 - For Workboard operations: use `workboard_list` to inspect cards, `workboard_read` for details, `workboard_create` for new tasks, `workboard_link` for dependencies, and `workboard_comment` for added context.
 - For Workboard task execution: claim the card with `workboard_claim`, execute the task directly, release it with `workboard_release` if pausing or handing off, and do not spawn subagents unless explicitly requested or the task is too large for safe inline execution.
 - For structural changes (> 5 files): present plan for approval.
 
-### Step 4 — Update Related Artifacts and Status
+### Step 4 — Update Related Artifacts and Verify Status
 - Persist any dependent file updates such as outlines, summaries, project notes, or next-action lists.
+- Run the smallest meaningful verification: readback, diff, grep, lint, test, or artifact inspection.
 - Show diffs for file modifications.
 - Complete the claimed Workboard card with `workboard_complete`, including a concise summary and proof when available.
 

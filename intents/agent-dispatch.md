@@ -53,8 +53,14 @@ Detected "agent self-administration" intent. The user is managing the agent's se
 - Run structured workflow cycles for complex multi-step tasks:
   skill: cycle
 
+- Design step-by-step test scenarios for modified agent tools/extensions:
+  skill: sequential-thinking
+
 - Manage multi-perspective collaboration patterns:
   skill: collaborate
+
+- Invoke structured reasoning and inspect its returned fields during tool verification:
+  sequential_thinking({ thought: "<step>", thoughtNumber: 1, totalThoughts: 3, nextThoughtNeeded: true })
 
 - Read existing configuration, rules, and prompt files before changing them:
   read({ path: "<file>" })
@@ -77,9 +83,11 @@ Detected "agent self-administration" intent. The user is managing the agent's se
 
 ## Response Strategy
 
-- Identify the action type from the user's request (session, context, sub-agent, learning, workflow).
+- Identify the action type from the user's request (session, context, sub-agent, learning, workflow, or agent tool/extension verification).
 - For configuration migration or consolidation, preserve existing structure and inspect both source and target before editing.
 - Execute the appropriate tool with validated parameters.
+- When the user asks to test modified agent tools/extensions, use sequential-thinking or `sequential_thinking` to plan targeted scenarios before running checks.
+- **Technical Verification Mode**: When the user asks to verify an agent-native tool, extension, skill, or tool return shape, reduce RP/persona output and show actual return evidence: returned field names, JSON structures, payload summaries, or relevant tool output excerpts. Prefer concise code blocks or structured bullets so the user can compare expected vs actual behavior.
 - Report what was done, what changed, and any errors — concise, no filler.
 
 ## Concrete Workflow
@@ -104,7 +112,14 @@ Detected "agent self-administration" intent. The user is managing the agent's se
 - Use precise edits for existing files whenever possible.
 - Avoid broad rewrites that could clobber unrelated user changes.
 
-### Step 5 — Verify and Report
+### Step 5 — Test Modified Agent Tools or Extensions
+
+- Clarify what changed and what correct behavior should look like.
+- Use sequential-thinking or `sequential_thinking` to design 3-5 scenarios covering normal operation, boundaries, and likely failure modes.
+- Execute the modified tool/extension against each scenario and capture actual return fields, JSON structures, or payload summaries when verification is requested.
+- Compare actual behavior with expected behavior and call out pass/fail results plus anomalies.
+
+### Step 6 — Verify and Report
 
 - Re-scan for stale wording and inspect the resulting diff.
-- Report affected files, skipped files, and any remaining ambiguity.
+- Report affected files, skipped files, verification evidence, and any remaining ambiguity.

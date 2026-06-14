@@ -47,6 +47,15 @@ Detected "infrastructure management" intent. The user wants to manage home-infra
 - Manage Kubernetes resources, probes, selectors, RBAC:
   skill: kubernetes
 
+- Provision guest namespaces, generate kubeconfig, and manage registry pull secrets:
+  skill: home-infra-guest-namespace
+
+- Deploy and manage Knative Serving resources and services:
+  skill: knative-serving
+
+- Manage self-hosted Gitea operations, PATs, and package registry authentication:
+  skill: gitea
+
 - Handle Terraform state, for_each, lifecycle, dependency ordering:
   skill: terraform
 
@@ -125,6 +134,12 @@ TOOLS.md   target      & route      & mutate     health
 - Start with read-only operations (status checks, plan, ps).
 - For mutations, confirm with the user before executing.
 - Show the command preview for potentially risky operations.
+- When creating a Gitea Personal Access Token (PAT) for Ani's own account via `tea`:
+  1. Verify authenticated `tea` context with `tea login list`.
+  2. Prefer the Gitea API through `tea api` when `tea` has no direct PAT subcommand.
+  3. Request only the required scopes for the downstream task, such as package registry read/write.
+  4. Parse the returned token from the JSON response and use it immediately for the registry login or Kubernetes `imagePullSecret`.
+  5. Do not persist the token in plaintext memory, chat, logs, or intent files.
 
 ### Step 5 — Verify Health
 - After any mutation, run a health sweep using `healthcheck` skill.

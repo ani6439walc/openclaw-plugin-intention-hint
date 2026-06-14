@@ -28,6 +28,7 @@ Detected "skill management" intent. The user wants to vet, audit, clean, analyze
 - For medusa analysis: report tier ranking and any fusion/overlap detection.
 - When creating skills: follow agentskills.io spec — lean SKILL.md (<500 lines), progressive disclosure, `name` + `description` in frontmatter, move long docs to `references/`.
 - For new skill authoring, clarify lifecycle scope, research authoritative domain sources when needed, draft the skill structure, then save durable proposals through `skill_workshop` unless the user explicitly requested direct live-file editing.
+- When creating, editing, or rewriting `SKILL.md` or reference files, use file-system tools (`read`, `write`, `edit`, `exec`) for local paths; never use the browser tool for `file://` or local filesystem operations.
 
 ## Skills & Tools
 
@@ -67,6 +68,14 @@ Detected "skill management" intent. The user wants to vet, audit, clean, analyze
   skill_workshop({ action: "list", query: "skill-name", status: "pending" })
   skill_workshop({ action: "apply", proposal_id: "<proposal-id>", reason: "approved by user" })
 
+- Inventory and edit skill directories during explicit live-file maintenance:
+  exec({ command: "find /path/to/skill -type f | sort" })
+  read({ path: "/path/to/skill/SKILL.md" })
+  write({ path: "/path/to/skill/SKILL.md", content: "<updated skill markdown>" })
+
+- Delegate large multi-file translation or refactoring work with exact paths and transformation rules:
+  skill: delegate
+
 ## Response Strategy
 
 - Determine the user's goal: vet (pre-install), scan (security audit), clean (remove unused/duplicates), analyze (medusa ranking), manage Skill Workshop proposals, or optimize a specific skill.
@@ -101,6 +110,19 @@ For each confirmed issue or weak dimension:
 1. Read the relevant `SKILL.md` or reference files.
 2. Apply targeted fixes with the smallest safe file edit.
 3. Re-evaluate the affected dimension when needed.
+
+### Step 5.5 — Batch Skill Editing or Translation
+- Inventory the target skill directory before editing, including `SKILL.md`, references, templates, and metadata files.
+- Read representative files to identify language, structure, frontmatter, JSON, and Markdown constraints before rewriting.
+- For bulk translation or extensive multi-file refactoring, delegate with exact file paths, required language, formatting constraints, and verification requirements.
+- For minor single-file changes, edit directly and keep the existing skill structure intact.
+- Verify modified files after the batch, including YAML frontmatter in `SKILL.md`, JSON syntax in metadata files, and any referenced paths.
+
+### Step 5.6 — Rename Skills and Patch References
+- Rename a live skill only after explicit confirmation of the old name, new name, directory path, and frontmatter updates.
+- Use `exec` to inventory references first, excluding generated or dependency folders such as `node_modules/`, `.git/`, and `dist/`.
+- Prefer scripted, reviewable replacements for broad reference updates; use `read` before `edit` when exact local context matters.
+- Re-run reference search for the old skill name and inspect the git diff before reporting completion.
 
 ### Step 6 — Finalize & Report
 When the quality threshold is met, summarize the before/after results, affected files, and remaining risks. Do not commit unless the user explicitly requested a commit.

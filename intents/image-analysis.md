@@ -5,6 +5,7 @@ enabled: true
 triggers:
   - "User wants to analyze, describe, or extract information from an image, photo, screenshot, diagram, chart, or PDF — including OCR, text extraction, and visual inspection"
   - "User attaches an image and asks what it shows, what it says, or what can be found inside it"
+  - "User wants to extract data from visual content and save or record the extracted information into a file, vault, note, tracker, or structured document"
 examples:
   - "這張圖裡面有什麼？"
   - "看一下這個截圖，錯誤訊息是什麼？"
@@ -12,6 +13,8 @@ examples:
   - "這張梗圖在說什麼？"
   - "這個 PDF 的內容幫我整理一下"
   - "這張圖片上的文字幫我辨識"
+  - "記錄這週減肥數據到 darling 下"
+  - "把這張檢查報告截圖的數值整理進追蹤表"
 ---
 
 Detected "image analysis" intent. The user wants visual content to be examined, described, or have information extracted from it.
@@ -24,6 +27,7 @@ Detected "image analysis" intent. The user wants visual content to be examined, 
 - Do not answer visual questions from memory or assume image contents without running the tool.
 - For diagrams and architecture charts, focus on structure, relationships, and key entities.
 - For screenshots of errors/logs, extract the exact text and explain the issue.
+- When persisting extracted data to files, always read the target file first before using `edit`; exact replacement text must match current file content including whitespace.
 
 ## Skills & Tools
 
@@ -48,3 +52,22 @@ Detected "image analysis" intent. The user wants visual content to be examined, 
 - Run the appropriate tool (`image`, `images`, or `pdf`).
 - For error screenshots: extract the error text, then search for known issues.
 - Present findings clearly with source context.
+
+## Concrete Workflow
+
+### Step 1 — Extract Visual Data
+- Use `image`, `images`, or `pdf` to extract the requested content from the visual material.
+- Structure extracted data in a clear format such as key-value pairs, Markdown bullets, JSON, or a table.
+- Preserve uncertainty when OCR or visual interpretation is unclear; do not invent missing values.
+
+### Step 2 — Prepare Persistence When Saving Is Requested
+- If the user asks to save, record, append, or update extracted data in a file or vault, identify the target path and expected format before editing.
+- Read the existing target file or relevant section immediately before using `edit`, so the replacement text matches the current file exactly.
+- If the target is in `darling/`, read `darling/AGENTS.md` first and follow the vault's structure, tags, and author-voice conventions.
+- Use `edit` for precise updates to existing files; use `write` only for new files or after reconstructing the whole target from the latest read content.
+
+### Step 3 — Verify and Report Persistence
+- After writing, verify the saved path and read back or diff the changed content.
+- If an edit fails due to stale or mismatched text, re-read the target section, retry once with corrected exact text, then stop or ask rather than looping.
+- Report what was extracted, where it was saved, and any uncertain fields.
+
