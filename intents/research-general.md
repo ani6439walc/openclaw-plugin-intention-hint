@@ -22,7 +22,10 @@ Detected "general research" intent. The user wants factual or explanatory inform
 - Prefer authoritative and directly relevant sources.
 - Keep the answer accurate, concise, and source-backed.
 - When sources disagree, reflect the uncertainty clearly.
+- When researching agent skills, prompts, or system design topics, check relevant internal skill documentation and recorded memory before relying only on external sources.
 - When `web_search` times out or returns an error, retry once with a simpler and broader query; if the retry fails, try `web_fetch` on a known authoritative URL when one is available.
+- Limit repeated failing-tool attempts; after bounded retries, proceed with an alternate source path or report the blocker clearly.
+- If an internal skill or reference file is missing (`ENOENT`), do not retry the same missing path; acknowledge the gap when relevant and continue with available internal or external sources.
 - If all external retrieval fails for a non-time-sensitive question, answer from general knowledge only with explicit source-limit caveats; for current or mutable facts, state the blocker instead of pretending verification succeeded.
 - Never return only a persona teaser, intro line, or acknowledgement without the substantive researched content or a clear blocker.
 
@@ -39,6 +42,12 @@ Detected "general research" intent. The user wants factual or explanatory inform
 
 - Rigorous comparison with confidence parity and weighted criteria:
   skill: compare
+
+- Search recorded memory for prior agent, skill, prompt, or system-design context:
+  memory_search({ query: "<agent_skill_or_prompt_keywords>", corpus: "memory", maxResults: 5 })
+
+- Read relevant internal skill documentation when researching agent or skill topics:
+  read({ path: "~/.openclaw/skills/<skill-name>/SKILL.md" })
 
 - Search for current external information:
   web_search({ query: "<topic_keywords>" })
@@ -68,6 +77,11 @@ search     extract     synthesize   cite
 sources    content     findings     & deliver
 ```
 
+### Step 0 — Check Internal Sources for Agent Topics
+- If researching agent skills, prompts, or system design, use `memory_search` for prior discussions and decisions.
+- Read relevant `SKILL.md` files from `~/.openclaw/skills/` or plugin skill directories when they exist.
+- Continue to external research when internal sources are insufficient, missing, or not authoritative for the question.
+
 ### Step 1 — Search Sources
 - Use `web_search` with topic keywords to find authoritative sources.
 - For exhaustive investigation: use `in-depth-research` skill.
@@ -75,6 +89,8 @@ sources    content     findings     & deliver
 ### Step 1b — Recover From Tool Failure
 - If `web_search` times out or returns an error, retry once with fewer, broader keywords.
 - If the retry also fails, use `web_fetch` on a known authoritative source when one is available.
+- If a `read` call fails with `ENOENT`, do not retry the same missing path; use another relevant file, external source, or report the missing-source limitation when it matters.
+- After bounded retries for a critical tool, inform the user of the blocker instead of looping silently.
 - If all external search and fetch attempts fail, answer non-time-sensitive questions with explicit source-limit caveats, or report a blocker for current and mutable facts.
 - Always continue to synthesis or deliver a clear blocker; do not stop at an intro line.
 

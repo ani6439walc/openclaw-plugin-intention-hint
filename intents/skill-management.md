@@ -27,6 +27,7 @@ Detected "skill management" intent. The user wants to vet, audit, clean, analyze
 - When auditing skill budget: report total tokens, highlight outliers.
 - For medusa analysis: report tier ranking and any fusion/overlap detection.
 - When creating skills: follow agentskills.io spec — lean SKILL.md (<500 lines), progressive disclosure, `name` + `description` in frontmatter, move long docs to `references/`.
+- For new skill authoring, clarify lifecycle scope, research authoritative domain sources when needed, draft the skill structure, then save durable proposals through `skill_workshop` unless the user explicitly requested direct live-file editing.
 
 ## Skills & Tools
 
@@ -47,6 +48,16 @@ Detected "skill management" intent. The user wants to vet, audit, clean, analyze
 
 - Convert a book or document into a structured agent skill:
   skill: book-to-skill
+
+- Plan skill structure, lifecycle coverage, and validation steps:
+  sequential_thinking({ thought: "<skill_authoring_plan>" })
+
+- Research official documentation, examples, and domain requirements for the skill:
+  web_search({ query: "<domain skill best practices>" })
+  web_fetch({ url: "<official_doc_url>" })
+
+- Convert a finalized draft into a local file only when direct file editing is explicitly requested:
+  write({ path: "/home/ani/.openclaw/workspace/skills/<skill-name>/SKILL.md", content: "<skill markdown>" })
 
 - Create, edit, audit, tidy, validate, or restructure AgentSkills and SKILL.md files:
   skill: skill-creator
@@ -70,19 +81,26 @@ Detected "skill management" intent. The user wants to vet, audit, clean, analyze
 - Determine whether the user wants security vetting, collection audit, skill optimization, or Skill Workshop proposal lifecycle management.
 - If the request is durable (save, propose, revise, apply, reject, quarantine, or list workshop items), route to `skill_workshop` rather than editing workshop files manually.
 
-### Step 2 — Skill Workshop Lifecycle
-- For a new proposal, collect or read the skill content, then call `skill_workshop({ action: "create", name: "<skill-name>", description: "<short purpose>", proposal_content: "<SKILL.md markdown>" })`.
+### Step 2 — Author Skill Drafts and Proposals
+- Clarify the skill domain, target users, lifecycle stages, and success criteria.
+- Use `sequential_thinking` when the skill must cover a multi-step lifecycle or several operating modes.
+- Research official docs and examples with `web_search` and `web_fetch` when domain-specific behavior or commands are required.
+- Draft `SKILL.md` with concise frontmatter, progressive disclosure, and long references moved out of the main file.
+- For durable proposal workflows, call `skill_workshop({ action: "create", name: "<skill-name>", description: "<short purpose>", proposal_content: "<SKILL.md markdown>" })` instead of writing proposal files manually.
+- Use `write` for live workspace skill files only when the user explicitly requested direct file creation or editing.
+
+### Step 3 — Skill Workshop Lifecycle
 - Before approving or rejecting, discover the pending proposal with `skill_workshop({ action: "list", query: "<skill-name>", status: "pending" })` or `skill_workshop({ action: "inspect", proposal_id: "<proposal-id>" })`.
 - Apply, reject, or quarantine only after explicit user approval using the resolved `proposal_id`; if no proposal matches, stop and report the mismatch instead of guessing another action.
 
-### Step 3 — Audit & Baseline
+### Step 4 — Audit & Baseline
 - Run `darwin-skill` or the relevant audit skill against the target skill. Capture the initial score, critical failures, and lowest-scoring dimensions.
 
-### Step 4 — Iterative Optimization
+### Step 5 — Iterative Optimization
 For each confirmed issue or weak dimension:
 1. Read the relevant `SKILL.md` or reference files.
 2. Apply targeted fixes with the smallest safe file edit.
 3. Re-evaluate the affected dimension when needed.
 
-### Step 5 — Finalize & Report
+### Step 6 — Finalize & Report
 When the quality threshold is met, summarize the before/after results, affected files, and remaining risks. Do not commit unless the user explicitly requested a commit.

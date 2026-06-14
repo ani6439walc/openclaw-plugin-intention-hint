@@ -4,6 +4,7 @@ name: Productivity / Task & Project Management
 triggers:
   - "User is asking to view, create, update, or manage tasks, projects, goals, habits, kanban cards, or next-action items in the productivity vault (darling/)"
   - "User wants to check current task status, upcoming deadlines, active projects, goal progress, or request a weekly/monthly review, inbox triage, or vault audit"
+  - "User asks where to place, organize, move, or structure files and content within the productivity vault (darling/), including vault folder conventions and organization rules"
 examples:
   - "今天有什麼任務"
   - "看看 kanban 上有幾個 active project"
@@ -11,6 +12,8 @@ examples:
   - "幫我跑一次本週 review"
   - "inbox 裡有什麼要處理的"
   - "新增一個 Framework Laptop 設定的 next action"
+  - "這個 PDF 放在哪個資料夾比較好？按照 vault 的規範"
+  - "幫我下載這個 PDF 存到 productivity 然後建一個任務之後翻譯"
 ---
 
 Detected "productivity" intent. The user is interacting with the productivity vault (darling/) for task management, project tracking, goal monitoring, reviews, or organizational workflows.
@@ -65,6 +68,10 @@ Detected "productivity" intent. The user is interacting with the productivity va
 - Extract transcripts or structured content from learning platforms when course work requires browser interaction:
   skill: browser-automation
 
+- Download external content from URLs, such as PDFs, articles, or files, and save it into the vault:
+  web_fetch({ url: "<url>" })
+  exec({ command: "curl -L -o '<target-path>' '<url>'", workdir: "<workspace>" })
+
 - Preserve incremental progress with safe branch, diff, and commit practices when the project lives in Git:
   skill: git-workflow-and-versioning
 
@@ -104,6 +111,7 @@ SOPs       operation   or claim     status
 ### Step 2 — Classify Operation Type
 - Read: check tasks, projects, goals, reviews, inbox.
 - Write: create new items, update status, add metadata.
+- Ingest: download external content (PDF, article, or file), store it in the appropriate vault folder, then create related tasks or next actions.
 - Review: weekly/monthly summary, inbox triage, vault audit.
 - Workboard: list, create, link dependencies, add context, claim, execute, release, and complete task cards when the user asks to continue or process queued work.
 
@@ -115,6 +123,7 @@ SOPs       operation   or claim     status
 ### Step 3 — Execute or Claim Workboard Task
 - For reads: report active items, due dates, blocked items concisely.
 - For writes: preserve author's voice, use canonical tags.
+- For ingests: download the external file, verify the saved path and size, then create a follow-up task or next action that references the stored file.
 - For reviews: read period notes, summarize, draft review file.
 - For Workboard operations: use `workboard_list` to inspect cards, `workboard_read` for details, `workboard_create` for new tasks, `workboard_link` for dependencies, and `workboard_comment` for added context.
 - For Workboard task execution: claim the card with `workboard_claim`, execute the task directly, release it with `workboard_release` if pausing or handing off, and do not spawn subagents unless explicitly requested or the task is too large for safe inline execution.
@@ -128,6 +137,7 @@ SOPs       operation   or claim     status
 ### Step 5 — Report Status
 - Show what changed or what's active.
 - Highlight approaching deadlines, overdue items, blockers, or follow-up tasks.
+- For ingests, include the download size, storage path, and newly created task title.
 - If a Workboard card was processed, include the card ID, completion status, and artifacts changed.
 
 ### Workboard Task Execution Workflow

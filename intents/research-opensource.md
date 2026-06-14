@@ -17,6 +17,7 @@ Detected "open-source docs" intent. The user wants version-sensitive information
 - Prefer version-aware or official documentation.
 - Verify the relevant package, release, or repository state when it affects the answer.
 - Keep the answer source-backed and specific to the open-source project in question.
+- If `web_fetch` fails (404, blocked, timeout) or returns incomplete content, fall back to `web_search` to find alternative documentation URLs, release pages, official blog posts, or mirrors.
 - If using `cx` on a GitHub repository, shallow clone it into a temporary workspace subdirectory first to avoid consuming unnecessary disk space.
 
 ## Skills & Tools
@@ -41,6 +42,9 @@ Detected "open-source docs" intent. The user wants version-sensitive information
 
 - Read an official documentation page directly when a strong source is known:
   web_fetch({ url: "<authoritative_url>" })
+
+- Search for documentation URLs, release notes, GitHub releases, or supplementary project information when direct fetching fails or more context is needed:
+  web_search({ query: "<project> <version> documentation release notes" })
 
 - Shallow clone a GitHub repository into a temporary workspace subdirectory before source inspection:
   exec({ command: "git clone --depth 1 <repo_url> ./.tmp/<repo_name>" })
@@ -75,6 +79,7 @@ library    docs                        inspect
 - For large docs: use `treemd` to survey structure first.
 - For long pages: use `defuddle` for cleaner extraction.
 - Read official documentation URLs directly when known.
+- Recovery: if `web_fetch` fails or yields incomplete data, use `web_search` to locate alternative URLs, GitHub release pages, or official announcements, then retry fetching or synthesize from the search results.
 
 ### Step 4 — Source Inspection (Fallback)
 - When documentation is insufficient, shallow clone the repo: `git clone --depth 1 <repo_url> ./.tmp/<repo_name>`.

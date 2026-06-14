@@ -37,36 +37,27 @@ Detected "version control" intent. The user wants to perform git operations such
 - Manage Gitea issues, PRs, and releases via tea CLI:
   skill: gitea
 
-- Deliver changes incrementally to avoid giant diffs:
-  skill: incremental-implementation
-
-- Record architectural decisions and migration rationale:
-  skill: documentation-and-adrs
-
-- Handle deprecation and migration of old systems:
-  skill: dev-lifecycle
-  skill: deprecation-and-migration
-
-- Check git status:
+- Check repository status:
   exec({ command: "git status" })
 
-- Stage specific files for commit:
+- Stage specific files:
   exec({ command: "git add <file1> <file2>" })
 
 - Verify staged changes before committing:
   exec({ command: "git diff --cached --stat" })
 
-- Generate standardized commit message and commit:
+- Commit changes with standardized messages:
   exec({ command: "gaic" })
-
-- View recent git log:
-  exec({ command: "git log --oneline -10" })
+  exec({ command: "git commit -m "<type>(<scope>): <message>"" })
 
 - Push to remote:
   exec({ command: "git push origin <branch>" })
 
 - Pull from remote:
   exec({ command: "git pull origin <branch>" })
+
+- View recent history:
+  exec({ command: "git log --oneline -10" })
 
 ## Response Strategy
 

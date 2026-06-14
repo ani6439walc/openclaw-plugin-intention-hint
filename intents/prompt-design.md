@@ -35,6 +35,7 @@ Detected "prompt design" intent. The user wants help designing or refining promp
 - Never answer prompt design questions from memory alone — always inspect the actual files.
 - Map dependencies before refactoring: search for all files that reference the target.
 - Propose the smallest change that achieves the goal — avoid scope creep.
+- When external specifications, guides, or standards are provided, fetch and compare them against the current prompt, intent, or skill before drafting changes.
 - Show a diff preview before applying any edits.
 - After editing, verify no stale cross-references remain.
 
@@ -64,6 +65,9 @@ Detected "prompt design" intent. The user wants help designing or refining promp
 - Combine multiple design sources into unified recommendation:
   skill: synthesize
 
+- Fetch external specifications, guides, or standards for prompt/skill/intent refinement:
+  web_fetch({ url: "<spec_or_guide_url>" })
+
 - Brainstorm naming or scoping alternatives:
   skill: brainstorm
 
@@ -86,9 +90,9 @@ Detected "prompt design" intent. The user wants help designing or refining promp
 ## Concrete Workflow
 
 ```
-Step 1 → Step 2 → Step 3 → Step 4 → Step 5
-classify   ground      analyze      draft/fix    verify
-goal       files       & compare    & edit       & diff
+Step 1 → Step 2 → Step 3 → Step 4 → Step 5 → Step 6
+classify   ground      specs       analyze      draft/fix    verify
+goal       files       if any      & compare    & edit       & diff
 ```
 
 ### Step 1 — Classify Goal
@@ -103,19 +107,25 @@ goal       files       & compare    & edit       & diff
 - For code files: use `cx overview` then `cx definition`.
 - Search memory for prior design decisions or rationale.
 
-### Step 3 — Analyze & Compare
+### Step 3 — Incorporate External Specifications
+- When URLs, standards, or external guide documents are provided, fetch them with `web_fetch`.
+- Extract key principles, structural rules, naming conventions, and anti-patterns.
+- Use `synthesize` when multiple external sources need to be unified into one recommendation.
+- Compare the external guidance against the current file from Step 2 and identify concrete sections to reorganize, rename, split, merge, or refine.
+
+### Step 4 — Analyze & Compare
 - Check for overlaps with neighboring intents.
 - Identify anti-patterns or scope creep.
 - Use `compare` skill to evaluate design options side-by-side.
 - Use `brainstorm` for naming or scoping alternatives.
 
-### Step 4 — Draft or Fix
+### Step 5 — Draft or Fix
 - For new designs: use `intention-hint` interactive interview.
 - For refinements: propose the smallest change.
 - For debugging: identify failure mode and suggest targeted fixes.
 - Show a diff preview before applying.
 
-### Step 5 — Verify
+### Step 6 — Verify
 - After editing, verify no stale cross-references remain.
 - Check triggers are specific enough to avoid false matches.
 - Confirm examples cover both Chinese and English phrasings.

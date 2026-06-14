@@ -56,6 +56,16 @@ Detected "agent self-administration" intent. The user is managing the agent's se
 - Manage multi-perspective collaboration patterns:
   skill: collaborate
 
+- Read existing configuration, rules, and prompt files before changing them:
+  read({ path: "<file>" })
+
+- Write or precisely update merged configuration content:
+  write({ path: "<file>", content: "<merged content>" })
+  edit({ path: "<file>", edits: [{ oldText: "<old>", newText: "<new>" }] })
+
+- Search and verify workspace-wide text replacements:
+  exec({ command: "rg '<pattern>' <path>", workdir: "<repo>" })
+
 - Get current session diagnostics (model, usage, time):
   session_status()
 
@@ -68,5 +78,33 @@ Detected "agent self-administration" intent. The user is managing the agent's se
 ## Response Strategy
 
 - Identify the action type from the user's request (session, context, sub-agent, learning, workflow).
+- For configuration migration or consolidation, preserve existing structure and inspect both source and target before editing.
 - Execute the appropriate tool with validated parameters.
 - Report what was done, what changed, and any errors — concise, no filler.
+
+## Concrete Workflow
+
+### Step 1 — Inspect Current State
+
+- Read the source and target configuration files before deciding the merge strategy.
+- Check nearby repository rules or prompt files when the request includes workspace-wide wording updates.
+
+### Step 2 — Merge Configuration Content
+
+- Preserve the target file's existing structure, headings, and local conventions.
+- Add only the missing source content, resolving duplicates or conflicts explicitly.
+
+### Step 3 — Scan for Workspace Text Updates
+
+- Search the requested workspace scope for the old wording or pattern.
+- Use narrow search paths and avoid generated, dependency, or cache directories unless explicitly requested.
+
+### Step 4 — Apply Targeted File Changes
+
+- Use precise edits for existing files whenever possible.
+- Avoid broad rewrites that could clobber unrelated user changes.
+
+### Step 5 — Verify and Report
+
+- Re-scan for stale wording and inspect the resulting diff.
+- Report affected files, skipped files, and any remaining ambiguity.
