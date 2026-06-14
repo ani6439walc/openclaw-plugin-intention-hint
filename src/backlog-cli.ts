@@ -3,6 +3,7 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   EVOLUTION_OPERATIONS,
+  markPendingDismissed,
   markPendingProcessed,
   readBacklog,
   selectPendingItem,
@@ -52,7 +53,7 @@ export function runBacklogCli(
     const backlogPath = path.join(pluginRoot, "sessions", "evolution.json");
     if (!command)
       throw new Error(
-        "usage: backlog <list|show|set-target|validate-intents|mark-processed>",
+        "usage: backlog <list|show|set-target|validate-intents|mark-processed|mark-dismissed>",
       );
 
     if (command === "validate-intents") {
@@ -119,6 +120,25 @@ export function runBacklogCli(
     if (command === "mark-processed") {
       const id = requireOption(args, "--id");
       markPendingProcessed(
+        backlog,
+        id,
+        requireOption(args, "--expected-updated-at"),
+        nowIso(),
+      );
+      writeBacklogAtomic(backlogPath, backlog);
+      io.stdout(
+        JSON.stringify(
+          backlog.items.find((item) => item.id === id),
+          null,
+          2,
+        ),
+      );
+      return 0;
+    }
+
+    if (command === "mark-dismissed") {
+      const id = requireOption(args, "--id");
+      markPendingDismissed(
         backlog,
         id,
         requireOption(args, "--expected-updated-at"),

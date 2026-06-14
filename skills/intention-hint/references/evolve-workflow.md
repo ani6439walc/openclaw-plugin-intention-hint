@@ -11,8 +11,11 @@ mode only when the user explicitly asks to process the evolution backlog.
   boundaries, collision checks, and workflow quality.
 - Do not edit `sessions/evolution.json` directly. Use `pnpm run backlog -- ...`
   for every backlog read or mutation.
-- Never mark an item `dismissed`, create a git commit, or push.
+- Never create a git commit or push.
 - Process one item only. Leave blocked or ambiguous items `pending`.
+- Mark duplicate, superseded, unsafe, or clearly rejected findings `dismissed`
+  after grounding them against current Intent Markdown, so they do not stay at
+  the front of the pending queue forever.
 - For `split`, `merge`, or any deletion, first show the affected intents and
   planned file operations, then obtain explicit user confirmation.
 
@@ -40,16 +43,25 @@ mode only when the user explicitly asks to process the evolution backlog.
 
 1. Decide whether the finding is already satisfied by current Intent Markdown.
    If so, skip edits and continue to validation.
-2. Before any edit, create
+2. If the finding is a duplicate of an existing intent, is superseded by a safer
+   current intent, or would introduce unsafe/conflicting behavior, do not edit
+   files. Mark it dismissed using the latest selected `updatedAt`:
+
+   ```bash
+   pnpm run backlog -- mark-dismissed --id <item-id> --expected-updated-at <timestamp>
+   ```
+
+   Report the dismissal reason and stop processing this item.
+3. Before any edit, create
    `/tmp/intention-hint-process-backlog/<item-id>-<timestamp>/` and back up
    every file that may be modified or deleted. Record every file that does not
    yet exist so it can be removed during rollback.
-3. Apply only the grounded Intent Markdown changes:
+4. Apply only the grounded Intent Markdown changes:
    - `create`: create the declared target intent.
    - `refine`: update the declared target intent without broadening unrelated
      behavior.
    - `split` or `merge`: execute only after the required confirmation.
-4. Validate the resulting files:
+5. Validate the resulting files:
 
    ```bash
    pnpm run backlog -- validate-intents --id <target-intent-id>
@@ -59,21 +71,22 @@ mode only when the user explicitly asks to process the evolution backlog.
 
    Repeat `--id` for every resulting target intent.
 
-5. When all checks pass, mark the item processed using the `updatedAt` from the
+6. When all checks pass, mark the item processed using the `updatedAt` from the
    latest `show` or `set-target` result:
 
    ```bash
    pnpm run backlog -- mark-processed --id <item-id> --expected-updated-at <timestamp>
    ```
 
-6. If an edit, validation, or status update fails, restore only the files in
+7. If an edit, validation, or status update fails, restore only the files in
    this transaction from the backup, remove files recorded as newly created,
    and leave the item `pending`.
 
 ## Report
 
-Report the item ID, operation, affected files, validation results, whether a
-rollback occurred, and the remaining pending count from:
+Report the item ID, operation, affected files, validation results, whether it
+was processed or dismissed, whether a rollback occurred, and the remaining
+pending count from:
 
 ```bash
 pnpm run backlog -- list --json

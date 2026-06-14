@@ -197,3 +197,20 @@ export function markPendingProcessed(
   backlog.updatedAt = nowIso;
   return item;
 }
+
+export function markPendingDismissed(
+  backlog: EvolutionBacklog,
+  id: string,
+  expectedUpdatedAt: string,
+  nowIso: string,
+): BacklogItem {
+  const item = selectPendingItem(backlog, id);
+  if (!item) throw new Error(`pending backlog item not found: ${id}`);
+  if (item.updatedAt !== expectedUpdatedAt) {
+    throw new Error(`backlog item changed since it was selected: ${id}`);
+  }
+  item.status = "dismissed";
+  item.updatedAt = nowIso;
+  backlog.updatedAt = nowIso;
+  return item;
+}

@@ -29,9 +29,10 @@ describe("intention-hint backlog mode", () => {
     expect(reference).toContain("pnpm run backlog -- set-target");
     expect(reference).toContain("pnpm run backlog -- validate-intents");
     expect(reference).toContain("pnpm run backlog -- mark-processed");
+    expect(reference).toContain("pnpm run backlog -- mark-dismissed");
     expect(reference).toContain("pnpm run backlog -- list --json");
     expect(reference).toContain("obtain explicit user confirmation");
     expect(reference).toContain("leave the item `pending`");
-    expect(reference).toContain("Never mark an item `dismissed`");
+    expect(reference).toContain("duplicate, superseded, unsafe");
   });
 });

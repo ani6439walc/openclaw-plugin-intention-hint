@@ -148,6 +148,26 @@ describe("backlog CLI", () => {
     expect(run(["show", "--id", "old"])).toBe(1);
   });
 
+  it("marks the selected item dismissed with optimistic concurrency", () => {
+    expect(run(["show", "--id", "old"])).toBe(0);
+    const selected = JSON.parse(output.at(-1)!);
+
+    expect(
+      run([
+        "mark-dismissed",
+        "--id",
+        "old",
+        "--expected-updated-at",
+        selected.updatedAt,
+      ]),
+    ).toBe(0);
+    expect(JSON.parse(output.at(-1)!)).toMatchObject({
+      id: "old",
+      status: "dismissed",
+    });
+    expect(run(["show", "--id", "old"])).toBe(1);
+  });
+
   it("preserves a corrupt backlog when a mutation is requested", () => {
     const backlogPath = path.join(root, "sessions", "evolution.json");
     fs.writeFileSync(backlogPath, "{ broken");

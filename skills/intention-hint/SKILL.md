@@ -241,14 +241,19 @@ pnpm run test
 pnpm run build
 ```
 
-**Step 5 — Commit or Rollback**
+**Step 5 — Process, Dismiss, or Rollback**
 
 ```bash
 # All checks pass → mark processed
 pnpm run backlog -- mark-processed --id <item-id> --expected-updated-at <timestamp>
 
+# Duplicate/superseded/unsafe/rejected finding → mark dismissed
+pnpm run backlog -- mark-dismissed --id <item-id> --expected-updated-at <timestamp>
+
 # Validation fails → restore from backup, leave item pending
 ```
+
+Dismiss instead of leaving pending when the finding is clearly duplicate, superseded by a better current intent, unsafe, or explicitly rejected by the user. Leave genuinely ambiguous or blocked findings pending.
 
 **🔴 CHECKPOINT**: After processing, before commit — show diff preview and confirm no conflicts.
 
@@ -259,13 +264,13 @@ pnpm run backlog -- mark-processed --id <item-id> --expected-updated-at <timesta
 | **Backlog finding already processed** | Skip, mark as `already_processed` | Re-check sessions/evolution.json state |
 | **Target intent deleted or missing** | Skip finding, log warning with missing intent ID | Leave item `pending`, report to user for manual resolution |
 | **Validation fails after apply** | Restore from `/tmp/intention-hint-process-backlog/` backup | Leave item `pending`, report validation errors to user |
-| **Suggested change breaks existing intent format** | Reject the suggestion, keep original intent unchanged | Log rejection reason, leave item `pending` for next cycle |
+| **Suggested change breaks existing intent format** | Reject the suggestion, keep original intent unchanged | Mark `dismissed` if clearly invalid; otherwise leave `pending` with blocker |
 
 ### Anti-patterns
 
 | # | Anti-pattern | Why not | Do instead |
 |---|-------------|---------|------------|
-| 1 | **Process multiple backlog findings in one invocation** | Mixes context, impossible to track which finding was handled | Exactly one pending finding per invocation |
+| 1 | **Process multiple backlog findings in one invocation** | Mixes context, impossible to track which finding was handled | Exactly one pending finding per invocation unless user explicitly requests a bounded batch |
 | 2 | **Skip validation before commit** | May introduce format errors or collisions | Always run validate-intents, test, build |
 | 3 | **Enter evolve mode without explicit user request** | Backlog items may be stale or irrelevant | Only enter when user says "process backlog" |
 
