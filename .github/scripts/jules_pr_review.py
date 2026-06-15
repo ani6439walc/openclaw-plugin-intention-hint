@@ -171,9 +171,11 @@ def has_complete_review(activities_response):
             return True
 
         # Check for key review sections (heuristic)
-        has_summary = "## summary" in text.lower() or "### summary" in text.lower()
-        has_blocking = "blocking" in text.lower() or "## issues" in text.lower()
-        has_recommendation = "recommendation" in text.lower() or "## verdict" in text.lower()
+        # Simple keyword matching - review should have these concepts
+        text_lower = text.lower()
+        has_summary = "summary" in text_lower
+        has_blocking = "blocking" in text_lower or "issues" in text_lower
+        has_recommendation = "recommendation" in text_lower or "verdict" in text_lower
 
         # If it has at least summary + one other section, likely complete
         if has_summary and (has_blocking or has_recommendation):
@@ -249,6 +251,14 @@ def main():
 
         if state in FINAL_STATES:
             log(f"Session reached final state: {state}")
+            # Even in final state, check if review is already complete
+            try:
+                activities = get_jules_activities(session_name)
+                if has_complete_review(activities):
+                    log("Review detected in activities — exiting immediately")
+                    early_exit = True
+            except Exception as e:
+                log(f"Could not check activities: {e}")
             break
 
         # Early exit: if IN_PROGRESS and review already complete, don't wait
