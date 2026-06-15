@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import os
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -8,11 +9,17 @@ import urllib.request
 JULES_API = "https://jules.googleapis.com/v1alpha"
 GITHUB_API = "https://api.github.com"
 
-FINAL_STATES = {"COMPLETED", "FAILED", "PAUSED", "AWAITING_USER_FEEDBACK", "AWAITING_PLAN_APPROVAL"}
+# States where Jules has produced a review we can extract
+REVIEWABLE_STATES = {"COMPLETED", "AWAITING_USER_FEEDBACK", "AWAITING_PLAN_APPROVAL"}
+FINAL_STATES = REVIEWABLE_STATES | {"PAUSED", "FAILED"}
 MAX_DIFF_CHARS = 180_000
 MAX_COMMENT_CHARS = 60_000
-POLL_SECONDS = 10
-MAX_POLLS = 150
+POLL_SECONDS = 15
+MAX_POLLS = 100  # 25 minutes total
+
+
+def log(msg):
+    print(f"[jules-review] {msg}", flush=True)
 
 
 def request(method, url, headers=None, body=None):
@@ -72,7 +79,7 @@ def create_jules_session(owner, repo, diff_text):
     truncated = len(diff_text) > MAX_DIFF_CHARS
     diff_for_prompt = diff_text[:MAX_DIFF_CHARS]
 
-    prompt = f"""You are reviewing a GitHub pull request.
+    prompt = f"""You are reviewing a GitHub pull request. IMPORTANT: This is a review-only task. Do NOT create any plan. Do NOT attempt to modify files. Simply analyze the diff and output your review directly as your response.
 
 Repository: {owner}/{repo}
 PR: #{pr_number}
@@ -83,8 +90,9 @@ Head SHA: {head_sha}
 
 Task:
 - Perform a code review of the PR diff below.
-- Do not modify files.
-- Do not create a pull request.
+- Do NOT modify files or create a plan.
+- Do NOT create a pull request.
+- Output your review directly as your final message.
 - Focus on correctness, security, regressions, tests, maintainability, and backwards compatibility.
 - Return a Markdown review suitable for posting as a GitHub PR comment.
 - Use these sections:
@@ -178,36 +186,54 @@ def main():
     owner, repo = os.environ["GITHUB_REPOSITORY"].split("/", 1)
     pr_number = os.environ["PR_NUMBER"]
 
+    log(f"Fetching diff for PR #{pr_number}...")
     diff_text = get_pr_diff(owner, repo, pr_number)
     if not diff_text.strip():
+        log("No diff found, posting comment and exiting.")
         post_pr_comment(owner, repo, pr_number, "No diff was found for this pull request.")
         return
 
+    log(f"Diff size: {len(diff_text)} chars, creating Jules session...")
     session = create_jules_session(owner, repo, diff_text)
     session_name = session["name"]
     session_url = session.get("url", "")
+    initial_state = session.get("state", "UNKNOWN")
+
+    log(f"Session created: {session_name}")
+    log(f"State: {initial_state}")
+    if session_url:
+        log(f"URL: {session_url}")
 
     final_session = session
-    for _ in range(MAX_POLLS):
+    for poll_num in range(1, MAX_POLLS + 1):
         time.sleep(POLL_SECONDS)
         final_session = get_jules_session(session_name)
-        state = final_session.get("state")
+        state = final_session.get("state", "UNKNOWN")
+
+        if poll_num % 4 == 1 or state in FINAL_STATES:
+            log(f"Poll {poll_num}/{MAX_POLLS}: state={state}")
+
         if state in FINAL_STATES:
+            log(f"Session reached final state: {state}")
             break
     else:
-        fail_pr_comment(owner, repo, pr_number, f"Timed out waiting for Jules session.\n\nSession: {session_url}")
+        log(f"Timed out after {MAX_POLLS * POLL_SECONDS}s")
+        fail_pr_comment(owner, repo, pr_number, f"Timed out waiting for Jules session after {MAX_POLLS * POLL_SECONDS // 60} minutes.\n\nLast state: `{final_session.get('state')}`\n\nSession: {session_url}")
         raise SystemExit(1)
 
     state = final_session.get("state")
+    log(f"Fetching activities for session...")
     activities = get_jules_activities(session_name)
+    activity_count = len(activities.get("activities", []))
+    log(f"Found {activity_count} activities")
 
-    if state != "COMPLETED":
+    if state not in REVIEWABLE_STATES:
         reason = json.dumps(final_session, indent=2, ensure_ascii=False)
         fail_pr_comment(
             owner,
             repo,
             pr_number,
-            f"Jules session ended with state `{state}`.\n\nSession: {session_url}\n\n```json\n{reason[:4000]}\n```",
+            f"Jules session ended with non-reviewable state `{state}`.\n\nSession: {session_url}\n\n```json\n{reason[:4000]}\n```",
         )
         raise SystemExit(1)
 
@@ -215,7 +241,9 @@ def main():
     if session_url:
         review += f"\n\nJules session: {session_url}"
 
+    log(f"Posting review comment ({len(review)} chars)...")
     post_pr_comment(owner, repo, pr_number, review)
+    log("Done!")
 
 
 if __name__ == "__main__":
