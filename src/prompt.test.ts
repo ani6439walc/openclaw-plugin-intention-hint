@@ -96,23 +96,22 @@ describe("buildIntentionPrompt", () => {
       conversation,
     });
 
-    expect(result).toContain(
-      '<turn role="user">\nHello there\n<historical_intent>\n{"intent":"coding","goal":"Implement the feature"}\n</historical_intent>\n</turn>',
-    );
-    expect(result).toContain(
-      '<turn role="assistant">\nHi! How can I help?\n</turn>',
-    );
+    // Check for Markdown format
+    expect(result).toContain("## Conversation context");
+    expect(result).toContain("### Recent history");
+    expect(result).toContain("- **user**: Hello there");
+    expect(result).toContain("> *intent: coding, Implement the feature*");
+    expect(result).toContain("- **assistant**: Hi! How can I help?");
   });
-
   it("should include latest message in input section", () => {
     const result = buildIntentionPrompt({
       intents: mockIntents,
       latest: "I need help with code",
     });
 
-    expect(result).toContain("<latest>");
+    expect(result).toContain("### Latest message");
     expect(result).toContain("I need help with code");
-    expect(result).toContain("</latest>");
+    expect(result).not.toContain("<latest>");
   });
 
   it("should not include a previous intent result section", () => {
@@ -132,9 +131,9 @@ describe("buildIntentionPrompt", () => {
       latest: "test message",
     });
 
-    expect(result).not.toContain("<conversation>");
-    expect(result).not.toContain("</conversation>");
-    expect(result).toContain("<latest>");
+    expect(result).not.toContain("## Conversation context");
+    expect(result).not.toContain("### Recent history");
+    expect(result).toContain("### Latest message");
     expect(result).toContain("test message");
   });
 
@@ -483,7 +482,9 @@ describe("buildPromptPrefix", () => {
 
     const prefix = buildPromptPrefix(result, mockIntents, mockConfig);
 
-    expect(prefix).toContain("Detected agent dispatch and orchestration intent.");
+    expect(prefix).toContain(
+      "Detected agent dispatch and orchestration intent.",
+    );
     expect(prefix).not.toContain(FALLBACK_INTENT.prompt);
   });
 

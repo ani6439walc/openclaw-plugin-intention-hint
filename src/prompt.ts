@@ -67,24 +67,28 @@ function buildIntentCategories(intents: readonly IntentDefinition[]): string {
     : "- No categories with 2+ intents";
 }
 
-function buildConversationXml(conversation: RecentTurn[] | undefined): string {
+function buildConversationMarkdown(
+  conversation: RecentTurn[] | undefined,
+): string {
   if (!conversation || conversation.length === 0) return "";
 
-  const turns = conversation
-    .map((turn) => {
-      const lines = [`<turn role="${turn.role}">`, turn.text];
-      if (turn.role === "user" && turn.historicalIntent) {
-        lines.push(
-          "<historical_intent>",
-          JSON.stringify(turn.historicalIntent),
-          "</historical_intent>",
-        );
-      }
-      lines.push("</turn>");
-      return lines.join("\n");
-    })
-    .join("\n");
-  return `<conversation>\n${turns}\n</conversation>`;
+  const historyLines = conversation.map((turn) => {
+    const rolePrefix = `**${turn.role}**:`;
+    const turnLines = [`- ${rolePrefix} ${turn.text}`];
+
+    if (turn.role === "user" && turn.historicalIntent) {
+      const { intent, goal } = turn.historicalIntent;
+      turnLines.push(`  > *intent: ${intent}, ${goal}*`);
+    }
+
+    return turnLines.join("\n");
+  });
+
+  return [
+    "## Conversation context",
+    "### Recent history",
+    ...historyLines,
+  ].join("\n");
 }
 
 export function buildIntentionPrompt(params: {
@@ -97,8 +101,8 @@ export function buildIntentionPrompt(params: {
 
   const intentCatalog = buildIntentCatalog(params.intents);
   const intentCategories = buildIntentCategories(params.intents);
-  const conversationXml = buildConversationXml(params.conversation);
-  const conversationSection = conversationXml ? `\n${conversationXml}\n` : "";
+  const conversationMd = buildConversationMarkdown(params.conversation);
+  const conversationSection = conversationMd ? `\n${conversationMd}\n` : "";
 
   return `${timeLine}You are an intent classification agent.
 Another model is preparing the final user-facing answer with hints and subagent routing.
@@ -152,9 +156,8 @@ ${intentCategories}
 ${intentCatalog}
 </intent_catalog>
 ${conversationSection}
-<latest>
-${params.latest}
-</latest>`;
+### Latest message
+${params.latest}`;
 }
 
 export function parseIntentionResult(
