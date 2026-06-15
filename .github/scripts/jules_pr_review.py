@@ -134,6 +134,9 @@ def get_jules_activities(session_name):
     return request("GET", f"{JULES_API}/{session_name}/activities", jules_headers())
 
 
+REVIEW_MARKER = "<!-- jules-pr-review -->"
+
+
 def extract_review_from_activities(activities_response):
     activities = activities_response.get("activities", [])
     messages = []
@@ -145,9 +148,33 @@ def extract_review_from_activities(activities_response):
             messages.append(text.strip())
 
     if not messages:
-        return "Jules finished, but no review message was found in session activities."
+        return None
 
     return messages[-1]
+
+
+def has_complete_review(activities_response):
+    """Check if activities contain a complete review (has the marker or key sections)."""
+    activities = activities_response.get("activities", [])
+
+    for activity in activities:
+        agent = activity.get("agentMessaged") or {}
+        text = agent.get("agentMessage") or ""
+
+        # Check for review marker
+        if REVIEW_MARKER in text:
+            return True
+
+        # Check for key review sections (heuristic)
+        has_summary = "## summary" in text.lower() or "### summary" in text.lower()
+        has_blocking = "blocking" in text.lower() or "## issues" in text.lower()
+        has_recommendation = "recommendation" in text.lower() or "## verdict" in text.lower()
+
+        # If it has at least summary + one other section, likely complete
+        if has_summary and (has_blocking or has_recommendation):
+            return True
+
+    return False
 
 
 def post_pr_comment(owner, repo, pr_number, body):
@@ -205,6 +232,8 @@ def main():
         log(f"URL: {session_url}")
 
     final_session = session
+    state = session.get("state", "UNKNOWN")
+    early_exit = False
     for poll_num in range(1, MAX_POLLS + 1):
         time.sleep(POLL_SECONDS)
         final_session = get_jules_session(session_name)
@@ -216,7 +245,19 @@ def main():
         if state in FINAL_STATES:
             log(f"Session reached final state: {state}")
             break
-    else:
+
+        # Early exit: if IN_PROGRESS and review already complete, don't wait
+        if state == "IN_PROGRESS":
+            try:
+                activities = get_jules_activities(session_name)
+                if has_complete_review(activities):
+                    log("Review detected in activities during IN_PROGRESS — exiting early")
+                    early_exit = True
+                    break
+            except Exception as e:
+                log(f"Could not check activities: {e}")
+
+    if not early_exit and state not in FINAL_STATES:
         log(f"Timed out after {MAX_POLLS * POLL_SECONDS}s")
         fail_pr_comment(owner, repo, pr_number, f"Timed out waiting for Jules session after {MAX_POLLS * POLL_SECONDS // 60} minutes.\n\nLast state: `{final_session.get('state')}`\n\nSession: {session_url}")
         raise SystemExit(1)
@@ -227,7 +268,7 @@ def main():
     activity_count = len(activities.get("activities", []))
     log(f"Found {activity_count} activities")
 
-    if state not in REVIEWABLE_STATES:
+    if not early_exit and state not in REVIEWABLE_STATES:
         reason = json.dumps(final_session, indent=2, ensure_ascii=False)
         fail_pr_comment(
             owner,
@@ -238,6 +279,9 @@ def main():
         raise SystemExit(1)
 
     review = extract_review_from_activities(activities)
+    if review is None:
+        review = "Jules completed, but no review message was found in session activities."
+    
     if session_url:
         review += f"\n\nJules session: {session_url}"
 
