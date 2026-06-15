@@ -139,6 +139,15 @@ def get_jules_activities(session_name):
     return request("GET", f"{JULES_API}/{session_name}/activities", jules_headers())
 
 
+def archive_jules_session(session_name):
+    log(f"Archiving session {session_name}...")
+    try:
+        request("POST", f"{JULES_API}/{session_name}:archive", jules_headers(), {})
+        log("Session archived.")
+    except Exception as e:
+        log(f"Archive failed (non-fatal): {e}")
+
+
 REVIEW_MARKER = "<!-- jules-pr-review -->"
 
 
@@ -255,7 +264,8 @@ def main():
             try:
                 activities = get_jules_activities(session_name)
                 if has_complete_review(activities):
-                    log("Review detected in activities — exiting immediately")
+                    log("Review detected in activities — archiving session")
+                    archive_jules_session(session_name)
                     early_exit = True
             except Exception as e:
                 log(f"Could not check activities: {e}")
@@ -274,7 +284,8 @@ def main():
             try:
                 activities = get_jules_activities(session_name)
                 if has_complete_review(activities):
-                    log("Review detected in activities during IN_PROGRESS — exiting early")
+                    log("Review detected in activities during IN_PROGRESS — archiving session")
+                    archive_jules_session(session_name)
                     early_exit = True
                     break
             except Exception as e:
