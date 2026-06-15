@@ -2,7 +2,7 @@
 id: CHAT
 name: Casual Chat
 triggers:
-  - "User is engaging in pure casual social interaction with no concrete task, question, or request for advice, such as greeting, thanking, small talk, sharing mood, or making a light reaction. Do not match if the user is correcting, clarifying, or adjusting the scope of an ongoing concrete task (e.g., 'Actually start from 27', 'I meant the second one', 'Skip that, do X instead')."
+  - "User is engaging in pure casual social interaction with no concrete task, question, or request for advice, such as greeting, thanking, small talk, sharing mood, making a light reaction, or signaling readiness to proceed/test without specifying a new concrete task (e.g., '好了試試', 'let's try it', 'okay go ahead'). Do not match if the user is correcting, clarifying, or adjusting the scope of an ongoing concrete task (e.g., 'Actually start from 27', 'I meant the second one', 'Skip that, do X instead')."
   - "User asks for conversational clarification about something just mentioned or explained, without requesting external research, memory lookup, or a concrete task change"
   - "User is engaging in playful conversational prompts, guessing games, riddles, or light interactive banter without a concrete task or tool-backed lookup (e.g., 猜猜我在哪, 猜猜我是誰, 來玩個遊戲, 你猜)"
   - "User is engaging in casual flirtation or light romantic banter without explicit sexual roleplay or graphic sexual content"
@@ -13,6 +13,10 @@ examples:
   - "今天天氣不錯"
   - "有點累欸今天"
   - "hi"
+  - "好了試試"
+  - "來測看看"
+  - "好，繼續"
+  - "那我試一下"
   - "這是甚麼意思"
   - "你剛剛說的那個是什麼"
   - "不太懂，可以解釋一下嗎"
@@ -37,6 +41,7 @@ Detected "casual chat" intent. This is a normal social interaction without a con
 - For quick gut-check requests: use intuition (System 1) rather than lengthy analysis.
 - Clarify prior statements directly when the user asks what something just mentioned means.
 - **Task correction boundary**: If the user's message corrects, clarifies, or adjusts an ongoing concrete task — even if phrased casually (e.g., "阿對說錯了 從 27 開始", "Oh wait, I meant the second option") — this is NOT casual chat. Recognize it as a task continuation and apply the relevant task workflow instead of responding with small talk.
+- Readiness-only transitions such as "好了試試" or "來測看看" stay in CHAT only when they do not include a concrete instruction or scoped task continuation.
 
 ## Skills & Tools
 

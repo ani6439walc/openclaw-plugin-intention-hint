@@ -11,6 +11,7 @@ triggers:
   - "User wants to execute shell commands, install dependencies (pnpm, npm, pip, brew, apt, uv), or run scripts"
   - "User wants to locate or track a device's physical location using GPS, network, or infrastructure tools such as Home Assistant device tracking, phone location lookup, or GPS coordinates"
   - "User asks the agent to guess or determine their current location using location data, GPS coordinates, or device tracking infrastructure"
+  - "User reports the outcome, status, or ongoing behavior of a remote home machine or previous infra fix, such as warnings still printing, a service still down, or a host working again"
 examples:
   - "看一下 K8s cluster 狀態"
   - "ArgoCD 幫我 sync 一下"
@@ -27,6 +28,9 @@ examples:
   - "幫我查一下我現在的位置"
   - "用定位看看我在哪裡"
   - "我的手機現在在哪裡"
+  - "遠端機器 我改了 還是會印"
+  - "重啟後還是噴 warning"
+  - "那台機器現在正常了"
 ---
 
 Detected "infrastructure management" intent. The user wants to manage home-infra systems, servers, or services.
@@ -49,8 +53,11 @@ Detected "infrastructure management" intent. The user wants to manage home-infra
 - For location tracking or GPS-based guessing, treat it as infrastructure/device-state work only when the user asks to use location data, Home Assistant, GPS coordinates, or phone/device tracking; otherwise playful guessing stays in CHAT.
 - OpenClaw gateway `commands.restart` is a protected config path; do not try to enable or toggle it through config patching.
 - If a gateway tool call reports a protected-path error or the CLI is missing from the local PATH, switch to the documented host/SSH execution path instead of retrying the blocked mechanism.
+- When `gateway config.patch` fails with a protected config path error, do not fall back to direct JSON file editing with `jq`, `write`, `cat`, or `echo`; read current config and use `gateway config.apply` with the corrected full config, or use the documented configuration wizard.
 - Before deleting workspace directories, ensure data is ingested to wiki, backed up, or recoverable from git.
 - For git-based restoration of deleted files, use `git restore <path>` or `git checkout HEAD -- <path>` before retrying archival or cleanup.
+- When modifying intention-hint evolution behavior, update both the skill file and the evolve-workflow reference when both define the same rule.
+- Use dismissed status for duplicate, superseded, unsafe, or clearly rejected findings; leave ambiguous or blocked evolution items pending.
 
 ## Skills & Tools
 
@@ -99,6 +106,13 @@ Detected "infrastructure management" intent. The user wants to manage home-infra
 - Restart gateway through the host CLI when protected config or local PATH restrictions block native tooling:
   exec({ command: "ssh <host> 'openclaw gateway restart'" })
 
+- Apply full gateway config replacement when patching protected paths is blocked:
+  gateway({ action: "config.apply", raw: "<full-config-json-with-target-entry-removed>" })
+
+- Execute remote commands via SSH, handling key-based or password authentication without leaking secrets:
+  exec({ command: "ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 -p <port> <user>@<host> '<command>'" })
+  exec({ command: "sshpass -p '<password>' ssh -o StrictHostKeyChecking=no -p <port> <user>@<host> '<command>'" })
+
 - Inspect a config subtree before editing:
   gateway({ action: "config.schema.lookup", path: "agents.defaults" })
 
@@ -107,6 +121,9 @@ Detected "infrastructure management" intent. The user wants to manage home-infra
 
 - List cron jobs:
   cron({ action: "list" })
+
+- Run or retry a cron job after resolving its ID:
+  cron({ action: "run", jobId: "<job-id>" })
 
 - Add a cron job:
   cron({ action: "add", job: { schedule: { kind: "cron", expr: "...", tz: "Asia/Taipei" }, payload: { ... } } })
@@ -119,6 +136,15 @@ Detected "infrastructure management" intent. The user wants to manage home-infra
 
 - Run security audit, workspace integrity check, config drift detection:
   exec({ command: "python3 ../skills/soul-guardian/scripts/soul_guardian.py check --actor manual --output-format alert" })
+
+- Edit agent skill files and reference documents for behavior changes when the user explicitly asks to modify skill or intent evolution behavior:
+  read({ path: "skills/<skill-name>/SKILL.md" })
+  edit({ path: "skills/<skill-name>/SKILL.md", edits: [{ oldText: "<old>", newText: "<new>" }] })
+
+- Manage intention-hint evolution backlog items from the plugin root:
+  exec({ command: "pnpm run backlog -- show" })
+  exec({ command: "pnpm run backlog -- mark-dismissed --id <item-id> --expected-updated-at <timestamp>" })
+  exec({ command: "pnpm run backlog -- validate-intents --id <intent-id>" })
 
 ## Response Strategy
 
@@ -160,6 +186,11 @@ TOOLS.md   target      & route      & mutate     health
   4. Parse the returned token from the JSON response and use it immediately for the registry login or Kubernetes `imagePullSecret`.
   5. Do not persist the token in plaintext memory, chat, logs, or intent files.
 
+### Step 4.4 — Protected Gateway Config Recovery
+- If `config.patch` fails because the target path is protected, stop retrying patch variants.
+- Read the current config through the gateway config tool, modify only the requested entry in memory, then use `gateway config.apply` with the full corrected config.
+- Do not propose or perform direct JSON edits when the user requested tool-based config operations.
+
 ### Step 4.5 — Gateway Restart Recovery
 - If the native gateway restart tool is disabled, do not patch protected restart-related config paths.
 - Verify the host and access method from `TOOLS.md`, then run the gateway CLI through the host or SSH execution path.
@@ -171,6 +202,24 @@ TOOLS.md   target      & route      & mutate     health
 - If files were prematurely deleted, restore them with `exec({ command: "git restore <path>" })` or `exec({ command: "git checkout HEAD -- <path>" })`.
 - Execute destructive cleanup such as `rm -rf <path>` only after explicit user confirmation.
 - Verify the final filesystem and git state with `ls`, `test -e`, and `git status --short`.
+
+### Step 4.7 — Cron Job Retry Workflow
+- Identify the failed job name from the user message or prior error context.
+- List cron jobs and resolve the exact job ID from the live scheduler state; do not guess IDs from memory.
+- Run the resolved job manually and capture the returned execution ID or status.
+- Verify it started or completed by inspecting live scheduler/agent state, then optionally audit the schedule if the failure indicates a recurring issue.
+
+### Step 4.8 — Remote SSH Exploration and Documentation
+- Start with read-only remote commands to identify host state, service status, logs, or file paths.
+- If key authentication fails and password use is explicitly available, use a bounded `sshpass`/`SSH_ASKPASS` approach without logging secrets.
+- When discovered infra state differs from local notes or `darling/` documentation, update those notes through the PRODUCTIVITY workflow after reading the target file first.
+
+### Step 4.9 — Intention-Hint Evolution Task
+- Read the target skill file and references before editing behavior rules.
+- Make only the requested behavior change, preserving existing workflow boundaries.
+- Run validation from the plugin root: `pnpm run backlog -- validate-intents`, `pnpm run test`, and `pnpm run build`.
+- Mark the backlog item processed or dismissed with the backlog CLI only after validation passes.
+- Report the diff summary and remaining pending count.
 
 ### Step 5 — Verify Health
 - After any mutation, run a health sweep using `healthcheck` skill.

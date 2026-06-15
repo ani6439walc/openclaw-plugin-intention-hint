@@ -8,6 +8,7 @@ triggers:
   - "User wants to resume, continue, or pick up unfinished tasks, projects, or workflows from a previous session or context"
   - "User asks to review recent conversation or context specifically to continue executing pending actions"
   - "User wants to claim, execute, create, complete, verify, or check status of Workboard task cards, including batch task creation and direct queued work execution"
+  - "User wants to edit, restructure, format, or maintain content within productivity vault project files or notes (darling/), including standardizing headings, removing sections, or updating outlines"
 examples:
   - "今天有什麼任務"
   - "看看 kanban 上有幾個 active project"
@@ -25,6 +26,10 @@ examples:
   - "從 workboard 取任務繼續做"
   - "幫我追蹤這個任務有沒有完成"
   - "幫我把這些剩下的章節批次建立成 workboard 任務"
+  - "更新 workboard 狀態"
+  - "workboard 上下一個任務是什麼"
+  - "幫我把這個專案筆記的標題統一格式"
+  - "把 darling 裡這個檔案的某一段清掉"
 ---
 
 Detected "productivity" intent. The user is interacting with the productivity vault (darling/) for task management, project tracking, goal monitoring, reviews, or organizational workflows.
@@ -75,8 +80,10 @@ Detected "productivity" intent. The user is interacting with the productivity va
 - Break large work into ordered tasks:
   skill: planning-and-task-breakdown
 
-- Delegate bulk edits or long-running vault processing to a sub-agent:
+- Delegate bulk edits, long-running vault processing, or Workboard task execution to a sub-agent:
   skill: delegate
+  sessions_spawn({ agentId: "<agent-id>", task: "<task-description>" })
+  sessions_yield({ message: "awaiting sub-agent completion" })
 
 - Master any inbox with triage frameworks:
   skill: inbox
@@ -103,7 +110,7 @@ Detected "productivity" intent. The user is interacting with the productivity va
 - Query Workboard boards, status counts, task cards, and dependency chains:
   workboard_boards()
   workboard_stats({ boardId: "<board-id>" })
-  workboard_list({ status: "ready", limit: 10 })
+  workboard_list({ boardId: "<board-id>", status: "ready", limit: 10 })
   workboard_read({ id: "<card-id>" })
 
 - Create, link, claim, release, and complete Workboard tasks with proof:
@@ -114,6 +121,9 @@ Detected "productivity" intent. The user is interacting with the productivity va
   workboard_complete({ id: "<card-id>", token: "<claim-token>", summary: "<what changed>" })
   workboard_proof({ id: "<card-id>", token: "<claim-token>", status: "passed", label: "<verification>", note: "<evidence>" })
   workboard_comment({ id: "<card-id>", body: "<context update>" })
+
+- Attest or repair proof for Workboard cards when completion requires artifact validation or diagnostic backfill:
+  workboard_proof({ id: "<card-id>", token: "<claim-token>", status: "passed", label: "<verification>", note: "<evidence>", artifactPath: "<artifact-path>" })
 
 - Draft complete SOPs, task descriptions, acceptance criteria, and handoff notes for delegated or batch-created work:
   skill: handoff
@@ -206,11 +216,52 @@ Use this workflow when the user asks to continue queued work, process the next W
 
 1. **Claim and read** — Use `workboard_claim`, then `workboard_read` with the claim token to verify scope, acceptance criteria, links, and dependencies.
 2. **Inspect source material** — Read the referenced files or artifacts before changing anything; use `treemd` for large Markdown documents.
-3. **Process and write** — Create or update the requested notes, outlines, project files, or vault artifacts with `write` / `edit`, preserving exact structure and author voice.
+3. **Process, write, or delegate** — For inline tasks, create or update the requested notes, outlines, project files, or vault artifacts with `write` / `edit`, preserving exact structure and author voice. For long-running research, external repository analysis, or bulk processing, delegate to a sub-agent with `sessions_spawn` and wait with `sessions_yield`.
 4. **Recover edit conflicts** — If `edit` fails due to non-unique or mismatched text, re-read the target section, expand the exact context, then retry once with a precise replacement.
 5. **Verify and preserve progress** — Run the smallest meaningful check (diff, grep, lint, test, or direct readback). Commit/push only when explicitly requested or required by the active workflow.
 6. **Complete or release** — Use `workboard_complete` with proof when done; use `workboard_release` with the next status when pausing or handing off.
 7. **Report results** — Include card ID, files changed, verification result, blockers, and the next queued item when relevant.
+
+### Workboard Diagnostic Repair Workflow
+
+Use this workflow when cards are stuck in a diagnostic state, such as `missing_proof`, and need proof backfill.
+
+1. **Identify affected cards** — Use `workboard_list` with board/status filters to find cards with the target diagnostic state.
+2. **Verify artifact existence** — For each card, inspect the referenced notes, code, document, or deliverable with `read`, `exec`, or direct artifact checks. Do not attest proof without artifact evidence.
+3. **Attest proof** — Call `workboard_proof` for each verified card with a concise label, note, and artifact path when available.
+4. **Re-validate diagnostic** — List or inspect the cards again to confirm the diagnostic status cleared.
+5. **Report results** — Summarize repaired cards, verified artifacts, and any cards that remain blocked by missing evidence.
+
+### Bulk Workboard Task Generation Workflow
+
+Use this workflow when the user asks to create multiple task cards from a source document, list, chapter set, or batch of items.
+
+1. **Extract and structure** — Use `treemd`, `read`, or `exec` to parse the source and extract task titles, notes, dependencies, and acceptance criteria.
+2. **Confirm scope for large batches** — If the batch is large, briefly summarize the parsed count and scope before proceeding unless the user already explicitly approved bulk creation.
+3. **Delegate creation when large** — For more than five cards, delegate the sequential `workboard_create` calls to a sub-agent so the main session stays responsive; for small batches, create cards directly.
+4. **Verify board state** — Use `workboard_list({ boardId: "<board-id>", limit: <number> })` to confirm cards were created and dependencies are represented.
+5. **Report count and gaps** — Report total created cards, target board, dependency links, and any failed or skipped items.
+
+### Workboard Dependency Chain & HEARTBEAT Setup
+
+Use this workflow when the user asks to establish sequential dependencies between Workboard cards or update the Workboard section in `HEARTBEAT.md`.
+
+1. **Survey existing cards** — Use `workboard_list` to identify cards that need linking and confirm their intended order.
+2. **Update HEARTBEAT.md** — Read `HEARTBEAT.md`, then use `edit` to add or update the Workboard dependency rules so heartbeat processing respects the sequence.
+3. **Establish dependency chain** — Iterate through sorted card IDs and call `workboard_link({ parentId: "<prev-id>", childId: "<next-id>" })`.
+4. **Verify the chain** — Use `workboard_read` on representative first, middle, and last cards to confirm parent and child relationships and check for skipped cards.
+5. **Report results** — Summarize the updated heartbeat section and verified dependency chain.
+
+### Project Creation with Sub-tasks Workflow
+
+Use this workflow when the user asks to create a new project with multiple goals or sub-tasks and add it to the kanban backlog.
+
+1. **Read vault SOPs** — Read `darling/AGENTS.md` for project structure, naming conventions, and kanban format.
+2. **Clarify project scope** — Identify the main goal, deliverables, referenced sources, and dependencies from the user's request.
+3. **Break down sub-tasks** — Use `planning-and-task-breakdown` to decompose the project into ordered, actionable tasks.
+4. **Create project file** — Create a note in the appropriate `darling/projects/<domain>/` folder with goals, sub-tasks, relevant links, and canonical tags.
+5. **Add to kanban** — Insert the project into `darling/projects/kanban.md` under the appropriate status with a wikilink to the project file.
+6. **Verify and report** — Read back the project entry and kanban insertion, then report the paths and sub-task breakdown.
 
 ### Structured Course / Learning Project Workflow
 

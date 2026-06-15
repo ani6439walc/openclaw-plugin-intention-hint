@@ -2,7 +2,7 @@
 id: WIKI_MANAGEMENT
 name: Wiki Management & Query
 triggers:
-  - "User is asking to search, read, create, update, or maintain wiki pages in the memory wiki vault (wiki/) — including status checks, linting, structural maintenance, and Obsidian compatibility"
+  - "User is asking to search, read, create, update, or maintain wiki pages strictly within the memory wiki vault (wiki/) — including status checks, linting, structural maintenance, and Obsidian compatibility"
   - "User wants to query wiki entities, concepts, syntheses, or reports, or ingest/reorganize wiki sources"
   - "User wants to search, read, or explore raw or external wiki-like directories, including subagent workspaces such as llm-wiki, that are not part of the managed Obsidian vault"
 examples:
@@ -26,6 +26,7 @@ Detected "wiki management" intent. The user wants to search, read, create, updat
 - Use `[[Wikilinks]]` for internal vault connections, `[text](url)` for external URLs only.
 - Avoid destructive renames unless you also have a link-repair plan.
 - Distinguish the managed memory wiki vault (`wiki/`) from raw/external wiki directories such as subagent `llm-wiki` workspaces; for raw directories, use filesystem inspection instead of managed vault tools.
+- Do not route edits to productivity vault files under `darling/` here; those belong to PRODUCTIVITY even when they look like Obsidian Markdown maintenance.
 - When archiving, ingesting, or reorganizing source files into the managed wiki, ALWAYS use the wiki-maintainer ingest → compile → lint pipeline so original source content is preserved before deletion.
 - If source files were already deleted, check git history and restore them before running the ingest pipeline.
 
@@ -46,7 +47,7 @@ Detected "wiki management" intent. The user wants to search, read, create, updat
 - Retrieve wiki page content with the exact accepted shape only; do not pass unsupported fields such as `limit` or `format`:
   wiki_get({ lookup: "<page_path_or_id>" })
 
-- Create or update wiki synthesis / metadata:
+- Create or update wiki synthesis / metadata (`title` and `sourceIds` are required for `create_synthesis`):
   wiki_apply({ op: "create_synthesis", title: "<title>", body: "<content>", sourceIds: ["<source_id>"] })
 
 - Lint wiki vault for contradictions, provenance gaps, open questions:
@@ -119,6 +120,7 @@ status     wiki        sources      content      or ingest    & compile
 
 ### Step 5 — Edit, Create, or Ingest
 - For edits: use `wiki_apply` to create synthesis or update metadata.
+- Before calling `wiki_apply({ op: "create_synthesis" })`, gather and supply a concrete `title` and at least one `sourceIds` entry; do not call it with only `body`.
 - For new pages: ingest the source file via `wiki-maintainer` skill.
 - Never manually move files between directories.
 

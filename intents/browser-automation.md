@@ -33,6 +33,8 @@ Detected "browser automation" intent. The user wants a browser-capable agent to 
 - For tasks requiring navigation to a specific page, section, lecture, account, or UI state, require the browser agent to verify successful navigation by checking page title, URL, visible heading, selected sidebar item, or another stable element before extraction or interaction.
 - For multi-step browser workflows, write delegated task prompts as explicit numbered steps with verification gates between navigation and action phases.
 - Recognize sequential content extraction patterns such as course lectures, document series, or dashboard pages as stable workflows; process them with explicit target verification and consider whether a dedicated skill/workflow is warranted after repeated use.
+- For direct download links such as PDFs, images, and files, prefer `exec` with `curl` when `web_fetch` is blocked by security restrictions or when browser interaction is unnecessary.
+- For SaaS spending, usage, invoice, or receipt checks, use browser automation or browser-harness with the known profile/account hint; do not search for local billing scripts or unrelated local skills.
 
 ## Skills & Tools
 
@@ -67,8 +69,16 @@ Detected "browser automation" intent. The user wants a browser-capable agent to 
 - Wait for browser sub-agent to complete before summarizing:
   sessions_yield()
 
-- Handle spending/usage queries with known browser profiles:
+- Handle SaaS spending, usage, invoice, or receipt queries through authenticated browser profiles:
   skill: browser-harness
+  sessions_spawn({ agentId: "browser", task: "Use <profile/account> to open <billing-or-usage-url>, verify the account and billing page, extract amount/date/plan, and return evidence.", mode: "run", timeoutSeconds: 180 })
+
+- Download a direct file URL when `web_fetch` is blocked or the URL is a file download:
+  exec({ command: "curl -L -o <filename> <url>" })
+
+- Manage browser tabs or recover from lost tab context:
+  browser({ action: "tabs" })
+  browser({ action: "<action>", targetId: "<tabId>", ... })
 
 ## Response Strategy
 
@@ -92,6 +102,7 @@ classify  delegate    yield        summarize  persist
 
 ### Step 1 — Classify Task Complexity
 - Simple (≤3 steps): direct query, single page check, screenshot → use `sessions_send`.
+- Direct download: for PDF/image/file URLs or `web_fetch` security failures, use `exec` with `curl` and verify the saved file path/size instead of forcing a browser workflow.
 - Complex (>3 steps): multi-page navigation, login flows, form filling, authenticated content extraction → use `sessions_spawn`.
 - Sequential extraction (course lectures, document series, repeated dashboard checks): use `sessions_spawn` with explicit navigation verification steps.
 - Notify the user that a browser task has been dispatched.
@@ -100,6 +111,7 @@ classify  delegate    yield        summarize  persist
 - For simple tasks: `sessions_send` with timeout 180s.
 - For complex or authenticated tasks: `sessions_spawn` with `mode: "run"` and a clear profile hint when saved session state is needed.
 - Include task description plus relevant user-provided profile, account, email, skill, target-site hints, and exact page/section/element navigation target in the delegation.
+- For billing tasks, include the service name, profile/account hint, target billing/usage/receipt page, exact fields to extract (amount, date range, invoice/receipt title), and a requirement to verify the account before reading numbers.
 - For navigation-dependent tasks, structure the prompt with explicit steps:
   ```
   1. Navigate to [target location]
@@ -119,6 +131,11 @@ classify  delegate    yield        summarize  persist
 - Digest the browser sub-agent output.
 - Present findings to the user in a clear, concise format.
 - For map URL conversion, identify the source URL format, resolve or extract coordinates/place names, then construct the target service URL and verify it opens to the intended location.
+
+### Step 4.5 — Recover from Tab Errors
+- If a `browser` tool call fails with "tab not found", do not retry blindly.
+- Execute `browser({ action: "tabs" })` to list active tabs.
+- Retry the original action using a valid `targetId`, `tabId`, or `label` from the response.
 
 ### Step 5 — Persist Extracted Data (If Applicable)
 - If the task requires updating local files, identify and read the target file immediately before editing.

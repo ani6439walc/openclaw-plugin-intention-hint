@@ -31,6 +31,8 @@ Detected "image analysis" intent. The user wants visual content to be examined, 
 - When visual analysis needs real-world context, such as identifying people, places, or current events, use `web_search` to supplement visual findings after extracting stable visual clues.
 - If `web_search` fails or times out, retry at most twice with simpler keywords; if it still fails, proceed with available visual information or report the search limitation clearly.
 - When persisting extracted data to files, always read the target file first before using `edit`; exact replacement text must match current file content including whitespace.
+- For synchronous image analysis requests, output the analysis text directly as the final response. Do not call a separate message-sending tool for standard text replies; the framework handles delivery.
+- For simple identification or description requests, keep the path minimal: use the visual analysis tool once, answer from that result, and avoid unrelated workboard, shell, or broad web-search toolchains unless external context is explicitly needed.
 
 ## Skills & Tools
 
@@ -50,14 +52,22 @@ Detected "image analysis" intent. The user wants visual content to be examined, 
 - For diagrams or architecture charts, cross-reference with codebase structure:
   skill: cx
 
+- Send proactive messages or media only when an async workflow or file attachment requires it; standard synchronous results should be returned directly in chat.
+
 ## Response Strategy
 
 - Identify the type of visual content (single image, multiple images, PDF, error screenshot, diagram).
 - Run the appropriate tool (`image`, `images`, or `pdf`).
+- For simple visual identification, do not invoke workboard, shell, or broad research tools; answer directly from the image tool result.
 - For error screenshots or real-world visual context: extract stable keywords, then search once or twice for known issues or current context.
-- Present findings clearly with source context.
+- Present findings clearly with source context as the final response; do not invoke a message-sending tool for ordinary synchronous text output.
 
 ## Concrete Workflow
+
+### Step 0 — Simple Visual Identification Direct Path
+- For prompts like "What is this?", "Describe this image", or basic object/animal/person identification, call `image` once with a focused description prompt.
+- Base the reply only on the visual result unless the user asked for external verification or current real-world context.
+- Do not create Workboard cards, run shell commands, or perform web searches for simple visual recognition.
 
 ### Step 1 — Extract Visual Data
 - Use `image`, `images`, or `pdf` to extract the requested content from the visual material.

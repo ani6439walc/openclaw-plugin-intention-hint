@@ -53,6 +53,15 @@ Detected "open-source docs" intent. The user wants version-sensitive information
 - Shallow clone a GitHub repository into a temporary workspace subdirectory before source inspection:
   exec({ command: "git clone --depth 1 <repo_url> ./.tmp/<repo_name>" })
 
+- Fetch repository metadata for quick overview when the user gives a GitHub URL:
+  exec({ command: "curl -s -H 'Authorization: token $GITHUB_TOKEN' https://api.github.com/repos/<owner>/<repo>" })
+
+- Star a GitHub repository when the user explicitly requests it:
+  exec({ command: "curl -s -X PUT -H 'Authorization: token $GITHUB_TOKEN' https://api.github.com/user/starred/<owner>/<repo>" })
+
+- Save a tracked research bookmark or next-action card for future investigation:
+  workboard_create({ title: "Research <owner>/<repo>", notes: "<repo-url and research goal>" })
+
 ## Response Strategy
 
 - Resolve the relevant documentation source before answering.
@@ -78,6 +87,11 @@ library    docs                        inspect
 ### Step 2 — Resolve Documentation Source
 - Call `context7__resolve-library-id` to get the Context7-compatible library ID.
 - If no Context7 match, fall back to official docs or repo inspection.
+
+### Step 2.5 — GitHub Actions & Bookmark When Requested
+- If the user asks to star, fork, or otherwise interact with the repository, use the GitHub API via `exec` with the appropriate endpoint and token.
+- If the user asks to note it down for later, create a concise research bookmark or tracked next-action with `workboard_create`.
+- Confirm lightweight repository actions before moving to deeper research.
 
 ### Step 3 — Read Documentation
 - Query version-sensitive docs via `context7__query-docs`.

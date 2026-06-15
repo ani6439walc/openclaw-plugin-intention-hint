@@ -5,7 +5,7 @@ enabled: true
 triggers:
   - "User wants to manage agent session lifecycle: check status, switch models, spawn/list sub-agents, hand off conversation, or manage active sessions"
   - "User wants to configure agent context, rules files, or project-level startup behavior"
-  - "User references items from a prior list or conversation (e.g. 'approve 2', 'delete the third one', '執行你說的這兩個建議', 'do the two things you mentioned') or confirms/rejects a pending proposal, suggestion, or recommendation"
+  - "User references one or more items from a prior list or conversation by index, count, batch size, or description (e.g. 'approve 2', 'delete the third one', '挑10筆往下做', '前五個都做', '執行你說的這兩個建議') or confirms/rejects a pending proposal, suggestion, or recommendation"
   - "User confirms execution mode or options for an active skill workflow, such as book-to-skill mode selection or batch processing choices"
   - "User wants to record learnings, errors, or corrections for continuous improvement"
   - "User wants to set up a structured workflow cycle for a complex multi-step task"
@@ -23,6 +23,9 @@ examples:
   - "執行一下你說的這兩個建議"
   - "do the two things you mentioned earlier"
   - "幫我跑一下你剛才提的三個步驟"
+  - "這次幫我挑10筆往下做"
+  - "前三個幫我處理一下"
+  - "剩下的全部 approve"
   - "implement your first suggestion"
   - "幫我 retry"
   - "再跑一次剛剛的"
@@ -52,6 +55,7 @@ Detected "agent self-administration" intent. The user is managing the agent's se
 - When resuming after an abort, interruption, or gateway restart, verify the actual state of active sub-agents, files, and pending tasks before reporting progress or dispatching new work.
 - For long-running or potentially stuck sub-agents, actively check current session/sub-agent state and report concrete status instead of passively waiting.
 - When dispatching tasks that produce external web resources (images, map links, URLs, embeds), explicitly require the sub-agent to validate every URL and destination before finalizing.
+- When encountering tool errors, permission denials such as protected paths, missing files, rate limits, disabled tool actions, or sandbox boundary failures, stop execution and report the exact blocker instead of silently retrying or attempting unapproved workarounds.
 - Before reporting sub-agent completion for web-resource tasks, spot-check representative URLs or links and request a targeted fix when validation fails.
 
 ## Skills & Tools
@@ -126,6 +130,8 @@ Detected "agent self-administration" intent. The user is managing the agent's se
 
 - Report execution results to Discord with explicit recipients when the message tool is available; use `#channel-name` for channels and `user:<id>` or `<@id>` for DMs to avoid ambiguity.
 
+- Report visible progress immediately after sub-agent dispatch when channel protocol requires it; never silently wait after spawning delegated work.
+
 - Read or update heartbeat tracking files for approved long-running workflows:
   read({ path: "HEARTBEAT.md" })
   edit({ path: "HEARTBEAT.md", edits: [{ oldText: "<old>", newText: "<new>" }] })
@@ -140,6 +146,7 @@ Detected "agent self-administration" intent. The user is managing the agent's se
 - When the user asks to test modified agent tools/extensions, use sequential-thinking or `sequential_thinking` to plan targeted scenarios before running checks.
 - **Technical Verification Mode**: When the user asks to verify an agent-native tool, extension, skill, or tool return shape, reduce RP/persona output and show actual return evidence: returned field names, JSON structures, payload summaries, or relevant tool output excerpts. Prefer concise code blocks or structured bullets so the user can compare expected vs actual behavior.
 - Report what was done, what changed, and any errors — concise, no filler.
+- For sub-agent dispatch: immediately tell the user the task was dispatched and that results are being awaited. Never wait silently after delegation; silent waits look like failures to the user.
 
 ## Concrete Workflow
 
@@ -232,3 +239,16 @@ Detected "agent self-administration" intent. The user is managing the agent's se
 - Resolve the referenced proposal, suggestion, or numbered item to one exact scope before editing.
 - Execute the domain-specific workflow; for wiki proposal fixes, prefer `wiki_lint` → `wiki_get`/`read` → targeted edit or `wiki_apply` → `wiki_lint`.
 - When reporting through Discord tooling, use explicit recipient formatting (`#channel-name`, `user:<id>`, or `<@id>`) and verify the delivery target is not ambiguous.
+
+### Step 14 — Execute Confirmed Multi-Case Test or Evaluation Plans
+
+- Retrieve the most recent proposal or test plan the user is confirming. Extract the test cases, tools to invoke, input variants, and scoring criteria.
+- Execute each case in sequence using the plan as the single source of truth. Do not add unrelated searches or change the test matrix mid-run.
+- Record raw results per case and variant, including top hits, scores, returned fields, or observed behavior.
+- Apply the plan's rubric consistently and summarize which variant won overall, which cases regressed, and recommended follow-up actions.
+
+### Step 15 — Pause on Execution Blockers
+
+- If a tool, permission, protected path, missing file, rate limit, disabled action, or sandbox boundary blocks progress, stop the current workaround loop.
+- Report the exact blocker, the command or tool that failed, and the safest next option.
+- Continue only when the user has already authorized that fallback or when the fallback is clearly safe and non-destructive.

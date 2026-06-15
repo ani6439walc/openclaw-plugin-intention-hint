@@ -7,6 +7,8 @@ triggers:
   - "User asks about prompt engineering techniques (chain-of-thought, few-shot, XML tags, role-based prompting) or needs help debugging a prompt that produces wrong results"
   - "User is reviewing or auditing existing prompts, intents, or skills for quality, consistency, overlaps, or anti-patterns"
   - "User wants to edit, modify, or update the content of an existing intent Markdown file — adding or removing sections, changing guidelines, or updating tools in an intent file"
+  - "User wants to adjust prompt instructions, custom instructions, or promptAppend based on available tools, runtime constraints, or sub-agent capabilities"
+  - "User asks for tool recommendations or selection for a specific agent, sub-agent, or prompt context"
   - "User wants to be interviewed one-question-at-a-time to discover their real underlying intent behind an underspecified request"
   - "User wants to stress-test, grill, or adversarially review a plan, design, or decision until reaching shared understanding"
   - "User wants to challenge their plan against existing domain models, CONTEXT.md, or ADRs"
@@ -19,6 +21,9 @@ examples:
   - "這個 skill 的 scope 太大了，怎麼拆？"
   - "幫我修改 AGENT_ADMIN 這個意圖的 Markdown 檔案內容"
   - "把 skill-cleaner 加到某個意圖的 Skills & Tools 裡"
+  - "promptAppend 要怎麼配合目前可用的工具調整"
+  - "active memory 還要加什麼 tool 比較好"
+  - "這個 sub-agent 應該開放哪些工具"
 ---
 
 Detected "prompt design" intent. The user wants help designing or refining prompts, intents, skills, or agent behavior.
@@ -88,6 +93,9 @@ Detected "prompt design" intent. The user wants help designing or refining promp
 - Discover likely prompt, skill, or intent files when a referenced path is missing:
   exec({ command: "find ~/.openclaw/skills ~/.openclaw/workspace -name 'SKILL.md' -o -name '*.md' | grep -i '<keyword>'", workdir: "~/.openclaw" })
 
+- Manage the intention-hint evolution backlog (show, mark-processed, mark-dismissed):
+  exec({ command: "pnpm run backlog -- <subcommand>" })
+
 ## Response Strategy
 
 - Determine the user's goal: design new, refine existing, audit, or debug.
@@ -145,3 +153,8 @@ goal       files       missing     if any      & compare    & edit       & diff
 - After editing, verify no stale cross-references remain.
 - Check triggers are specific enough to avoid false matches.
 - Confirm examples cover both Chinese and English phrasings.
+- Run the intent system test suite and build to validate changes:
+  exec({ command: "pnpm run test" })
+  exec({ command: "pnpm run build" })
+- Ensure no unintended whitespace or conflict artifacts remain:
+  exec({ command: "git diff --check" })

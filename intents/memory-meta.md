@@ -3,11 +3,15 @@ id: MEMORY_META
 name: Meta-Memory Query (System Corpus)
 triggers:
 - "User is asking about the memory system itself, SOPs, plugin architecture, file structure, workflow improvements, or system-side documentation"
+- "User asks the agent to execute or test a memory tool call to verify its capability, limitation, or behavior (e.g., 'try calling it', 'test if memory_get can read X', 'run memory_search and see what comes back')"
 examples:
 - "我們的記憶系統有什麼可以改善的？"
 - "這個 SOP 的架構對嗎？"
 - "daily notes 的寫法要怎麼改？"
 - "intention-hint plugin 怎麼運作的？"
+- "你嘗試呼叫看看？"
+- "幫我實際跑一下 memory_get 看會不會成功"
+- "測試看看 memory_search 能不能找到這個"
 ---
 
 Detected "meta-memory" intent. The user wants information about the system itself — not life events, but the architecture, SOPs, plugins, and workflows that manage memory and behavior.
