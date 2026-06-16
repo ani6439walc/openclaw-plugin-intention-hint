@@ -481,3 +481,49 @@ How to handle this intent...
 
 2. Restart plugin — `intent-loader` picks it up automatically
 3. No code changes needed for most intents
+
+## Upgrading OpenClaw Dependency
+
+When upgrading the OpenClaw version (e.g., from 2026.6.5 to 2026.6.6):
+
+### 1. Update package.json versions
+
+Replace all occurrences of the old version with the new version in `package.json`:
+
+- `version`: Plugin version (e.g., "2026.6.6")
+- `openclaw.compat.pluginApi`: Minimum compatible plugin API version (e.g., ">=2026.6.6")
+- `openclaw.compat.minGatewayVersion`: Minimum gateway version (e.g., "2026.6.6")
+- `openclaw.build.openclawVersion`: Build target OpenClaw version (e.g., "2026.6.6")
+- `openclaw.build.pluginSdkVersion`: Plugin SDK version (e.g., "2026.6.6")
+- `peerDependencies.openclaw`: Peer dependency version (e.g., "2026.6.6")
+
+### 2. Clean and reinstall dependencies
+
+```bash
+rm -rf node_modules dist
+pnpm i
+```
+
+### 3. Remove old version constraints from pnpm-workspace.yaml
+
+If `pnpm-workspace.yaml` has `minimumReleaseAgeExclude` entries for the old OpenClaw version, remove them:
+
+```yaml
+# Remove lines like:
+minimumReleaseAgeExclude:
+  - openclaw@2026.6.5
+```
+
+### 4. Commit and push
+
+```bash
+git add package.json pnpm-lock.yaml pnpm-workspace.yaml
+git commit -m "chore: bump openclaw to 2026.6.6"
+git push origin main
+```
+
+### 5. Publish to ClawhHub
+
+```bash
+clawhub package publish . --family code-plugin
+```
