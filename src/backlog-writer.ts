@@ -1,11 +1,11 @@
 import * as path from "node:path";
 import { logger } from "../api.js";
-import { pluginRoot, fileExists } from "./file-utils.js";
+import { pluginRoot, fileExists, safeWriteJson } from "./file-utils.js";
 import type { EvolutionFinding, EvolutionSource } from "./evolution-types.js";
 import {
   createBacklog,
   readBacklog,
-  writeBacklogAtomic,
+  EvolutionBacklogSchema,
   type EvolutionBacklog,
 } from "./evolution-backlog.js";
 
@@ -96,16 +96,8 @@ export class BacklogWriter {
 
       backlog.updatedAt = nowIso;
       backlog.processedEvents[eventId] = nowIso;
-      try {
-        writeBacklogAtomic(backlogPath, backlog);
-        return true;
-      } catch (err) {
-        logger.warn("failed to write evolution backlog", {
-          error: err,
-          path: backlogPath,
-        });
-        return false;
-      }
+      const validated = EvolutionBacklogSchema.parse(backlog);
+      return safeWriteJson(backlogPath, validated, "failed to write evolution backlog");
     } catch (err) {
       logger.warn("failed to update evolution backlog", {
         error: err,

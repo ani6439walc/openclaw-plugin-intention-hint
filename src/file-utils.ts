@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
+import { logger } from "../api.js";
 
 /**
  * Plugin root directory — compiled code lives in dist/src/, so go up 2 levels.
@@ -51,6 +52,24 @@ export function writeJsonAtomic(filePath: string, data: unknown): void {
  */
 export function readJsonFile<T>(filePath: string): T {
   return JSON.parse(fs.readFileSync(filePath, "utf-8")) as T;
+}
+
+/**
+ * Write JSON atomically with error logging.
+ * Returns true on success, false on failure.
+ */
+export function safeWriteJson(
+  filePath: string,
+  data: unknown,
+  logMessage: string,
+): boolean {
+  try {
+    writeJsonAtomic(filePath, data);
+    return true;
+  } catch (err) {
+    logger.warn(logMessage, { error: err, path: filePath });
+    return false;
+  }
 }
 
 /**

@@ -2,7 +2,7 @@ import * as path from "node:path";
 import { logger } from "../api.js";
 import type { SessionState } from "./session-tracker.js";
 import type { IntentDefinition } from "./types.js";
-import { pluginRoot, fileExists, readJsonFile, writeJsonAtomic } from "./file-utils.js";
+import { pluginRoot, fileExists, readJsonFile, safeWriteJson } from "./file-utils.js";
 
 const STATS_FILENAME = "stats.json";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -415,13 +415,7 @@ export class StatsAggregator {
 
       pruneRollingData(stats, nowMs);
       recomputeDerivedStats(stats, nowMs);
-      try {
-        writeJsonAtomic(statsPath, stats);
-        return true;
-      } catch (err) {
-        logger.warn("failed to write stats file", { error: err, path: statsPath });
-        return false;
-      }
+      return safeWriteJson(statsPath, stats, "failed to write stats file");
     } catch (err) {
       logger.warn("failed to update stats file", {
         error: err,

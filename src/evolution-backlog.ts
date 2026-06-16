@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { readJsonFile, writeJsonAtomic } from "./file-utils.js";
+import { readJsonFile, writeJsonAtomic, safeWriteJson } from "./file-utils.js";
 import type { EvolutionSource } from "./evolution-types.js";
 import {
   EVOLUTION_TRIGGER_TYPES,
