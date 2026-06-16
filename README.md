@@ -11,16 +11,29 @@ An OpenClaw plugin that pre-scans user intent before main-agent replies and inje
 index.ts
   └─ plugin.ts → createPlugin()
        │
+       ├─ file-utils.ts → shared filesystem helpers
+       │    └─ pluginRoot, sessionsPath(), ensureDir(), writeJsonAtomic(), readJsonFile(), safeWriteJson(), fileExists()
+       │
+       ├─ constants.ts → shared defaults
+       │    └─ DEFAULT_TIMEOUT_MS, FALLBACK_INTENT, default complexity prompts, UNTRUSTED_CONTEXT_HEADER
+       │
+       ├─ types.ts → all shared type definitions
+       ├─ evolution-types.ts → Self-Evolution review types (ReviewState, ReviewSnapshot, EvolutionFinding, EvolutionSource)
+       │
        ├─ intent-loader.ts → defaultCatalog (loads intent .md files from intentsDir)
+       │    └─ uses file-utils.ts for pluginRoot
+       │
        ├─ subagent.ts → runIntentionSubagent() (classifies intent via lightweight sub-agent)
-       │    └─ resolveCurrentTime() — timezone-aware local time formatting
-       │    └─ buildIntentionEmbeddedRunParams() — builds isolated sub-agent run config
+       │    ├─ resolveCurrentTime() — timezone-aware local time formatting
+       │    ├─ buildIntentionEmbeddedRunParams() — builds isolated sub-agent run config
+       │    └─ uses constants.ts for FALLBACK_INTENT
        │
        ├─ hooks.ts → createHookHandlers()
        │    ├─ onBeforePromptBuild → rotate() → record() → write() → inject hint
        │    ├─ onAfterToolCall → record() → write() (tracks tool usage)
        │    ├─ onAgentEnd → record() → aggregate stats → enqueue evolution review
-       │    └─ onSessionEnd → cleanup() + cleanupExpired() (lifecycle cleanup + 14-day retention)
+       │    ├─ onSessionEnd → cleanup() + cleanupExpired() (lifecycle cleanup + 14-day retention)
+       │    └─ review-queue.ts → ReviewQueue (serialized background evolution reviews)
        │
        ├─ prompt.ts → buildIntentionPrompt() (pure function — no API dependency)
        │    ├─ JSON output format with <id> (<name>) intent style
@@ -28,19 +41,27 @@ index.ts
        │    ├─ <intent_categories> — auto-derived from ID prefixes
        │    ├─ <current_time> — injects local timezone time
        │    ├─ <conversation> — omitted when empty
-       │    └─ buildPromptPrefix() — builds injected hint text
+       │    ├─ buildPromptPrefix() — builds injected hint text
+       │    └─ uses constants.ts for complexity prompt defaults
        │
        ├─ hooks.ts → attachHistoricalIntents() → limitConversationTurns()
        │    └─ conversation-extract.ts (internal-turn filtering + per-turn historical intent context)
        │
        ├─ session-tracker.ts → SessionTracker (JSON session persistence)
+       │    ├─ uses file-utils.ts for fileExists(), readJsonFile(), safeWriteJson()
+       │    ├─ uses evolution-types.ts for ReviewState, ReviewSnapshot
        │    └─ sessions/<sessionId>.json
        │
        ├─ stats-aggregator.ts → StatsAggregator (atomic runtime usage aggregation)
+       │    ├─ uses file-utils.ts for fileExists(), readJsonFile(), safeWriteJson()
        │    └─ sessions/stats.json
        │
        ├─ trigger-checker.ts + review-subagent.ts → Intent Self-Evolution review
+       │    ├─ trigger-checker.ts → checkEvolutionTriggers() (six configurable triggers)
+       │    ├─ review-subagent.ts → buildReviewPrompt() + parseReviewFindings() + runReviewSubagent()
        │    └─ backlog-writer.ts + evolution-backlog.ts → sessions/evolution.json
+       │         ├─ backlog-writer.ts uses file-utils.ts for safeWriteJson()
+       │         └─ evolution-backlog.ts uses file-utils.ts for readJsonFile(), writeJsonAtomic()
        │
        ├─ backlog-cli.ts + intent-validation.ts → transactional backlog processing support
        │    └─ skills/intention-hint/references/process-backlog.md
@@ -48,7 +69,8 @@ index.ts
        ├─ session.ts → session guards (isEnabledForAgent, isEligibleInteractiveSession, etc.)
        │
        └─ config.ts → resolveConfig() (zod schema validation with contextWindow)
-            └─ types.ts (all type definitions)
+            ├─ uses constants.ts for DEFAULT_TIMEOUT_MS and default values
+            └─ uses types.ts for config type definitions
 ```
 
 ### Module Responsibilities
@@ -59,10 +81,15 @@ index.ts
 | `hooks.ts`                | Event handlers for prompt building, tool/agent tracking, and session cleanup     |
 | `subagent.ts`             | Runs the intention classification sub-agent with model selection                 |
 | `intent-loader.ts`        | Loads and catalogs intent definitions from YAML-frontmatter `.md` files          |
+| `file-utils.ts`           | Shared filesystem helpers — atomic JSON I/O, directory management, path resolution |
+| `constants.ts`            | Shared defaults — timeouts, fallback intent, complexity prompts, untrusted header |
+| `types.ts`                | All shared type definitions for plugin, config, intent, result, and turn shapes  |
+| `evolution-types.ts`      | Shared types for Self-Evolution pipeline — ReviewState, ReviewSnapshot, EvolutionFinding, EvolutionSource |
 | `session-tracker.ts`      | Persist and clean up session data in `sessions/` JSON files                      |
 | `stats-aggregator.ts`     | Aggregate idempotent runtime usage statistics into `sessions/stats.json`         |
 | `trigger-checker.ts`      | Detect six configurable Self-Evolution triggers from completed turns             |
 | `review-subagent.ts`      | Build trigger-specific review prompts and run the tool-free review sub-agent     |
+| `review-queue.ts`         | Serialized promise queue for background evolution reviews                        |
 | `backlog-writer.ts`       | Merge review findings atomically into `sessions/evolution.json`                  |
 | `evolution-backlog.ts`    | Validate/migrate backlog schema and provide atomic mutation primitives           |
 | `backlog-cli.ts`          | List, target, validate, and optimistically complete pending backlog items        |
