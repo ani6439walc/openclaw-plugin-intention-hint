@@ -149,7 +149,7 @@ export class FileLock {
         // safety is required, consider using atomic rename or external lock libraries.
         if (this.isStale()) {
           this.forceRelease();
-          continue; // Retry immediately after releasing stale lock
+          // Fall through to sleep/timeout check — prevents infinite loop if rmdirSync fails silently
         }
       }
 
