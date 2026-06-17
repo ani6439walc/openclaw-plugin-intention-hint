@@ -219,8 +219,8 @@ export function pruneProcessedEvents(
   nowMs: number = Date.now(),
 ): void {
   const cutoff = nowMs - PROCESSED_EVENTS_RETENTION_DAYS * 86_400_000;
-  for (const [eventId, timestamp] of Object.entries(backlog.processedEvents)) {
-    const eventTime = new Date(timestamp).getTime();
+  for (const eventId in backlog.processedEvents) {
+    const eventTime = new Date(backlog.processedEvents[eventId]).getTime();
     if (eventTime < cutoff) {
       delete backlog.processedEvents[eventId];
     }

@@ -60,7 +60,7 @@ export class BacklogWriter {
           : createBacklog(nowIso);
 
         // Prune old processedEvents before any mutation
-        pruneProcessedEvents(backlog);
+        pruneProcessedEvents(backlog, options.nowMs ?? Date.now());
 
         if (backlog.processedEvents[eventId]) return false;
 

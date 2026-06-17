@@ -132,7 +132,12 @@ export class FileLock {
         fs.mkdirSync(this.lockPath);
         return true;
       } catch {
-        // Lock exists — check if stale
+        // Lock exists — check if stale.
+        // Known limitation: TOCTOU race condition exists when multiple processes
+        // detect staleness simultaneously and both steal the lock. In this plugin's
+        // usage pattern (single-process Node.js plugin with occasional background tasks),
+        // concurrent stale-lock stealing is extremely unlikely. If true cross-process
+        // safety is required, consider using atomic rename or external lock libraries.
         if (this.isStale()) {
           this.forceRelease();
           continue; // Retry immediately after releasing stale lock
