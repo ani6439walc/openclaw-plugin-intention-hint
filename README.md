@@ -255,7 +255,7 @@ pnpm run build
 | `deniedChatIds`     | `string[]` | `[]`         | Blocklist of chat IDs. Plugin skips intent analysis for listed IDs.                                                         |
 | `queryMode`         | `string`   | `"recent"`   | Context window mode: `recent` (recent turns), `message` (latest message only), `full` (full history).                       |
 | `contextWindow`     | `object`   | see below    | Turn/char limits for conversation extraction.                                                                               |
-| `timeoutMs`         | `number`   | `3000`       | Max wait time for subagent response. Clamped to 250–120000ms.                                                               |
+| `timeoutMs`         | `number`   | `3000`       | Max wait time for each scanner sub-agent run. Clamped to 250–120000ms.                                                      |
 | `complexityPrompts` | `object`   | built-in     | Custom instruction-generation guidance per complexity level.                                                                |
 | `evolution`         | `object`   | disabled     | Post-turn trigger review configuration. Findings are stored in `$OPENCLAW_STATE_DIR/plugins/intention-hint/evolution.json`. |
 

@@ -45,6 +45,18 @@ describe("createPlugin", () => {
     expect(api.on).toHaveBeenCalledWith("session_end", expect.any(Function));
   });
 
+  it("budgets before_prompt_build timeout for three scanner subagent rounds", () => {
+    const api = createApi();
+
+    createPlugin(api).register(api);
+
+    expect(api.on).toHaveBeenCalledWith(
+      "before_prompt_build",
+      expect.any(Function),
+      { timeoutMs: 10_500 },
+    );
+  });
+
   it("initializes the runtime data root under the OpenClaw state directory", () => {
     const api = createApi();
 

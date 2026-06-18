@@ -17,7 +17,7 @@
     },
     "timeoutMs": {
       "label": "Scanner Timeout",
-      "help": "Budget in milliseconds for the intention scanner sub-agent."
+      "help": "Budget in milliseconds for each intention scanner sub-agent run."
     }
   },
   "configSchema": {
@@ -89,8 +89,8 @@
         "type": "integer",
         "minimum": 250,
         "maximum": 120000,
-        "description": "Budget in milliseconds for the intention scanner sub-agent.",
-        "default": 10000
+        "description": "Budget in milliseconds for each intention scanner sub-agent run.",
+        "default": 3000
       },
       "queryMode": {
         "type": "string",

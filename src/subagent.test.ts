@@ -34,6 +34,7 @@ describe("runTopicSwitchSubagent", () => {
         {
           text: JSON.stringify({
             keywords: [" Topic ", "Checker"],
+            topic: "User is continuing work on the topic checker.",
             topicChanged: false,
             topicChangeReason: "same_topic",
             complexity: "medium",
@@ -68,7 +69,7 @@ describe("runTopicSwitchSubagent", () => {
 
     expect(result).toEqual({
       keywords: ["topic", "checker"],
-      topic: "topic / checker",
+      topic: "User is continuing work on the topic checker.",
       topicChanged: false,
       topicChangeReason: "same_topic",
       complexity: "medium",

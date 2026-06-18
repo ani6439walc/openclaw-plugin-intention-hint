@@ -450,7 +450,7 @@ describe("createHookHandlers topic switch flow", () => {
       intent: "coding",
       reason: "User wants implementation",
       keywords: ["topic", "flow"],
-      topic: "topic / flow",
+      topic: "User wants implementation help for the topic flow.",
       topicChanged: false,
       topicChangeReason: "initial",
       confidence: 0.9,
@@ -499,21 +499,42 @@ describe("createHookHandlers topic switch flow", () => {
     sessionKey: "agent:main:direct:123",
   };
 
-  it("skips topic checker on the first tracked turn", async () => {
+  it("runs topic checker on the first tracked turn to seed topic metadata", async () => {
+    const topicContext = {
+      keywords: ["initial", "topic"],
+      topic: "User is starting an initial topic.",
+      topicChanged: false,
+      topicChangeReason: "initial" as const,
+      complexity: "low" as const,
+    };
     const { handlers, classifier, topicChecker, instructionWriter, record } =
-      createTopicFlowHarness({ historicalIntents: [] });
+      createTopicFlowHarness({
+        historicalIntents: [],
+        topicChecker: vi.fn().mockResolvedValue(topicContext),
+      });
 
     const result = await handlers.onBeforePromptBuild(event, ctx);
 
-    expect(topicChecker).not.toHaveBeenCalled();
+    expect(topicChecker).toHaveBeenCalledWith(
+      expect.objectContaining({
+        latest: "implement topic checker",
+        history: [],
+      }),
+    );
     expect(classifier).toHaveBeenCalledWith(
-      expect.objectContaining({ topicContext: undefined }),
+      expect.objectContaining({ topicContext }),
     );
     expect(instructionWriter).toHaveBeenCalledWith(
       expect.objectContaining({
         latest: "implement topic checker",
         intentBody: "## Guidelines\n\n- Code carefully.",
-        result: expect.objectContaining({ intentChange: true }),
+        result: expect.objectContaining({
+          keywords: ["initial", "topic"],
+          topic: "User is starting an initial topic.",
+          topicChangeReason: "initial",
+          intentChange: true,
+          complexity: "low",
+        }),
       }),
     );
     expect(result?.prependContext).toContain(
@@ -525,8 +546,8 @@ describe("createHookHandlers topic switch flow", () => {
         current: expect.objectContaining({
           intent: expect.objectContaining({
             result: expect.objectContaining({
-              keywords: ["topic", "flow"],
-              topic: "topic / flow",
+              keywords: ["initial", "topic"],
+              topic: "User is starting an initial topic.",
               topicChangeReason: "initial",
               intentChange: true,
             }),
@@ -539,7 +560,7 @@ describe("createHookHandlers topic switch flow", () => {
   it("runs topic checker before intent classifier on changed later turns", async () => {
     const topicContext = {
       keywords: ["new", "topic"],
-      topic: "new / topic",
+      topic: "User is switching to a new topic.",
       topicChanged: true,
       topicChangeReason: "transition_marker" as const,
       complexity: "high" as const,
@@ -614,7 +635,7 @@ describe("createHookHandlers topic switch flow", () => {
   it("skips intent classifier and records compact state on same-topic continuation", async () => {
     const topicContext = {
       keywords: ["topic", "checker"],
-      topic: "topic / checker",
+      topic: "User is continuing work on the topic checker.",
       topicChanged: false,
       topicChangeReason: "same_topic" as const,
       complexity: "low" as const,
@@ -644,7 +665,7 @@ describe("createHookHandlers topic switch flow", () => {
         result: expect.objectContaining({
           intent: "coding",
           keywords: ["topic", "checker"],
-          topic: "topic / checker",
+          topic: "User is continuing work on the topic checker.",
           topicChanged: false,
           topicChangeReason: "same_topic",
           intentChange: false,
@@ -653,7 +674,10 @@ describe("createHookHandlers topic switch flow", () => {
         }),
       }),
     );
-    expect(result?.prependContext).toContain("intentChange: false");
+    expect(result?.prependContext).not.toContain("intentChange: false");
+    expect(result?.prependContext).toContain(
+      "Follow the generated coding instructions.",
+    );
     expect(record).toHaveBeenCalledWith(
       "session-1",
       expect.objectContaining({

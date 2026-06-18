@@ -160,6 +160,25 @@ describe("buildIntentionPrompt", () => {
     expect(result).toContain("Topic switch");
     expect(result).toContain("historical topic");
   });
+
+  it("tells classifier to omit keywords when topic context exists", () => {
+    const result = buildIntentionPrompt({
+      intents: mockIntents,
+      latest: "繼續",
+      topicContext: {
+        keywords: ["topic", "checker"],
+        topic: "User is continuing work on the topic checker.",
+        topicChanged: false,
+        topicChangeReason: "same_topic",
+        complexity: "low",
+      },
+    });
+
+    expect(result).toContain("do not output keywords");
+    expect(result).toContain(
+      "Required only when topic_switch_context is absent",
+    );
+  });
 });
 
 describe("buildTopicSwitchPrompt", () => {
@@ -192,10 +211,11 @@ describe("buildTopicSwitchPrompt", () => {
 });
 
 describe("parseTopicSwitchResult", () => {
-  it("normalizes keywords and computes topic", () => {
+  it("normalizes keywords and keeps topic sentence", () => {
     const result = parseTopicSwitchResult(
       JSON.stringify({
         keywords: [" Topic ", "Checker", "topic", "Flow"],
+        topic: " User is continuing work on the topic checker flow. ",
         topicChanged: false,
         topicChangeReason: "same_topic",
         complexity: "medium",
@@ -204,7 +224,7 @@ describe("parseTopicSwitchResult", () => {
 
     expect(result).toEqual({
       keywords: ["topic", "checker", "flow"],
-      topic: "topic / checker / flow",
+      topic: "User is continuing work on the topic checker flow.",
       topicChanged: false,
       topicChangeReason: "same_topic",
       complexity: "medium",
@@ -214,11 +234,11 @@ describe("parseTopicSwitchResult", () => {
   it("accepts fenced JSON and rejects invalid reasons", () => {
     expect(
       parseTopicSwitchResult(
-        '```json\n{"keywords":["deploy"],"topicChanged":true,"topicChangeReason":"transition_marker","complexity":"high"}\n```',
+        '```json\n{"keywords":["deploy"],"topic":"User is switching to deployment work.","topicChanged":true,"topicChangeReason":"transition_marker","complexity":"high"}\n```',
       ),
     ).toMatchObject({
       keywords: ["deploy"],
-      topic: "deploy",
+      topic: "User is switching to deployment work.",
       topicChanged: true,
       topicChangeReason: "transition_marker",
       complexity: "high",
@@ -228,8 +248,9 @@ describe("parseTopicSwitchResult", () => {
       parseTopicSwitchResult(
         JSON.stringify({
           keywords: ["deploy"],
+          topic: "User is switching to deployment work.",
           topicChanged: true,
-          topicChangeReason: "initial",
+          topicChangeReason: "invalid",
           complexity: "medium",
         }),
       ),
@@ -239,12 +260,33 @@ describe("parseTopicSwitchResult", () => {
       parseTopicSwitchResult(
         JSON.stringify({
           keywords: ["deploy"],
+          topic: "User is switching to deployment work.",
           topicChanged: true,
           topicChangeReason: "transition_marker",
           complexity: "huge",
         }),
       ),
     ).toBeUndefined();
+  });
+
+  it("accepts initial topic metadata for a new conversation", () => {
+    expect(
+      parseTopicSwitchResult(
+        JSON.stringify({
+          keywords: ["fresh", "topic"],
+          topic: "User is starting a fresh topic.",
+          topicChanged: false,
+          topicChangeReason: "initial",
+          complexity: "low",
+        }),
+      ),
+    ).toMatchObject({
+      keywords: ["fresh", "topic"],
+      topic: "User is starting a fresh topic.",
+      topicChanged: false,
+      topicChangeReason: "initial",
+      complexity: "low",
+    });
   });
 });
 
@@ -256,7 +298,7 @@ describe("buildIntentInstructionPrompt", () => {
         intent: "coding",
         reason: "User wants implementation",
         keywords: ["topic", "continuation"],
-        topic: "topic / continuation",
+        topic: "User is continuing implementation of the same topic.",
         intentChange: false,
         confidence: 0.9,
         complexity: "medium",
@@ -311,6 +353,7 @@ describe("parseIntentionResult", () => {
       intent: "coding",
       reason: "User wants to write code",
       keywords: [" Sort ", "Array", "sort"],
+      topic: "User wants help writing code to sort an array.",
       confidence: 0.85,
       complexity: "medium",
     });
@@ -321,7 +364,9 @@ describe("parseIntentionResult", () => {
     expect(result!.intent).toBe("coding");
     expect(result!.reason).toBe("User wants to write code");
     expect(result!.keywords).toEqual(["sort", "array"]);
-    expect(result!.topic).toBe("sort / array");
+    expect(result!.topic).toBe(
+      "User wants help writing code to sort an array.",
+    );
     expect(result!.topicChanged).toBe(false);
     expect(result!.topicChangeReason).toBe("initial");
     expect(result!.confidence).toBe(0.85);
@@ -338,7 +383,7 @@ describe("parseIntentionResult", () => {
       ["coding", "other"],
       {
         keywords: ["topic", "checker", "implementation"],
-        topic: "topic / checker / implementation",
+        topic: "User is continuing implementation of the topic checker.",
         topicChanged: false,
         topicChangeReason: "same_topic",
         complexity: "high",
@@ -347,17 +392,42 @@ describe("parseIntentionResult", () => {
 
     expect(result).toMatchObject({
       keywords: ["topic", "checker", "implementation"],
-      topic: "topic / checker / implementation",
+      topic: "User is continuing implementation of the topic checker.",
       topicChanged: false,
       topicChangeReason: "same_topic",
       complexity: "high",
     });
   });
 
+  it("requires classifier keywords when topic context is absent", () => {
+    const raw = JSON.stringify({
+      intent: "coding",
+      reason: "User wants code",
+      confidence: 0.8,
+      complexity: "medium",
+    });
+
+    expect(parseIntentionResult(raw, ["coding", "other"])).toBeUndefined();
+  });
+
+  it("requires classifier topic when topic context is absent", () => {
+    const raw = JSON.stringify({
+      intent: "coding",
+      reason: "User wants code",
+      keywords: ["code"],
+      confidence: 0.8,
+      complexity: "medium",
+    });
+
+    expect(parseIntentionResult(raw, ["coding", "other"])).toBeUndefined();
+  });
+
   it("should store pure id when a matching id is wrapped with display text", () => {
     const raw = JSON.stringify({
       intent: "memory-lookup (Memory Lookup)",
       reason: "User asked to recall previous conversation topic",
+      keywords: ["memory", "conversation"],
+      topic: "User is asking to recall a previous conversation.",
       confidence: 0.9,
       complexity: "medium",
     });
@@ -381,6 +451,8 @@ describe("parseIntentionResult", () => {
     const raw = JSON.stringify({
       intent: "other",
       reason: "Unable to confidently classify",
+      keywords: ["unclear", "request"],
+      topic: "User request is unclear and needs clarification.",
       confidence: 0.45,
       complexity: "low",
       suggestion: "Please clarify what you need help with",
@@ -397,6 +469,8 @@ describe("parseIntentionResult", () => {
     const raw = JSON.stringify({
       intent: "CODING",
       reason: "User wants code",
+      keywords: ["code"],
+      topic: "User wants help with code.",
       confidence: 0.8,
       complexity: "medium",
     });
@@ -422,6 +496,8 @@ describe("parseIntentionResult", () => {
     const raw = JSON.stringify({
       intent: "unknown-intent",
       reason: "Some reason",
+      keywords: ["unknown"],
+      topic: "User request does not match a known intent.",
       confidence: 0.8,
       complexity: "medium",
     });
@@ -436,6 +512,8 @@ describe("parseIntentionResult", () => {
     const raw = JSON.stringify({
       intent: "coding",
       reason: "User wants code",
+      keywords: ["code"],
+      topic: "User wants help with code.",
       confidence: 1,
       complexity: "low",
     });
@@ -476,6 +554,8 @@ describe("parseIntentionResult", () => {
     const raw = JSON.stringify({
       intent: "coding",
       reason: "User wants code",
+      keywords: ["code"],
+      topic: "User wants help with code.",
       confidence: 0.8,
       complexity: "low",
       suggestion: "",
@@ -489,7 +569,7 @@ describe("parseIntentionResult", () => {
 
   it("should parse JSON wrapped in ```json code block", () => {
     const raw =
-      '```json\n{"intent": "coding", "reason": "test", "confidence": 0.9, "complexity": "medium"}\n```';
+      '```json\n{"intent": "coding", "reason": "test", "keywords": ["code"], "topic": "User wants help with code.", "confidence": 0.9, "complexity": "medium"}\n```';
     const result = parseIntentionResult(raw, ["coding"]);
     expect(result).toBeDefined();
     expect(result!.intent).toBe("coding");
@@ -497,7 +577,7 @@ describe("parseIntentionResult", () => {
 
   it("should parse JSON wrapped in ``` without json tag", () => {
     const raw =
-      '```\n{"intent": "coding", "reason": "test", "confidence": 0.9, "complexity": "low"}\n```';
+      '```\n{"intent": "coding", "reason": "test", "keywords": ["code"], "topic": "User wants help with code.", "confidence": 0.9, "complexity": "low"}\n```';
     const result = parseIntentionResult(raw, ["coding"]);
     expect(result).toBeDefined();
   });
@@ -534,6 +614,8 @@ describe("parseIntentionResult", () => {
     const raw = JSON.stringify({
       intent: "coding",
       reason: "test",
+      keywords: ["code"],
+      topic: "User wants help with code.",
       confidence: 0.5,
       complexity: "high",
       suggestion: "Consider breaking into smaller tasks",
@@ -547,6 +629,8 @@ describe("parseIntentionResult", () => {
     const raw = JSON.stringify({
       intent: "coding",
       reason: "test",
+      keywords: ["code"],
+      topic: "User wants help with code.",
       confidence: 0.9,
       complexity: "low",
     });
@@ -606,7 +690,7 @@ describe("buildPromptPrefix", () => {
     },
   };
 
-  it("should build prefix with intent prompt and complexity metadata only", () => {
+  it("should build prefix with instruction text only", () => {
     const result: IntentionResult = {
       intent: "coding",
       reason: "User wants to write code",
@@ -617,36 +701,23 @@ describe("buildPromptPrefix", () => {
     const prefix = buildPromptPrefix(result, mockIntents, mockConfig);
 
     expect(prefix).toBeDefined();
-    expect(prefix).toContain("reason: User wants to write code");
-    expect(prefix).toContain("confidence: 0.9");
-    expect(prefix).toContain("complexity: medium");
     expect(prefix).toContain("You are helping with coding tasks");
+    expect(prefix).not.toContain("reason: User wants to write code");
+    expect(prefix).not.toContain("confidence: 0.9");
+    expect(prefix).not.toContain("complexity: medium");
     expect(prefix).not.toContain("MEDIUM_COMPLEXITY_PROMPT");
     expect(prefix).not.toContain("<complexity_context>");
   });
 
-  it("includes intent change metadata when present", () => {
-    const result: IntentionResult = {
-      intent: "coding",
-      reason: "User continues the same topic",
-      intentChange: false,
-      confidence: 0.9,
-      complexity: "medium",
-    };
-
-    const prefix = buildPromptPrefix(result, mockIntents, mockConfig);
-
-    expect(prefix).toContain("intentChange: false");
-  });
-
-  it("includes topic metadata when present", () => {
+  it("does not inject intent metadata", () => {
     const result: IntentionResult = {
       intent: "coding",
       reason: "User wants code",
       keywords: ["topic", "flow"],
-      topic: "topic / flow",
+      topic: "User is changing the topic flow.",
       topicChanged: true,
       topicChangeReason: "transition_marker",
+      intentChange: false,
       previousTopic: "docs",
       confidence: 0.9,
       complexity: "medium",
@@ -654,11 +725,15 @@ describe("buildPromptPrefix", () => {
 
     const prefix = buildPromptPrefix(result, mockIntents, mockConfig);
 
-    expect(prefix).toContain("topic: topic / flow");
-    expect(prefix).toContain("keywords: topic, flow");
-    expect(prefix).toContain("topicChanged: true");
-    expect(prefix).toContain("topicChangeReason: transition_marker");
-    expect(prefix).toContain("previousTopic: docs");
+    expect(prefix).not.toContain("reason: User wants code");
+    expect(prefix).not.toContain("topic: User is changing the topic flow.");
+    expect(prefix).not.toContain("keywords: topic, flow");
+    expect(prefix).not.toContain("topicChanged: true");
+    expect(prefix).not.toContain("topicChangeReason: transition_marker");
+    expect(prefix).not.toContain("intentChange: false");
+    expect(prefix).not.toContain("previousTopic: docs");
+    expect(prefix).not.toContain("confidence: 0.9");
+    expect(prefix).not.toContain("complexity: medium");
   });
 
   it("uses generated instruction text when provided", () => {
@@ -695,7 +770,7 @@ describe("buildPromptPrefix", () => {
     expect(prefix).not.toContain(FALLBACK_INTENT.prompt);
   });
 
-  it("should include suggestion when present", () => {
+  it("does not inject suggestion metadata", () => {
     const result: IntentionResult = {
       intent: "coding",
       reason: "User wants code",
@@ -706,7 +781,7 @@ describe("buildPromptPrefix", () => {
 
     const prefix = buildPromptPrefix(result, mockIntents, mockConfig);
 
-    expect(prefix).toContain(
+    expect(prefix).not.toContain(
       "suggestion: Consider breaking this into smaller tasks",
     );
   });
@@ -721,7 +796,7 @@ describe("buildPromptPrefix", () => {
 
     const prefix = buildPromptPrefix(result, mockIntents, mockConfig);
 
-    expect(prefix).toContain("complexity: high");
+    expect(prefix).not.toContain("complexity: high");
     expect(prefix).not.toContain("HIGH_COMPLEXITY_PROMPT");
   });
 

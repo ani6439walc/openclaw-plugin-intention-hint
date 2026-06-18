@@ -219,20 +219,17 @@ export function createHookHandlers(deps: HookDeps) {
         refreshedConfig,
         effectiveAgentId,
       );
-      const topicContext =
-        historicalIntents.length > 0
-          ? await topicChecker({
-              api,
-              config: refreshedConfig,
-              agentId: effectiveAgentId,
-              sessionKey: resolvedSessionKey,
-              sessionId: ctx.sessionId,
-              latest: latestUserMessage,
-              history: historicalIntents,
-              messageProvider: ctx.messageProvider,
-              modelRef,
-            })
-          : undefined;
+      const topicContext = await topicChecker({
+        api,
+        config: refreshedConfig,
+        agentId: effectiveAgentId,
+        sessionKey: resolvedSessionKey,
+        sessionId: ctx.sessionId,
+        latest: latestUserMessage,
+        history: historicalIntents,
+        messageProvider: ctx.messageProvider,
+        modelRef,
+      });
 
       const latestHistoricalIntent =
         historicalIntents[historicalIntents.length - 1];
@@ -253,7 +250,7 @@ export function createHookHandlers(deps: HookDeps) {
             channelId: ctx.channelId,
             modelRef,
             intents: availableIntents,
-            topicContext: topicContext?.topicChanged ? topicContext : undefined,
+            topicContext: topicContext ?? undefined,
           });
 
       if (!result) {
@@ -262,6 +259,10 @@ export function createHookHandlers(deps: HookDeps) {
       }
       if (topicContext) {
         result.complexity = topicContext.complexity;
+        result.keywords = [...topicContext.keywords];
+        result.topic = topicContext.topic;
+        result.topicChanged = topicContext.topicChanged;
+        result.topicChangeReason = topicContext.topicChangeReason;
         result.previousTopic = latestHistoricalIntent?.topic;
       }
       if (result.intentChange === undefined) {

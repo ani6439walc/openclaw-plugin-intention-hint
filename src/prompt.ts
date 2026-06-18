@@ -20,7 +20,7 @@ export type TopicSwitchResult = {
   keywords: string[];
   topic: string;
   topicChanged: boolean;
-  topicChangeReason: Exclude<TopicChangeReason, "initial">;
+  topicChangeReason: TopicChangeReason;
   complexity: IntentionResult["complexity"];
 };
 
@@ -132,8 +132,10 @@ export function normalizeKeywords(value: unknown): string[] {
   return keywords;
 }
 
-export function buildTopicFromKeywords(keywords: readonly string[]): string {
-  return keywords.slice(0, 3).join(" / ");
+function normalizeTopic(value: unknown): string | undefined {
+  if (typeof value !== "string") return;
+  const topic = value.trim().replace(/\s+/g, " ");
+  return topic || undefined;
 }
 
 function stripCodeFence(raw: string): string {
@@ -179,22 +181,24 @@ Use only the latest message and recent historical intent metadata. Do not classi
 <rules>
 1. Extract 3-8 core nouns or short phrases from the latest user message as keywords.
 2. Normalize keywords to lowercase and remove duplicates.
-3. topic is deterministic: the first 1-3 keywords joined by " / ".
+3. Write topic as one concise natural-language sentence or phrase describing the user's current subject. Do not join keywords with separators.
 4. topicChanged=true when the user uses an explicit transition marker, requests a new or modified category, or the latest message is independent from the previous topic.
 5. topicChanged=false when the user is continuing, correcting, approving, or implementing the same topic.
 6. Classify the latest message complexity as low, medium, or high.
+7. If recent_history is empty, return topicChanged=false and topicChangeReason="initial".
 </rules>
 
 <output_format>
 Return JSON only:
 {
   "keywords": ["keyword"],
+  "topic": "User is continuing implementation of the topic checker flow.",
   "topicChanged": false,
   "topicChangeReason": "same_topic",
   "complexity": "medium"
 }
 
-topicChangeReason must be one of: same_topic, transition_marker, keyword_delta, explicit_change.
+topicChangeReason must be one of: initial, same_topic, transition_marker, keyword_delta, explicit_change.
 complexity must be one of: low, medium, high.
 </output_format>
 
@@ -212,11 +216,17 @@ export function parseTopicSwitchResult(
   try {
     const parsed = JSON.parse(stripCodeFence(raw));
     const keywords = normalizeKeywords(parsed.keywords);
-    if (keywords.length === 0 || typeof parsed.topicChanged !== "boolean") {
+    const topic = normalizeTopic(parsed.topic);
+    if (
+      keywords.length === 0 ||
+      !topic ||
+      typeof parsed.topicChanged !== "boolean"
+    ) {
       return;
     }
     if (
       ![
+        "initial",
         "same_topic",
         "transition_marker",
         "keyword_delta",
@@ -230,7 +240,7 @@ export function parseTopicSwitchResult(
     }
     return {
       keywords,
-      topic: buildTopicFromKeywords(keywords),
+      topic,
       topicChanged: parsed.topicChanged,
       topicChangeReason: parsed.topicChangeReason,
       complexity: parsed.complexity,
@@ -319,11 +329,12 @@ You receive conversation history, the latest user message, and available intent 
 3. **Topic switch**: If the latest message introduces an independent topic, a different subject, or a different desired outcome, classify it fresh.
 4. **Short messages**: First determine whether the message points to a specific historical topic. Do not inherit the most recent intent merely because the message is short or contains a continuation marker.
 5. If topic_switch_context is present and topicChanged=true, classify fresh.
-6. If topic_switch_context is present, use its complexity value.
+6. If topic_switch_context is present, use its complexity value and do not output keywords.
 7. If topic_switch_context is present and topicChanged=false, continuity with the previous topic is allowed but not mandatory.
-8. Extract 3-8 lowercase core nouns or short phrases as keywords.
-9. DO NOT FORCE classification - default to other if uncertain.
-10. Validate output: ensure all required JSON fields are present, intent exists in catalog (or other), confidence is 0.0-1.0, complexity is low|medium|high.
+8. If topic_switch_context is absent, extract 3-8 lowercase core nouns or short phrases as keywords.
+9. If topic_switch_context is absent, write topic as one concise natural-language sentence or phrase. Do not join keywords with separators.
+10. DO NOT FORCE classification - default to other if uncertain.
+11. Validate output: ensure all required JSON fields are present, intent exists in catalog (or other), confidence is 0.0-1.0, complexity is low|medium|high.
 </classification_rules>
 
 <output_format>
@@ -332,9 +343,12 @@ Return classification as a JSON object. Output MUST be plain JSON only — do NO
 Required fields:
 - "intent": string - Intent id exactly as shown in the catalog (e.g., "memory-lookup" or "other")
 - "reason": string - Brief reason for classification
-- "keywords": string[] - 3-8 normalized core nouns or short phrases from the latest message
 - "confidence": number - 0.0 (guessing) to 1.0 (certain)
 - "complexity": string - "low", "medium", or "high"
+
+Required only when topic_switch_context is absent:
+- "keywords": string[] - 3-8 normalized core nouns or short phrases from the latest message
+- "topic": string - concise natural-language sentence or phrase describing the user's current subject
 
 Optional fields:
 - "suggestion": string - Only when confidence < 0.8; provide general guidance
@@ -344,6 +358,7 @@ Example output:
   "intent": "memory-lookup",
   "reason": "User asked to recall previous conversation topic",
   "keywords": ["python", "async", "memory"],
+  "topic": "User is asking to recall a previous conversation about Python async memory.",
   "confidence": 0.9,
   "complexity": "medium"
 }
@@ -421,18 +436,20 @@ export function parseIntentionResult(
       intent = otherMatch ?? validIntentIds[0] ?? FALLBACK_INTENT_ID;
     }
 
-    // Build result
     const keywords = normalizeKeywords(parsed.keywords);
+    const topic = normalizeTopic(parsed.topic);
+    if (!topicContext && (keywords.length === 0 || !topic)) {
+      return undefined;
+    }
+
+    // Build result
     const effectiveKeywords =
       keywords.length > 0 ? keywords : (topicContext?.keywords ?? []);
     const result: IntentionResult = {
       intent,
       reason: parsed.reason,
       keywords: effectiveKeywords.length > 0 ? effectiveKeywords : undefined,
-      topic:
-        effectiveKeywords.length > 0
-          ? buildTopicFromKeywords(effectiveKeywords)
-          : undefined,
+      topic: topicContext?.topic ?? topic,
       topicChanged: topicContext?.topicChanged ?? false,
       topicChangeReason: topicContext?.topicChangeReason ?? "initial",
       confidence: parsed.confidence,
@@ -456,25 +473,7 @@ function buildPromptPrefixLines(
   intentDef: IntentDefinition,
   instructionText?: string,
 ): string[] {
-  const lines: string[] = [];
-  lines.push(`reason: ${result.reason}`);
-  if (result.suggestion) lines.push(`suggestion: ${result.suggestion}`);
-  if (result.topic) lines.push(`topic: ${result.topic}`);
-  if (result.keywords?.length)
-    lines.push(`keywords: ${result.keywords.join(", ")}`);
-  if (result.topicChangeReason) {
-    lines.push(`topicChanged: ${result.topicChanged ?? false}`);
-    lines.push(`topicChangeReason: ${result.topicChangeReason}`);
-  }
-  if (result.intentChange !== undefined)
-    lines.push(`intentChange: ${result.intentChange}`);
-  if (result.previousTopic)
-    lines.push(`previousTopic: ${result.previousTopic}`);
-  lines.push(`confidence: ${result.confidence}`);
-  lines.push(`complexity: ${result.complexity}`);
-  lines.push("");
-  lines.push(instructionText?.trim() || intentDef.prompt);
-  return lines;
+  return [instructionText?.trim() || intentDef.prompt];
 }
 
 function resolveIntentId(intent: string): string {
