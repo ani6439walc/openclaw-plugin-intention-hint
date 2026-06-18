@@ -65,7 +65,7 @@ describe("StatsAggregator", () => {
 
   function readStats() {
     return JSON.parse(
-      fs.readFileSync(path.join(tempDir, "sessions", "stats.json"), "utf-8"),
+      fs.readFileSync(path.join(tempDir, "stats.json"), "utf-8"),
     );
   }
 
@@ -391,9 +391,8 @@ describe("StatsAggregator", () => {
       aggregator.record("missing-start", createState({ timestamps: {} })),
     ).toBe(false);
 
-    const sessionsDir = path.join(tempDir, "sessions");
-    fs.mkdirSync(sessionsDir, { recursive: true });
-    const statsPath = path.join(sessionsDir, "stats.json");
+    fs.mkdirSync(path.join(tempDir, "sessions"), { recursive: true });
+    const statsPath = path.join(tempDir, "stats.json");
     fs.writeFileSync(statsPath, "{ broken");
 
     expect(aggregator.record("session-1", createState(), intent)).toBe(false);

@@ -1,6 +1,12 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveStateDir } from "openclaw/plugin-sdk/state-paths";
+import {
+  evolutionBacklogPath,
+  intentsPath,
+  resolvePluginDataRoot,
+} from "./file-utils.js";
 import {
   EVOLUTION_OPERATIONS,
   markPendingDismissed,
@@ -12,6 +18,8 @@ import {
   type EvolutionOperation,
 } from "./evolution-backlog.js";
 import { validateIntentDirectory } from "./intent-validation.js";
+
+const PLUGIN_ID = "intention-hint";
 
 type CliIo = {
   stdout: (value: string) => void;
@@ -39,6 +47,12 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+export function resolveDefaultBacklogCliRoot(
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  return resolvePluginDataRoot(resolveStateDir(env), PLUGIN_ID);
+}
+
 export function runBacklogCli(
   rawArgs: string[],
   pluginRoot: string,
@@ -50,7 +64,7 @@ export function runBacklogCli(
   try {
     const args = rawArgs[0] === "--" ? rawArgs.slice(1) : rawArgs;
     const command = args[0];
-    const backlogPath = path.join(pluginRoot, "sessions", "evolution.json");
+    const backlogPath = evolutionBacklogPath(pluginRoot);
     if (!command)
       throw new Error(
         "usage: backlog <list|show|set-target|validate-intents|mark-processed|mark-dismissed>",
@@ -58,7 +72,7 @@ export function runBacklogCli(
 
     if (command === "validate-intents") {
       const result = validateIntentDirectory(
-        path.join(pluginRoot, "intents"),
+        intentsPath(pluginRoot),
         options(args, "--id"),
       );
       io.stdout(JSON.stringify(result, null, 2));
@@ -164,6 +178,8 @@ export function runBacklogCli(
 
 const currentFile = fileURLToPath(import.meta.url);
 if (process.argv[1] && path.resolve(process.argv[1]) === currentFile) {
-  const pluginRoot = path.resolve(path.dirname(currentFile), "..", "..");
-  process.exitCode = runBacklogCli(process.argv.slice(2), pluginRoot);
+  process.exitCode = runBacklogCli(
+    process.argv.slice(2),
+    resolveDefaultBacklogCliRoot(),
+  );
 }

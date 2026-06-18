@@ -17,24 +17,24 @@ export type IntentValidationResult = {
 };
 
 export function validateIntentDirectory(
-  intentsDir: string,
+  intentDirectory: string,
   targetIntentIds: readonly string[] = [],
 ): IntentValidationResult {
   const errors: string[] = [];
   const intents: Array<{ id: string; file: string }> = [];
   const seenIds = new Map<string, string>();
-  const files = fs.existsSync(intentsDir)
+  const files = fs.existsSync(intentDirectory)
     ? fs
-        .readdirSync(intentsDir)
+        .readdirSync(intentDirectory)
         .filter((file) => file.endsWith(".md"))
         .sort()
     : [];
 
   if (files.length === 0)
-    errors.push(`no intent Markdown files found in ${intentsDir}`);
+    errors.push(`no intent Markdown files found in ${intentDirectory}`);
 
   for (const file of files) {
-    const filePath = path.join(intentsDir, file);
+    const filePath = path.join(intentDirectory, file);
     try {
       const parsed = matter(fs.readFileSync(filePath, "utf-8"));
       const data = parsed.data as Record<string, unknown>;
@@ -110,8 +110,8 @@ export function validateIntentDirectory(
   }
 
   try {
-    const catalog = IntentCatalog.create(path.dirname(intentsDir));
-    catalog.load(path.basename(intentsDir), { silent: true });
+    const catalog = IntentCatalog.create(path.dirname(intentDirectory));
+    catalog.load(path.basename(intentDirectory), { silent: true });
     if (catalog.count !== intents.length) {
       errors.push(
         `intent catalog loaded ${catalog.count} of ${intents.length} parsed intent definitions`,

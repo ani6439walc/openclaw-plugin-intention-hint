@@ -4,19 +4,54 @@ import { fileURLToPath } from "node:url";
 import { logger } from "../api.js";
 
 /**
- * Plugin root directory — compiled code lives in dist/src/, so go up 2 levels.
+ * Package root directory. Source tests run from src/, compiled code from
+ * dist/src/, so walk up until the plugin manifest is found.
  */
-export const pluginRoot = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "..",
-);
+export function resolvePackageRoot(
+  startDir = path.dirname(fileURLToPath(import.meta.url)),
+): string {
+  let dir = path.resolve(startDir);
+  while (true) {
+    if (fs.existsSync(path.join(dir, "openclaw.plugin.json"))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) return path.resolve(startDir, "..", "..");
+    dir = parent;
+  }
+}
+
+export const packageRoot = resolvePackageRoot();
+
+// Backward-compatible alias for existing tests and singleton defaults.
+export const pluginRoot = packageRoot;
+
+export function resolvePluginDataRoot(
+  stateDir: string,
+  pluginId: string,
+): string {
+  return path.join(stateDir, "plugins", pluginId);
+}
+
+export function intentsPath(dataRoot: string): string {
+  return path.join(dataRoot, "intents");
+}
+
+export function sessionsDirPath(dataRoot: string): string {
+  return path.join(dataRoot, "sessions");
+}
+
+export function statsPath(dataRoot: string): string {
+  return path.join(dataRoot, "stats.json");
+}
+
+export function evolutionBacklogPath(dataRoot: string): string {
+  return path.join(dataRoot, "evolution.json");
+}
 
 /**
  * Resolve a path under the sessions directory.
  */
-export function sessionsPath(filename: string): string {
-  return path.join(pluginRoot, "sessions", filename);
+export function sessionsPath(filename: string, dataRoot = pluginRoot): string {
+  return path.join(sessionsDirPath(dataRoot), filename);
 }
 
 /**

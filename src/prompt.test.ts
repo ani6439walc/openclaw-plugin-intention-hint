@@ -442,7 +442,6 @@ describe("buildPromptPrefix", () => {
       assistant: { turns: 5, chars: 180 },
     },
     timeoutMs: 3000,
-    intentsDir: undefined,
     complexityPrompts: {
       low: "LOW_COMPLEXITY_PROMPT",
       medium: "MEDIUM_COMPLEXITY_PROMPT",

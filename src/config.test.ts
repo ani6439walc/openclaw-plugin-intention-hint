@@ -18,7 +18,6 @@ describe("resolveConfig", () => {
       const result = resolveConfig({});
       expect(result.agents).toEqual(["main"]);
       expect(result.allowedChatTypes).toEqual(["direct"]);
-      expect(result.intentsDir).toBe("./intents");
       expect(result.queryMode).toBe(DEFAULT_QUERY_MODE);
       expect(result.timeoutMs).toBe(DEFAULT_TIMEOUT_MS);
       expect(result.thinking).toBe("medium");
@@ -341,7 +340,6 @@ describe("resolveConfig", () => {
         deniedChatIds: 0,
         model: {},
         modelFallback: [],
-        intentsDir: 123,
       });
       expect(result.agents).toEqual(["main"]);
       expect(result.allowedChatTypes).toEqual(["direct"]);
@@ -349,7 +347,6 @@ describe("resolveConfig", () => {
       expect(result.deniedChatIds).toEqual([]);
       expect(result.model).toBeUndefined();
       expect(result.modelFallback).toBeUndefined();
-      expect(result.intentsDir).toBe("./intents");
     });
   });
 
@@ -440,14 +437,6 @@ describe("resolveConfig", () => {
 
       const withoutFallback = resolveConfig({});
       expect(withoutFallback.modelFallback).toBeUndefined();
-    });
-
-    it("should handle optional intentsDir field", () => {
-      const withDir = resolveConfig({ intentsDir: "./custom-intents" });
-      expect(withDir.intentsDir).toBe("./custom-intents");
-
-      const withoutDir = resolveConfig({});
-      expect(withoutDir.intentsDir).toBe("./intents");
     });
   });
 });

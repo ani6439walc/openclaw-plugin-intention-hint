@@ -142,11 +142,6 @@
         },
         "default": {}
       },
-      "intentsDir": {
-        "type": "string",
-        "description": "Directory containing dynamic intent definitions (.md files with YAML frontmatter).",
-        "default": "./intents"
-      },
       "complexityPrompts": {
         "type": "object",
         "description": "Custom prompts for each complexity level.",

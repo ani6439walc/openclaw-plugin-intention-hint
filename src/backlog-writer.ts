@@ -1,7 +1,7 @@
-import * as path from "node:path";
 import { logger } from "../api.js";
 import {
   pluginRoot,
+  evolutionBacklogPath,
   fileExists,
   safeWriteJson,
   withFileLock,
@@ -45,11 +45,7 @@ export class BacklogWriter {
     options: { nowMs?: number } = {},
   ): Promise<boolean> {
     if (!eventId) return false;
-    const backlogPath = path.join(
-      this.pluginRoot,
-      "sessions",
-      "evolution.json",
-    );
+    const backlogPath = evolutionBacklogPath(this.pluginRoot);
 
     // Use file lock for cross-process safety
     const result = await withFileLock(backlogPath, async () => {

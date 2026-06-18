@@ -10,13 +10,14 @@ import matter from "gray-matter";
 import { logger } from "../api.js";
 import {
   pluginRoot,
+  sessionsDirPath,
+  sessionsPath,
   fileExists,
   readJsonFile,
   safeWriteJson,
 } from "./file-utils.js";
 
 const SESSION_RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
-const RESERVED_SESSION_FILENAMES = new Set(["stats.json", "evolution.json"]);
 
 export interface SkillRecord {
   name: string;
@@ -156,14 +157,14 @@ export class SessionTracker {
   }
 
   private loadSessionsFromDisk(): void {
-    const sessionsDir = path.join(this.pluginRoot, "sessions");
+    const sessionsDir = sessionsDirPath(this.pluginRoot);
     if (!fileExists(sessionsDir)) {
       return;
     }
 
     const files = fs.readdirSync(sessionsDir);
     for (const file of files) {
-      if (!file.endsWith(".json") || RESERVED_SESSION_FILENAMES.has(file)) {
+      if (!file.endsWith(".json")) {
         continue;
       }
 
@@ -314,11 +315,7 @@ export class SessionTracker {
     if (!session) return;
 
     const filename = `${sessionId}.json`;
-    if (RESERVED_SESSION_FILENAMES.has(filename)) {
-      logger.warn("refusing to overwrite reserved session file", { filename });
-      return;
-    }
-    const filePath = path.join(this.pluginRoot, "sessions", filename);
+    const filePath = sessionsPath(filename, this.pluginRoot);
 
     safeWriteJson(filePath, session, "failed to write session file");
   }
@@ -328,17 +325,14 @@ export class SessionTracker {
     if (!options.deleteFile) return;
 
     const filename = `${sessionId}.json`;
-    if (
-      path.basename(filename) !== filename ||
-      RESERVED_SESSION_FILENAMES.has(filename)
-    ) {
+    if (path.basename(filename) !== filename) {
       logger.warn("refusing to delete invalid session file path", {
         sessionId,
       });
       return;
     }
 
-    const filePath = path.join(this.pluginRoot, "sessions", filename);
+    const filePath = sessionsPath(filename, this.pluginRoot);
     try {
       fs.rmSync(filePath, { force: true });
     } catch (err) {
@@ -350,7 +344,7 @@ export class SessionTracker {
   }
 
   cleanupExpired(nowMs = Date.now()): number {
-    const sessionsDir = path.join(this.pluginRoot, "sessions");
+    const sessionsDir = sessionsDirPath(this.pluginRoot);
     if (!fileExists(sessionsDir)) return 0;
 
     const cutoffMs = nowMs - SESSION_RETENTION_MS;
@@ -360,11 +354,7 @@ export class SessionTracker {
       for (const entry of fs.readdirSync(sessionsDir, {
         withFileTypes: true,
       })) {
-        if (
-          !entry.isFile() ||
-          !entry.name.endsWith(".json") ||
-          RESERVED_SESSION_FILENAMES.has(entry.name)
-        ) {
+        if (!entry.isFile() || !entry.name.endsWith(".json")) {
           continue;
         }
 

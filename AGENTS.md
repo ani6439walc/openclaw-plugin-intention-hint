@@ -1,190 +1,180 @@
-# Agent Guide — Intention Hint Plugin
+# Agent Guide: Intention Hint
 
-An OpenClaw plugin that pre-scans user intent before replies and injects routing hints via `before_prompt_build` hook.
+This repository is an OpenClaw plugin. It classifies the user's intent before the main reply, injects a routing hint through `before_prompt_build`, records per-session runtime data, aggregates usage stats, and optionally writes self-evolution backlog findings.
+
+Use this file as the working contract for coding agents. The README explains the product in more detail; this guide explains how to change the code safely.
+
+## First Checks
+
+Before editing, inspect the current state:
+
+```bash
+git status --short
+pnpm run typecheck
+pnpm run test
+```
+
+If tests already fail, capture the failure before changing code. Do not hide pre-existing failures inside unrelated edits.
 
 ## Commands
 
 ```bash
-pnpm typecheck        # Type check without emitting
-pnpm test             # Tests
-pnpm format           # Format with prettier
-pnpm run backlog <cmd> # Run evolution backlog CLI
+pnpm run typecheck          # TypeScript, no emit
+pnpm run test               # Full Vitest suite
+pnpm run build              # Compile to dist/
+pnpm run format             # Prettier for md/json/ts files
+pnpm run backlog -- <cmd>   # Operate on the evolution backlog after build
 ```
 
-## Project Structure
+Run `pnpm run typecheck` and `pnpm run test` before handing off code changes. Run `pnpm run build` when changing CLI behavior, package metadata, SDK imports, or anything that depends on emitted `dist/` output.
 
-```
-src/
-├── plugin.ts              # Plugin entry, registers hooks
-├── hooks.ts               # Event handlers (prompt building, tracking, cleanup)
-├── subagent.ts            # Intent classification sub-agent
-├── intent-loader.ts       # Loads intent .md files from intentsDir
-├── file-utils.ts          # Shared filesystem helpers (atomic I/O, path resolution)
-├── constants.ts           # Default config values, fallback intent, prompt constants
-├── session-tracker.ts     # Session persistence (sessions/<id>.json)
-├── stats-aggregator.ts    # Runtime usage stats (sessions/stats.json)
-├── trigger-checker.ts     # Detects 6 Self-Evolution triggers
-├── review-subagent.ts     # Builds review prompts, runs tool-free review
-├── review-queue.ts        # Serializes background evolution reviews
-├── backlog-writer.ts      # Merges findings into sessions/evolution.json
-├── evolution-backlog.ts   # Schema validation, atomic mutations
-├── backlog-cli.ts         # CLI for backlog management
-├── intent-validation.ts   # Validates intent markdown structure
-├── conversation-extract.ts # Truncates conversation history
-├── prompt.ts              # Builds classification prompt, parses JSON
-├── session.ts             # Session eligibility guards
-├── config.ts              # Zod schema validation
-├── types.ts               # Core type definitions
-└── evolution-types.ts     # Evolution-specific types
+## Runtime Data Layout
 
-intents/                   # Intent definitions (YAML frontmatter .md files)
-skills/                    # Plugin skills
-dist/                      # Compiled output
-```
+Keep package files and runtime data separate.
 
-> 架構圖、模組職責、Hook 流程、配置說明詳見 [README.md](./README.md)
+Package root:
 
-## Code Style & Patterns
+- Resolved by `resolvePackageRoot()` in `src/file-utils.ts`.
+- Contains source code, bundled seed intents under `intents/`, plugin skills under `skills/`, and metadata.
+- Bundled `intents/*.md` are seed/default content, not the active writable catalog after startup.
 
-### Atomic File I/O
+Runtime data root:
 
-**所有 JSON 寫入都必須使用 `file-utils.ts`：**
+- Resolved at plugin registration with `api.runtime.state.resolveStateDir(process.env)`, then `resolvePluginDataRoot(stateDir, "intention-hint")`.
+- Normal local path: `~/.openclaw/plugins/intention-hint`.
+- Active runtime files live here:
+  - `intents/*.md`
+  - `sessions/<sessionId>.json`
+  - `stats.json`
+  - `evolution.json`
+
+Rules:
+
+- The active intent catalog always loads from `~/.openclaw/plugins/intention-hint/intents`.
+- `stats.json` and `evolution.json` are root-level runtime files. They must not be placed under `sessions/`.
+- Startup migration may copy legacy package-root files into the runtime layout, but must not overwrite existing runtime files and must not delete legacy files.
+
+## Source Map
+
+Use the existing module boundaries:
+
+- `src/plugin.ts`: assembly layer. Resolve config, resolve runtime data root, initialize/migrate data, instantiate runtime-scoped services, and register OpenClaw hooks.
+- `src/hooks.ts`: hook behavior for prompt building, tracking, stats updates, evolution queueing, and cleanup. Keep OpenClaw event logic here, not in `plugin.ts`.
+- `src/config.ts`: Zod-backed config parsing, defaults, and clamps.
+- `src/file-utils.ts`: shared path helpers and atomic filesystem primitives.
+- `src/intent-loader.ts`: runtime intent catalog loading.
+- `src/session-tracker.ts`: session JSON state under `dataRoot/sessions`.
+- `src/stats-aggregator.ts`: usage aggregation into `dataRoot/stats.json`.
+- `src/backlog-writer.ts`: evolution findings into `dataRoot/evolution.json`.
+- `src/evolution-backlog.ts`: backlog schema validation, migration, and atomic mutations.
+- `src/backlog-cli.ts`: command-line backlog workflow. Default CLI root must use the OpenClaw state-dir helper, not package root.
+- `src/prompt.ts`, `src/subagent.ts`, `src/review-subagent.ts`, `src/trigger-checker.ts`: classification and self-evolution logic.
+- `src/session.ts`: session eligibility guards.
+- `src/*.test.ts`: tests are colocated with the module they protect.
+
+## Coding Rules
+
+- Use ESM imports with `.js` suffix for local TypeScript modules.
+- Prefer `interface` for object shapes and `type` for unions or complex aliases.
+- Use `import type` for type-only imports.
+- Avoid `any`; use `unknown` with narrowing when input is untrusted.
+- Keep code fail-open for plugin runtime paths. Log non-fatal problems with `logger.warn()` and avoid blocking the user flow for stats, migration, cleanup, or evolution-review failures.
+- Keep `src/plugin.ts` thin. If behavior grows, put it in a focused module or existing service and inject it through `createHookHandlers()` when tests need isolation.
+- Do not introduce broad abstractions just to reduce a few repeated lines. This plugin favors explicit lifecycle behavior over framework-style indirection.
+
+## File I/O Rules
+
+All JSON reads and writes should go through `src/file-utils.ts` unless a test is explicitly arranging fixtures.
+
+Use:
 
 ```typescript
-import { writeJsonAtomic, safeWriteJson, readJsonFile, fileExists } from './file-utils.js';
-
-// 原子寫入（temp file + rename）
-writeJsonAtomic(path, data);
-
-// 帶錯誤日誌的寫入（fire-and-forget）
-safeWriteJson(path, data, 'Failed to write session data');
-
-// 讀取 JSON
-const data = readJsonFile<MyType>(path);
-
-// 檢查檔案存在
-if (fileExists(path)) { ... }
+import {
+  fileExists,
+  readJsonFile,
+  safeWriteJson,
+  writeJsonAtomic,
+} from "./file-utils.js";
 ```
 
-**禁止直接使用 `fs.readFileSync` + `JSON.parse` 或 `fs.writeFileSync` + `JSON.stringify`**
+Rules:
 
-### Module Structure
+- Use `writeJsonAtomic()` for synchronous durable JSON writes.
+- Use `safeWriteJson()` for fail-open writes that should log instead of throw.
+- Use `readJsonFile<T>()` for JSON reads.
+- Do not add production code that combines `fs.readFileSync` with `JSON.parse`, or `fs.writeFileSync` with `JSON.stringify`, when the file-utils helpers fit.
+- Session cleanup may delete expired `sessions/*.json`; it must not touch root-level `stats.json`, root-level `evolution.json`, intent files, skills, transcripts, or package files.
 
-每個模組遵循以下模式：
+## Testing Expectations
 
-1. **匯出 class + default singleton**
+Add or update focused tests with the code change.
 
-   ```typescript
-   export class SessionTracker { ... }
-   export const defaultTracker = SessionTracker.create(pluginRoot);
-   ```
+Typical mapping:
 
-2. **Class 接受 `pluginRoot: string` 作為建構參數**
+- Config schema changes: `src/config.test.ts`.
+- Runtime data paths or migration: `src/file-utils.test.ts` and `src/plugin.test.ts`.
+- Hook behavior: `src/hooks.test.ts`.
+- Intent loading or validation: `src/intent-loader.ts` consumers and `src/intent-validation.test.ts`.
+- Prompt/parser behavior: `src/prompt.test.ts`.
+- Session persistence and cleanup: `src/session-tracker.test.ts`.
+- Stats behavior: `src/stats-aggregator.test.ts`.
+- Evolution backlog writes: `src/backlog-writer.test.ts` and `src/evolution-backlog.test.ts`.
+- Backlog CLI behavior: `src/backlog-cli.test.ts`.
 
-3. **使用 `.js` 副檔名進行 ESM import**
-   ```typescript
-   import { logger } from "../api.js";
-   import { fileUtils } from "./file-utils.js";
-   ```
+When changing runtime paths, include tests for both the desired new location and non-overwrite migration behavior.
 
-### Error Handling
+## Intent Files
 
-- 使用 `logger.warn()` 記錄非致命錯誤
-- 錯誤處理模式：**fail-open**（記錄錯誤但不阻斷主流程）
-- Stats 和 Evolution 寫入失敗時記錄日誌但不影響使用者體驗
+Bundled package intents live in `intents/*.md`. Runtime editable intents live in `~/.openclaw/plugins/intention-hint/intents/*.md`.
 
-### TypeScript Conventions
+When changing the shipped default catalog, edit bundled `intents/*.md` and run validation through the test suite. When changing a live local intent for the user's current OpenClaw environment, edit the runtime intent directory instead.
 
-- **Strict mode** 啟用
-- 偏好 `interface` 定義物件結構
-- 使用 `type` 定義 union 和複雜型別
-- Import 型別使用 `import type { ... }`
-- 避免使用 `any`，必要時用 `unknown` + type guard
+Intent markdown must keep valid YAML frontmatter and the expected sections used by `intent-validation.ts` and the intention-hint skill references.
 
-### Testing
+## Evolution Backlog Workflow
 
-- 測試檔案與原始碼共置：`module.ts` → `module.test.ts`
-- 使用 Vitest
-- Mock 外部依賴（OpenClaw API、filesystem）
-- **提交前必須跑 `pnpm run test`，所有測試必須通過**
+Do not edit `~/.openclaw/plugins/intention-hint/evolution.json` manually. Use:
 
 ```bash
-pnpm run test              # 全部測試
-pnpm run test:unit         # 只跑單元測試
-pnpm run test -- --watch   # Watch 模式
+pnpm run build
+pnpm run backlog -- show
+pnpm run backlog -- list --json
+pnpm run backlog -- validate-intents --id <intent-id>
+pnpm run backlog -- mark-processed --id <item-id> --expected-updated-at <timestamp>
+pnpm run backlog -- mark-dismissed --id <item-id> --expected-updated-at <timestamp>
 ```
 
-## Protected Files
+Process one backlog finding at a time unless the user explicitly asks for a bounded batch. For split, merge, rename, deletion, or any broad intent-boundary change, show the planned file operations and get explicit confirmation first.
 
-這些檔案**不會**被 session cleanup 或 retention 刪除：
+## OpenClaw SDK Usage
 
-- `sessions/stats.json` — 聚合統計
-- `sessions/evolution.json` — Self-Evolution backlog
+- Use `api.pluginConfig` plus `resolveLivePluginConfigObject()` for live plugin config.
+- Use `api.runtime.state.resolveStateDir(process.env)` for OpenClaw state directory resolution.
+- If an SDK import path is uncertain or looks deprecated, verify it against the installed `openclaw` package before coding from memory.
+- Keep `zod` imports direct from `"zod"`; this plugin owns `zod` as a runtime dependency.
 
-## Adding a New Intent
+## Documentation Updates
 
-1. 建立 `intents/<intent-id>.md`，包含 YAML frontmatter：
+Update documentation when behavior or public configuration changes:
 
-   ```markdown
-   ---
-   id: my-intent
-   name: My Intent
-   description: What this intent detects
-   examples:
-     - "example user message 1"
-     - "example user message 2"
-   ---
+- `README.md` for architecture, runtime behavior, configuration, and user-facing workflows.
+- `openclaw.plugin.json` for manifest-visible config descriptions/defaults.
+- `AGENTS.md` for coding-agent rules and known gotchas.
+- `skills/intention-hint/**` when an agent workflow or path changes.
 
-   # Intent Instructions
-
-   How to handle this intent...
-   ```
-
-2. 重啟 plugin — `intent-loader` 會自動載入
-3. 大部分 intents 不需要修改程式碼
-
-## Upgrading OpenClaw Dependency
-
-升級 OpenClaw 版本時（例如 2026.6.5 → 2026.6.6）：
-
-### 1. 更新 package.json 版本號
-
-替換所有 `2026.6.5` 為 `2026.6.6`：
-
-- `version` — Plugin 版本
-- `openclaw.compat.pluginApi` — 最低相容 plugin API 版本（帶 `>=` 前綴）
-- `openclaw.compat.minGatewayVersion` — 最低 gateway 版本
-- `openclaw.build.openclawVersion` — Build target OpenClaw 版本
-- `openclaw.build.pluginSdkVersion` — Plugin SDK 版本
-- `peerDependencies.openclaw` — Peer dependency 版本
-
-### 2. 清除並重新安裝依賴
+Search for stale names and paths before finishing. For runtime layout changes, at minimum search for:
 
 ```bash
-rm -rf node_modules dist
-pnpm i
+rg "sessions/(stats|evolution)\\.json|extensions/intention-hint/intents|~/.openclaw/extensions/intention-hint/intents"
 ```
 
-### 3. 移除 pnpm-workspace.yaml 的舊版本限制
+## Finish Checklist
 
-如果有 `minimumReleaseAgeExclude` 指向舊版本，刪除該行：
+Before final handoff:
 
-```yaml
-# 刪除類似這行：
-minimumReleaseAgeExclude:
-  - openclaw@2026.6.5
-```
-
-### 4. 提交並推送
-
-```bash
-git add package.json pnpm-lock.yaml pnpm-workspace.yaml
-git commit -m "chore: bump openclaw to 2026.6.6"
-git push origin main
-```
-
-### 5. 發布到 ClawhHub
-
-```bash
-clawhub package publish . --family code-plugin
-```
+- `git diff` contains only intentional changes.
+- `pnpm run typecheck` passes.
+- `pnpm run test` passes.
+- `pnpm run build` passes when emitted CLI/package behavior is involved.
+- Docs and manifest are synchronized with source behavior.
+- No unrelated user changes were reverted.

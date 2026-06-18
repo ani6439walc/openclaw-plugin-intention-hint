@@ -34,11 +34,11 @@ describe("BacklogWriter", () => {
 
   function readBacklog() {
     return JSON.parse(
-      fs.readFileSync(path.join(root, "sessions", "evolution.json"), "utf-8"),
+      fs.readFileSync(path.join(root, "evolution.json"), "utf-8"),
     );
   }
 
-  it("creates sessions/evolution.json and records findings", async () => {
+  it("creates evolution.json and records findings", async () => {
     expect(
       await writer.record("session-1:turn-1", source, [finding], {
         nowMs: Date.parse("2026-06-11T00:01:00.000Z"),
@@ -80,9 +80,8 @@ describe("BacklogWriter", () => {
   });
 
   it("migrates v1 backlogs and updates operation and targets on merge", async () => {
-    const sessions = path.join(root, "sessions");
-    fs.mkdirSync(sessions);
-    const backlogPath = path.join(sessions, "evolution.json");
+    fs.mkdirSync(path.join(root, "sessions"));
+    const backlogPath = path.join(root, "evolution.json");
     fs.writeFileSync(
       backlogPath,
       JSON.stringify({
@@ -122,9 +121,8 @@ describe("BacklogWriter", () => {
   });
 
   it("preserves corrupt existing evolution.json", async () => {
-    const sessions = path.join(root, "sessions");
-    fs.mkdirSync(sessions);
-    const backlogPath = path.join(sessions, "evolution.json");
+    fs.mkdirSync(path.join(root, "sessions"));
+    const backlogPath = path.join(root, "evolution.json");
     fs.writeFileSync(backlogPath, "{ broken");
 
     expect(await writer.record("event-1", source, [finding])).toBe(false);
@@ -132,9 +130,8 @@ describe("BacklogWriter", () => {
   });
 
   it("preserves valid JSON with an invalid backlog schema", async () => {
-    const sessions = path.join(root, "sessions");
-    fs.mkdirSync(sessions);
-    const backlogPath = path.join(sessions, "evolution.json");
+    fs.mkdirSync(path.join(root, "sessions"));
+    const backlogPath = path.join(root, "evolution.json");
     fs.writeFileSync(backlogPath, '{"schemaVersion":1,"items":"invalid"}');
 
     expect(await writer.record("event-1", source, [finding])).toBe(false);

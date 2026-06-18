@@ -71,7 +71,6 @@ export type IntentionHintPluginConfig = {
   queryMode?: string;
   contextWindow?: ContextWindow;
   timeoutMs?: number;
-  intentsDir?: string;
   complexityPrompts?: ComplexityPromptsConfig;
   evolution?: EvolutionConfig;
 };
@@ -88,7 +87,6 @@ export type ResolvedIntentionHintPluginConfig = {
   queryMode: "message" | "recent" | "full";
   contextWindow: ContextWindow;
   timeoutMs: number;
-  intentsDir: string | undefined;
   complexityPrompts: ResolvedComplexityPromptsConfig;
   evolution: ResolvedEvolutionConfig;
 };

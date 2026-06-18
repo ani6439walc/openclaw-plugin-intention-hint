@@ -45,26 +45,33 @@ export type HookDeps = {
   config: () => ResolvedIntentionHintPluginConfig;
   refreshLiveConfigFromRuntime: () => void;
   refreshIntents: () => void;
+  catalog?: typeof defaultCatalog;
+  tracker?: typeof defaultTracker;
+  statsAggregator?: typeof defaultStatsAggregator;
   reviewQueue?: Pick<ReviewQueue, "enqueue">;
   reviewer?: typeof runReviewSubagent;
   backlogWriter?: Pick<BacklogWriter, "record">;
 };
 
 function recordTrackedSession(
+  tracker: typeof defaultTracker,
   sessionId: string | undefined,
   data: Parameters<typeof defaultTracker.record>[1],
 ): void {
   if (!sessionId) return;
-  if (!defaultTracker.hasIntentData(sessionId)) return;
+  if (!tracker.hasIntentData(sessionId)) return;
 
-  defaultTracker.record(sessionId, data);
-  defaultTracker.write(sessionId);
+  tracker.record(sessionId, data);
+  tracker.write(sessionId);
 }
 
-function findIntentDefinition(intent: string | undefined) {
+function findIntentDefinition(
+  catalog: typeof defaultCatalog,
+  intent: string | undefined,
+) {
   const intentId = intent?.match(/^([A-Za-z0-9_-]+)/)?.[1];
   if (!intentId) return;
-  return defaultCatalog
+  return catalog
     .get()
     .find(
       (definition) => definition.id.toLowerCase() === intentId.toLowerCase(),
@@ -82,6 +89,9 @@ const SESSION_END_REASONS_THAT_DELETE_FILE = new Set([
 
 export function createHookHandlers(deps: HookDeps) {
   const { api, config, refreshLiveConfigFromRuntime, refreshIntents } = deps;
+  const catalog = deps.catalog ?? defaultCatalog;
+  const tracker = deps.tracker ?? defaultTracker;
+  const statsAggregator = deps.statsAggregator ?? defaultStatsAggregator;
   const reviewQueue = deps.reviewQueue ?? defaultReviewQueue;
   const reviewer = deps.reviewer ?? runReviewSubagent;
   const backlogWriter = deps.backlogWriter ?? defaultBacklogWriter;
@@ -137,7 +147,7 @@ export function createHookHandlers(deps: HookDeps) {
 
       const latestUserMessage = event.prompt ?? "";
       const historicalIntents = ctx.sessionId
-        ? defaultTracker.getHistoricalIntentRecords(ctx.sessionId)
+        ? tracker.getHistoricalIntentRecords(ctx.sessionId)
         : [];
       const allTurns = attachHistoricalIntents(
         extractRecentTurns(event.messages),
@@ -157,7 +167,7 @@ export function createHookHandlers(deps: HookDeps) {
       if (!modelRef) return;
 
       refreshIntents();
-      if (defaultCatalog.count === 0) {
+      if (catalog.count === 0) {
         logger.debug("no intents loaded; skipping intention scan.");
         return;
       }
@@ -166,7 +176,7 @@ export function createHookHandlers(deps: HookDeps) {
         `before_prompt_build hook triggered, ctx: ${JSON.stringify(ctx)}`,
       );
 
-      const availableIntents = defaultCatalog.filterForAgent(
+      const availableIntents = catalog.filterForAgent(
         refreshedConfig,
         effectiveAgentId,
       );
@@ -195,8 +205,8 @@ export function createHookHandlers(deps: HookDeps) {
       // Record session data for tracking
       const sessionId = ctx.sessionId;
       if (sessionId) {
-        defaultTracker.rotate(sessionId);
-        defaultTracker.record(sessionId, {
+        tracker.rotate(sessionId);
+        tracker.record(sessionId, {
           sessionKey: resolvedSessionKey ?? ctx.sessionKey,
           agentId: effectiveAgentId,
           current: {
@@ -208,7 +218,7 @@ export function createHookHandlers(deps: HookDeps) {
             timestamps: { start: new Date().toISOString() },
           },
         });
-        defaultTracker.write(sessionId);
+        tracker.write(sessionId);
       }
 
       const promptPrefix = buildPromptPrefix(
@@ -234,7 +244,7 @@ export function createHookHandlers(deps: HookDeps) {
       typeof output === "string" ? output : extractToolText(output);
     const truncatedOutput = outputStr.slice(0, 200);
 
-    recordTrackedSession(ctx.sessionId, {
+    recordTrackedSession(tracker, ctx.sessionId, {
       current: {
         toolCalls: [
           {
@@ -264,7 +274,7 @@ export function createHookHandlers(deps: HookDeps) {
       .reverse()
       .find((t) => t.role === "assistant");
 
-    recordTrackedSession(ctx.sessionId, {
+    recordTrackedSession(tracker, ctx.sessionId, {
       current: {
         result: lastAssistantTurn?.text,
         error: event.error,
@@ -273,15 +283,18 @@ export function createHookHandlers(deps: HookDeps) {
     });
 
     if (!ctx.sessionId) return;
-    const state = defaultTracker.getCurrentState(ctx.sessionId);
+    const state = tracker.getCurrentState(ctx.sessionId);
     if (!state) return;
-    const intentDefinition = findIntentDefinition(state.intent?.result?.intent);
-    defaultStatsAggregator.record(ctx.sessionId, state, intentDefinition);
+    const intentDefinition = findIntentDefinition(
+      catalog,
+      state.intent?.result?.intent,
+    );
+    statsAggregator.record(ctx.sessionId, state, intentDefinition);
 
     const resolvedConfig = config();
     const evolutionConfig = resolvedConfig.evolution;
     if (!evolutionConfig.enabled) return;
-    const baseSnapshot = defaultTracker.getReviewSnapshot(ctx.sessionId);
+    const baseSnapshot = tracker.getReviewSnapshot(ctx.sessionId);
     if (!baseSnapshot) return;
     const snapshot = {
       ...baseSnapshot,
@@ -292,7 +305,7 @@ export function createHookHandlers(deps: HookDeps) {
             examples: [...intentDefinition.examples],
           }
         : undefined,
-      intentCatalog: defaultCatalog.get().map((definition) => ({
+      intentCatalog: catalog.get().map((definition) => ({
         id: definition.id,
         name: definition.name,
         triggers: [...definition.triggers],
@@ -342,10 +355,10 @@ export function createHookHandlers(deps: HookDeps) {
     event: PluginHookSessionEndEvent,
     ctx: PluginHookSessionContext,
   ): Promise<void> {
-    defaultTracker.cleanup(ctx.sessionId, {
+    tracker.cleanup(ctx.sessionId, {
       deleteFile: SESSION_END_REASONS_THAT_DELETE_FILE.has(event.reason ?? ""),
     });
-    defaultTracker.cleanupExpired();
+    tracker.cleanupExpired();
   }
 
   return {

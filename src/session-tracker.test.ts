@@ -91,20 +91,20 @@ describe("SessionTracker", () => {
     });
 
     it.each(["stats.json", "evolution.json"])(
-      "should never load %s as session data",
-      (reservedFilename) => {
+      "treats legacy %s files in sessions as ordinary session JSON",
+      (legacyFilename) => {
         const sessionsDir = path.join(tempDir, "sessions");
         fs.mkdirSync(sessionsDir, { recursive: true });
         fs.writeFileSync(
-          path.join(sessionsDir, reservedFilename),
+          path.join(sessionsDir, legacyFilename),
           JSON.stringify({
-            sessionId: "reserved-session",
+            sessionId: "legacy-session",
             current: { intent: { result: { intent: "fake" } } },
           }),
         );
 
         const loadedTracker = SessionTracker.create(tempDir);
-        expect(loadedTracker.hasIntentData("reserved-session")).toBe(false);
+        expect(loadedTracker.hasIntentData("legacy-session")).toBe(true);
       },
     );
   });
@@ -291,17 +291,22 @@ describe("SessionTracker", () => {
     });
 
     it.each(["stats", "evolution"])(
-      "should never overwrite reserved %s.json",
+      "can write %s.json as ordinary session data",
       (sessionId) => {
         const sessionsDir = path.join(tempDir, "sessions");
         fs.mkdirSync(sessionsDir, { recursive: true });
-        const reservedPath = path.join(sessionsDir, `${sessionId}.json`);
-        fs.writeFileSync(reservedPath, "keep");
+        const sessionPath = path.join(sessionsDir, `${sessionId}.json`);
+        fs.writeFileSync(sessionPath, "old");
 
         tracker.record(sessionId, { current: { input: "overwrite" } });
         tracker.write(sessionId);
 
-        expect(fs.readFileSync(reservedPath, "utf-8")).toBe("keep");
+        expect(JSON.parse(fs.readFileSync(sessionPath, "utf-8"))).toMatchObject(
+          {
+            sessionId,
+            current: { input: "overwrite" },
+          },
+        );
       },
     );
 
@@ -466,16 +471,16 @@ describe("SessionTracker", () => {
     });
 
     it.each(["stats", "evolution"])(
-      "should never delete reserved %s.json",
+      "can delete %s.json as ordinary session data",
       (sessionId) => {
         const sessionsDir = path.join(tempDir, "sessions");
         fs.mkdirSync(sessionsDir, { recursive: true });
-        const reservedPath = path.join(sessionsDir, `${sessionId}.json`);
-        fs.writeFileSync(reservedPath, "keep");
+        const sessionPath = path.join(sessionsDir, `${sessionId}.json`);
+        fs.writeFileSync(sessionPath, "old");
 
         tracker.cleanup(sessionId, { deleteFile: true });
 
-        expect(fs.readFileSync(reservedPath, "utf-8")).toBe("keep");
+        expect(fs.existsSync(sessionPath)).toBe(false);
       },
     );
 
@@ -536,17 +541,17 @@ describe("SessionTracker", () => {
     });
 
     it.each(["stats.json", "evolution.json"])(
-      "should never remove %s during retention cleanup",
-      (reservedFilename) => {
+      "removes expired legacy %s files left in sessions",
+      (legacyFilename) => {
         const sessionsDir = path.join(tempDir, "sessions");
         fs.mkdirSync(sessionsDir, { recursive: true });
-        const reservedPath = path.join(sessionsDir, reservedFilename);
-        fs.writeFileSync(reservedPath, "{}");
-        fs.utimesSync(reservedPath, new Date(0), new Date(0));
+        const legacyPath = path.join(sessionsDir, legacyFilename);
+        fs.writeFileSync(legacyPath, "{}");
+        fs.utimesSync(legacyPath, new Date(0), new Date(0));
 
         tracker.cleanupExpired(Date.now());
 
-        expect(fs.existsSync(reservedPath)).toBe(true);
+        expect(fs.existsSync(legacyPath)).toBe(false);
       },
     );
   });

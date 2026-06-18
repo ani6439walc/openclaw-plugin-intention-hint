@@ -59,13 +59,13 @@ Q4: "Any existing intent this overlaps with?" → check collision
 
 ```bash
 # List all existing intents
-ls extensions/intention-hint/intents/
+ls ~/.openclaw/plugins/intention-hint/intents/
 
 # Read the most similar existing intent for reference
-cat extensions/intention-hint/intents/<similar>.md
+cat ~/.openclaw/plugins/intention-hint/intents/<similar>.md
 
 # Check for trigger collisions
-grep -l "<trigger>" extensions/intention-hint/intents/*.md
+grep -l "<trigger>" ~/.openclaw/plugins/intention-hint/intents/*.md
 ```
 
 **Step 4 — Draft with exact format**
@@ -106,7 +106,7 @@ python3 -c "import yaml; yaml.safe_load(open('intent.md').read().split('---')[1]
 grep -E "^(## Guidelines|## Skills & Tools|## Response Strategy)" intent.md
 
 # If no collisions, write to target
-mv intent.md extensions/intention-hint/intents/<intent-id>.md
+mv intent.md ~/.openclaw/plugins/intention-hint/intents/<intent-id>.md
 ```
 
 ### Failure modes
@@ -146,7 +146,7 @@ Keywords: "audit intents", "bootstrap intents", "re-audit", "check intent covera
 ls -1 ~/.openclaw/skills/ && for d in ~/.openclaw/skills/*/; do [ -f "$d/SKILL.md" ] && basename "$d"; done
 
 # Scan existing intents
-ls extensions/intention-hint/intents/
+ls ~/.openclaw/plugins/intention-hint/intents/
 ```
 
 Output: capability table with columns `capability | type(skill/tool) | summary | source`
@@ -195,7 +195,7 @@ User explicitly asks to process a self-evolution backlog finding.
 
 Keywords: "process backlog", "evolve intent", "handle evolution finding", "process the next finding"
 
-**Never enter this mode merely because `sessions/evolution.json` contains pending items.**
+**Never enter this mode merely because `~/.openclaw/plugins/intention-hint/evolution.json` contains pending items.**
 
 Read and follow `references/evolve-workflow.md` before processing a finding.
 
@@ -274,7 +274,7 @@ Dismiss instead of leaving pending when the finding is clearly duplicate, supers
 
 | Trigger                                            | First fix                                                  | Fallback                                                                    |
 | -------------------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------- |
-| **Backlog finding already processed**              | Skip, mark as `already_processed`                          | Re-check sessions/evolution.json state                                      |
+| **Backlog finding already processed**              | Skip, mark as `already_processed`                          | Re-check `~/.openclaw/plugins/intention-hint/evolution.json` state          |
 | **Target intent deleted or missing**               | Skip finding, log warning with missing intent ID           | Leave item `pending`, report to user for manual resolution                  |
 | **Validation fails after apply**                   | Restore from `/tmp/intention-hint-process-backlog/` backup | Leave item `pending`, report validation errors to user                      |
 | **Suggested change breaks existing intent format** | Reject the suggestion, keep original intent unchanged      | Mark `dismissed` if clearly invalid; otherwise leave `pending` with blocker |
@@ -306,10 +306,10 @@ When bootstrapping from scratch, copy example intent templates from `assets/`:
 python3 -c "import yaml; yaml.safe_load(open('<file>').read().split('---')[1])"
 
 # Check for trigger collisions
-grep -l "<trigger>" extensions/intention-hint/intents/*.md
+grep -l "<trigger>" ~/.openclaw/plugins/intention-hint/intents/*.md
 
 # List all existing intent IDs
-cat extensions/intention-hint/intents/*.md | grep "^id:" | cut -d' ' -f2
+cat ~/.openclaw/plugins/intention-hint/intents/*.md | grep "^id:" | cut -d' ' -f2
 
 # Verify required sections exist
 grep -E "^(## Guidelines|## Skills & Tools|## Response Strategy)" <file>

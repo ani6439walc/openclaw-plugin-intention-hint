@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { runBacklogCli } from "./backlog-cli.js";
+import { resolveDefaultBacklogCliRoot, runBacklogCli } from "./backlog-cli.js";
 
 describe("backlog CLI", () => {
   let root: string;
@@ -15,7 +15,7 @@ describe("backlog CLI", () => {
     output = [];
     errors = [];
     fs.writeFileSync(
-      path.join(root, "sessions", "evolution.json"),
+      path.join(root, "evolution.json"),
       JSON.stringify({
         schemaVersion: 1,
         createdAt: "created",
@@ -59,6 +59,12 @@ describe("backlog CLI", () => {
       stdout: (value) => output.push(value),
       stderr: (value) => errors.push(value),
     });
+
+  it("resolves the direct CLI root from OpenClaw state dir", () => {
+    expect(resolveDefaultBacklogCliRoot({ OPENCLAW_STATE_DIR: root })).toBe(
+      path.join(root, "plugins", "intention-hint"),
+    );
+  });
 
   it("shows the highest-frequency pending item by default", () => {
     expect(run(["show"])).toBe(0);
@@ -169,7 +175,7 @@ describe("backlog CLI", () => {
   });
 
   it("preserves a corrupt backlog when a mutation is requested", () => {
-    const backlogPath = path.join(root, "sessions", "evolution.json");
+    const backlogPath = path.join(root, "evolution.json");
     fs.writeFileSync(backlogPath, "{ broken");
 
     expect(

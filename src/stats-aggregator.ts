@@ -1,15 +1,14 @@
-import * as path from "node:path";
 import { logger } from "../api.js";
 import type { SessionState } from "./session-tracker.js";
 import type { IntentDefinition } from "./types.js";
 import {
   pluginRoot,
+  statsPath,
   fileExists,
   readJsonFile,
   safeWriteJson,
 } from "./file-utils.js";
 
-const STATS_FILENAME = "stats.json";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DAILY_RETENTION_MS = 90 * DAY_MS;
 const RECENT_WINDOW_MS = 7 * DAY_MS;
@@ -272,15 +271,15 @@ export class StatsAggregator {
     const start = state.timestamps?.start;
     if (!sessionId || !result || !start) return false;
 
-    const statsPath = path.join(this.pluginRoot, "sessions", STATS_FILENAME);
+    const statsFilePath = statsPath(this.pluginRoot);
     try {
       const nowMs = options.nowMs ?? Date.now();
       const eventTime = new Date(state.timestamps?.end ?? nowMs).toISOString();
       const eventId = `${sessionId}:${start}`;
 
       let stats: Stats;
-      if (fileExists(statsPath)) {
-        stats = readJsonFile<Stats>(statsPath);
+      if (fileExists(statsFilePath)) {
+        stats = readJsonFile<Stats>(statsFilePath);
         if (
           stats.schemaVersion !== 1 ||
           !stats.summary ||
@@ -420,11 +419,11 @@ export class StatsAggregator {
 
       pruneRollingData(stats, nowMs);
       recomputeDerivedStats(stats, nowMs);
-      return safeWriteJson(statsPath, stats, "failed to write stats file");
+      return safeWriteJson(statsFilePath, stats, "failed to write stats file");
     } catch (err) {
       logger.warn("failed to update stats file", {
         error: err,
-        path: statsPath,
+        path: statsFilePath,
       });
       return false;
     }

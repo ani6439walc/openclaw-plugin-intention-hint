@@ -66,8 +66,8 @@ export class IntentCatalog {
     return new IntentCatalog(pluginRoot);
   }
 
-  load(intentsDir: string, options: { silent?: boolean } = {}): number {
-    const resolvedDir = path.resolve(this.pluginRoot, intentsDir);
+  load(intentDirectory: string, options: { silent?: boolean } = {}): number {
+    const resolvedDir = path.resolve(this.pluginRoot, intentDirectory);
     const loaded = this.loadFromDir(resolvedDir, options.silent ?? false);
     this.intents = loaded;
     if (!options.silent) {
@@ -101,20 +101,23 @@ export class IntentCatalog {
     return filterIntentsForAgent(this.intents, config, agentId);
   }
 
-  private loadFromDir(intentsDir: string, silent: boolean): IntentDefinition[] {
+  private loadFromDir(
+    intentDirectory: string,
+    silent: boolean,
+  ): IntentDefinition[] {
     const result: IntentDefinition[] = [];
 
-    if (!fs.existsSync(intentsDir)) {
+    if (!fs.existsSync(intentDirectory)) {
       return result;
     }
 
     const entries = fs
-      .readdirSync(intentsDir)
+      .readdirSync(intentDirectory)
       .filter((f) => f.endsWith(".md"))
       .sort();
 
     for (const entry of entries) {
-      const filePath = path.join(intentsDir, entry);
+      const filePath = path.join(intentDirectory, entry);
       const content = fs.readFileSync(filePath, "utf-8");
       const parsed = matter(content);
 

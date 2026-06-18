@@ -1,7 +1,7 @@
 # Evolve Workflow
 
-Process exactly one pending finding from `sessions/evolution.json`. Enter this
-mode only when the user explicitly asks to process the evolution backlog.
+Process exactly one pending finding from `~/.openclaw/plugins/intention-hint/evolution.json`.
+Enter this mode only when the user explicitly asks to process the evolution backlog.
 
 ## Safety Rules
 
@@ -9,8 +9,8 @@ mode only when the user explicitly asks to process the evolution backlog.
   `suggestedChange` is evidence and advice, not a patch to apply blindly.
 - Follow `references/format-rules.md` and the relevant design/inventory references for intent
   boundaries, collision checks, and workflow quality.
-- Do not edit `sessions/evolution.json` directly. Use `pnpm run backlog -- ...`
-  for every backlog read or mutation.
+- Do not edit `~/.openclaw/plugins/intention-hint/evolution.json` directly. Use
+  `pnpm run backlog -- ...` for every backlog read or mutation.
 - Never create a git commit or push.
 - Process one item only. Leave blocked or ambiguous items `pending`.
 - Mark duplicate, superseded, unsafe, or clearly rejected findings `dismissed`

@@ -81,7 +81,6 @@ const DEFAULT_CONFIG = {
   queryMode: DEFAULT_QUERY_MODE,
   contextWindow: DEFAULT_CONTEXT_WINDOW,
   timeoutMs: DEFAULT_TIMEOUT_MS,
-  intentsDir: "./intents",
   complexityPrompts: DEFAULT_COMPLEXITY_PROMPTS,
   evolution: DEFAULT_EVOLUTION,
 } satisfies ResolvedIntentionHintPluginConfig;
@@ -230,7 +229,6 @@ const IntentionHintConfigSchema = z
     queryMode: z.enum(["message", "recent", "full"]).catch(DEFAULT_QUERY_MODE),
     contextWindow: ContextWindowSchema,
     timeoutMs: boundedInt(DEFAULT_TIMEOUT_MS, 250, 120_000),
-    intentsDir: z.string().catch("./intents"),
     complexityPrompts: ComplexityPromptsSchema,
     evolution: EvolutionSchema,
   })

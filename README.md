@@ -12,7 +12,7 @@ index.ts
   └─ plugin.ts → createPlugin()
        │
        ├─ file-utils.ts → shared filesystem helpers
-       │    └─ pluginRoot, sessionsPath(), ensureDir(), writeJsonAtomic(), readJsonFile(), safeWriteJson(), fileExists()
+       │    └─ packageRoot, resolvePluginDataRoot(), sessionsPath(), ensureDir(), writeJsonAtomic(), readJsonFile(), safeWriteJson(), fileExists()
        │
        ├─ constants.ts → shared defaults
        │    └─ DEFAULT_TIMEOUT_MS, FALLBACK_INTENT, default complexity prompts, UNTRUSTED_CONTEXT_HEADER
@@ -20,8 +20,8 @@ index.ts
        ├─ types.ts → all shared type definitions
        ├─ evolution-types.ts → Self-Evolution review types (ReviewState, ReviewSnapshot, EvolutionFinding, EvolutionSource)
        │
-       ├─ intent-loader.ts → defaultCatalog (loads intent .md files from intentsDir)
-       │    └─ uses file-utils.ts for pluginRoot
+       ├─ intent-loader.ts → runtime catalog
+       │    └─ loads intent .md files from $OPENCLAW_STATE_DIR/plugins/intention-hint/intents
        │
        ├─ subagent.ts → runIntentionSubagent() (classifies intent via lightweight sub-agent)
        │    ├─ resolveCurrentTime() — timezone-aware local time formatting
@@ -50,16 +50,16 @@ index.ts
        ├─ session-tracker.ts → SessionTracker (JSON session persistence)
        │    ├─ uses file-utils.ts for fileExists(), readJsonFile(), safeWriteJson()
        │    ├─ uses evolution-types.ts for ReviewState, ReviewSnapshot
-       │    └─ sessions/<sessionId>.json
+       │    └─ $OPENCLAW_STATE_DIR/plugins/intention-hint/sessions/<sessionId>.json
        │
        ├─ stats-aggregator.ts → StatsAggregator (atomic runtime usage aggregation)
        │    ├─ uses file-utils.ts for fileExists(), readJsonFile(), safeWriteJson()
-       │    └─ sessions/stats.json
+       │    └─ $OPENCLAW_STATE_DIR/plugins/intention-hint/stats.json
        │
        ├─ trigger-checker.ts + review-subagent.ts → Intent Self-Evolution review
        │    ├─ trigger-checker.ts → checkEvolutionTriggers() (six configurable triggers)
        │    ├─ review-subagent.ts → buildReviewPrompt() + parseReviewFindings() + runReviewSubagent()
-       │    └─ backlog-writer.ts + evolution-backlog.ts → sessions/evolution.json
+       │    └─ backlog-writer.ts + evolution-backlog.ts → $OPENCLAW_STATE_DIR/plugins/intention-hint/evolution.json
        │         ├─ backlog-writer.ts uses file-utils.ts for safeWriteJson()
        │         └─ evolution-backlog.ts uses file-utils.ts for readJsonFile(), writeJsonAtomic()
        │
@@ -85,12 +85,12 @@ index.ts
 | `constants.ts`            | Shared defaults — timeouts, fallback intent, complexity prompts, untrusted header                         |
 | `types.ts`                | All shared type definitions for plugin, config, intent, result, and turn shapes                           |
 | `evolution-types.ts`      | Shared types for Self-Evolution pipeline — ReviewState, ReviewSnapshot, EvolutionFinding, EvolutionSource |
-| `session-tracker.ts`      | Persist and clean up session data in `sessions/` JSON files                                               |
-| `stats-aggregator.ts`     | Aggregate idempotent runtime usage statistics into `sessions/stats.json`                                  |
+| `session-tracker.ts`      | Persist and clean up session data in runtime `sessions/` JSON files                                       |
+| `stats-aggregator.ts`     | Aggregate idempotent runtime usage statistics into `stats.json`                                           |
 | `trigger-checker.ts`      | Detect six configurable Self-Evolution triggers from completed turns                                      |
 | `review-subagent.ts`      | Build trigger-specific review prompts and run the tool-free review sub-agent                              |
 | `review-queue.ts`         | Serialized promise queue for background evolution reviews                                                 |
-| `backlog-writer.ts`       | Merge review findings atomically into `sessions/evolution.json`                                           |
+| `backlog-writer.ts`       | Merge review findings atomically into `evolution.json`                                                    |
 | `evolution-backlog.ts`    | Validate/migrate backlog schema and provide atomic mutation primitives                                    |
 | `backlog-cli.ts`          | List, target, validate, and optimistically complete pending backlog items                                 |
 | `intent-validation.ts`    | Validate Intent Markdown structure, IDs, targets, and catalog loading                                     |
@@ -99,7 +99,7 @@ index.ts
 | `session.ts`              | Session eligibility guards (agent allow-list, chat type, internal run detection)                          |
 | `config.ts`               | Zod schema validation with defaults and clamping for plugin configuration                                 |
 
-Every `session_end` removes the ended session from tracker memory. Final lifecycle reasons (`new`, `reset`, `idle`, `daily`, `compaction`, and `deleted`) also delete that session's JSON; restart-oriented reasons preserve it for reload. Each `session_end` additionally removes top-level session JSON files whose modification time is strictly older than 14 days. Cleanup is fail-open and does not touch `stats.json`, `evolution.json`, transcripts, or other plugin data.
+Every `session_end` removes the ended session from tracker memory. Final lifecycle reasons (`new`, `reset`, `idle`, `daily`, `compaction`, and `deleted`) also delete that session's JSON; restart-oriented reasons preserve it for reload. Each `session_end` additionally removes session JSON files under the runtime `sessions/` directory whose modification time is strictly older than 14 days. Cleanup is fail-open and does not touch root-level `stats.json`, `evolution.json`, transcripts, or other plugin data.
 
 ### Hook Execution Flow
 
@@ -152,7 +152,7 @@ interface SessionData {
 
 ### Runtime Usage Statistics
 
-After a tracked turn is persisted, `agent_end` synchronously updates `sessions/stats.json`. The aggregator is observation-only, fail-open, and idempotent by `sessionId + timestamps.start`; it never scans existing session JSON for backfill. Writes use a temporary file and atomic rename. Invalid or corrupt existing stats are preserved and the update is skipped.
+After a tracked turn is persisted, `agent_end` synchronously updates `$OPENCLAW_STATE_DIR/plugins/intention-hint/stats.json`. The aggregator is observation-only, fail-open, and idempotent by `sessionId + timestamps.start`; it never scans existing session JSON for backfill. Writes use a temporary file and atomic rename. Invalid or corrupt existing stats are preserved and the update is skipped.
 
 The versioned stats document contains:
 
@@ -203,7 +203,6 @@ pnpm run build
             assistant: { turns: 3, chars: 300 },
           },
           timeoutMs: 3000,
-          intentsDir: "./intents",
           complexityPrompts: {
             low: "Custom low-complexity prompt...",
             medium: "Custom medium-complexity prompt...",
@@ -236,22 +235,21 @@ pnpm run build
 
 ### Configuration Reference
 
-| Option              | Type       | Default       | Description                                                                                           |
-| ------------------- | ---------- | ------------- | ----------------------------------------------------------------------------------------------------- |
-| `agents`            | `string[]` | `["*"]`       | Which agents trigger the plugin. Use `["*"]` for all agents.                                          |
-| `intentDeny`        | `object`   | `{}`          | Per-agent deny list of intent IDs. Keys support `*` glob patterns.                                    |
-| `model`             | `string`   | —             | Lightweight model for the intention scanner. Falls back to the agent's default if empty.              |
-| `modelFallback`     | `string`   | —             | Fallback model when `config.model` cannot be resolved.                                                |
-| `thinking`          | `string`   | `"medium"`    | Thinking level for the intent classifier subagent.                                                    |
-| `allowedChatTypes`  | `string[]` | `["direct"]`  | Chat types (direct, group, channel) that allow intent analysis.                                       |
-| `allowedChatIds`    | `string[]` | `[]`          | Allowlist of chat IDs. Empty means no allowlist restriction.                                          |
-| `deniedChatIds`     | `string[]` | `[]`          | Blocklist of chat IDs. Plugin skips intent analysis for listed IDs.                                   |
-| `queryMode`         | `string`   | `"recent"`    | Context window mode: `recent` (recent turns), `message` (latest message only), `full` (full history). |
-| `contextWindow`     | `object`   | see below     | Turn/char limits for conversation extraction.                                                         |
-| `timeoutMs`         | `number`   | `3000`        | Max wait time for subagent response. Clamped to 250–120000ms.                                         |
-| `intentsDir`        | `string`   | `"./intents"` | Directory containing intent definition `.md` files with YAML frontmatter.                             |
-| `complexityPrompts` | `object`   | built-in      | Custom classification prompt overrides per complexity level.                                          |
-| `evolution`         | `object`   | disabled      | Post-turn trigger review configuration. Findings are stored in `sessions/evolution.json`.             |
+| Option              | Type       | Default      | Description                                                                                                                 |
+| ------------------- | ---------- | ------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| `agents`            | `string[]` | `["*"]`      | Which agents trigger the plugin. Use `["*"]` for all agents.                                                                |
+| `intentDeny`        | `object`   | `{}`         | Per-agent deny list of intent IDs. Keys support `*` glob patterns.                                                          |
+| `model`             | `string`   | —            | Lightweight model for the intention scanner. Falls back to the agent's default if empty.                                    |
+| `modelFallback`     | `string`   | —            | Fallback model when `config.model` cannot be resolved.                                                                      |
+| `thinking`          | `string`   | `"medium"`   | Thinking level for the intent classifier subagent.                                                                          |
+| `allowedChatTypes`  | `string[]` | `["direct"]` | Chat types (direct, group, channel) that allow intent analysis.                                                             |
+| `allowedChatIds`    | `string[]` | `[]`         | Allowlist of chat IDs. Empty means no allowlist restriction.                                                                |
+| `deniedChatIds`     | `string[]` | `[]`         | Blocklist of chat IDs. Plugin skips intent analysis for listed IDs.                                                         |
+| `queryMode`         | `string`   | `"recent"`   | Context window mode: `recent` (recent turns), `message` (latest message only), `full` (full history).                       |
+| `contextWindow`     | `object`   | see below    | Turn/char limits for conversation extraction.                                                                               |
+| `timeoutMs`         | `number`   | `3000`       | Max wait time for subagent response. Clamped to 250–120000ms.                                                               |
+| `complexityPrompts` | `object`   | built-in     | Custom classification prompt overrides per complexity level.                                                                |
+| `evolution`         | `object`   | disabled     | Post-turn trigger review configuration. Findings are stored in `$OPENCLAW_STATE_DIR/plugins/intention-hint/evolution.json`. |
 
 `evolution.thinking` independently controls the Self-Evolution review
 subagent's thinking level. Both thinking settings accept `off`, `minimal`,
@@ -275,7 +273,7 @@ is checked for six trigger types:
 All matching triggers are reviewed in one background, tool-free sub-agent run.
 Each trigger receives a distinct review focus and correction goal, and may return
 no finding. Valid findings are merged by pending `type + dedupeKey` into the
-atomic, event-idempotent `sessions/evolution.json` backlog. Review failures are
+atomic, event-idempotent `$OPENCLAW_STATE_DIR/plugins/intention-hint/evolution.json` backlog. Review failures are
 fail-open and never block or alter the main reply.
 
 The reviewer is intentionally scoped to improving `intents/*.md`, following the
@@ -286,9 +284,9 @@ it proposes a new intent draft or targeted changes to frontmatter, Guidelines,
 Skills & Tools, Response Strategy, or Concrete Workflow. It never proposes
 changes to skills, tools, AGENTS.md, SOUL.md, or other production files.
 
-`sessions/evolution.json` is protected like `sessions/stats.json`: it is not
-loaded as session state and is never removed by session lifecycle or 14-day
-retention cleanup. Schema v2 findings include `operation` (`create`, `refine`,
+`evolution.json` is protected like `stats.json`: both live at the runtime data
+root, are not loaded as session state, and are never removed by session
+lifecycle or 14-day retention cleanup. Schema v2 findings include `operation` (`create`, `refine`,
 `split`, or `merge`) and all affected `targetIntentIds`. Existing schema v1
 items migrate to `operation: "unknown"` and empty targets until they can be
 grounded safely.
@@ -440,4 +438,4 @@ The test suites cover:
 - Serialized background reviews and atomic, idempotent evolution backlog writes
 - Schema v1-to-v2 migration, structured finding targets, and backlog CLI concurrency checks
 - Intent Markdown structure/catalog validation and explicit-only intention-hint backlog mode
-- Protection of `sessions/evolution.json` from session loading and retention cleanup
+- Protection of root-level `evolution.json` from session loading and retention cleanup
