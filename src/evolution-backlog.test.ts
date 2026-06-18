@@ -74,11 +74,11 @@ describe("evolution backlog", () => {
       ),
     ).toThrow("target metadata is unresolved");
 
-    updatePendingTarget(value, "IMP-1", "refine", ["PRODUCTIVITY"], "targeted");
+    updatePendingTarget(value, "IMP-1", "refine", ["productivity"], "targeted");
 
     expect(value.items[0]).toMatchObject({
       operation: "refine",
-      targetIntentIds: ["PRODUCTIVITY"],
+      targetIntentIds: ["productivity"],
       updatedAt: "targeted",
     });
     expect(() =>

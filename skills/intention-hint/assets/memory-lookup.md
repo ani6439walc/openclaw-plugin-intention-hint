@@ -1,7 +1,6 @@
 ---
-id: MEMORY_LOOKUP
-name: General Memory Lookup
 triggers:
+  - "The user wants past records or prior information without a specific recent, comparative, emotional, or timeline focus."
   - "User is asking about past events, records, preferences, habits, or prior discussions without a clearly recent, comparative, emotional, or timeline-oriented focus"
 examples:
   - "Did we talk about that idea before?"
@@ -9,8 +8,6 @@ examples:
   - "Help me find the settings notes about Talos"
   - "What travel plans did I mention before?"
 ---
-
-Detected "general memory lookup" intent. The user wants past records or prior information without a specific recent, comparative, emotional, or timeline focus.
 
 ## Guidelines
 

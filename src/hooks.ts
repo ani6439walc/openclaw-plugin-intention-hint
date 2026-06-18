@@ -73,9 +73,7 @@ function findIntentDefinition(
   if (!intentId) return;
   return catalog
     .get()
-    .find(
-      (definition) => definition.id.toLowerCase() === intentId.toLowerCase(),
-    );
+    .find((entry) => entry.id.toLowerCase() === intentId.toLowerCase());
 }
 
 const SESSION_END_REASONS_THAT_DELETE_FILE = new Set([
@@ -300,16 +298,18 @@ export function createHookHandlers(deps: HookDeps) {
       ...baseSnapshot,
       matchedIntent: intentDefinition
         ? {
-            ...intentDefinition,
-            triggers: [...intentDefinition.triggers],
-            examples: [...intentDefinition.examples],
+            id: intentDefinition.id,
+            definition: {
+              ...intentDefinition.definition,
+              triggers: [...intentDefinition.definition.triggers],
+              examples: [...intentDefinition.definition.examples],
+            },
           }
         : undefined,
-      intentCatalog: catalog.get().map((definition) => ({
-        id: definition.id,
-        name: definition.name,
-        triggers: [...definition.triggers],
-        examples: [...definition.examples],
+      intentCatalog: catalog.get().map((entry) => ({
+        id: entry.id,
+        triggers: [...entry.definition.triggers],
+        examples: [...entry.definition.examples],
       })),
     };
     const triggers = checkEvolutionTriggers(

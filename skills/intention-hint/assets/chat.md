@@ -1,7 +1,6 @@
 ---
-id: CHAT
-name: Casual Chat
 triggers:
+  - "This is a normal social interaction without a concrete task or request."
   - "User is engaging in casual social interaction without a concrete task, such as greeting, thanking, small talk, sharing mood, or making a light reaction"
 examples:
   - "Good morning~"
@@ -10,8 +9,6 @@ examples:
   - "Feeling a bit tired today"
   - "hi"
 ---
-
-Detected "casual chat" intent. This is a normal social interaction without a concrete task or request.
 
 ## Guidelines
 

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import matter from "gray-matter";
 import type {
+  IntentCatalogEntry,
   IntentDefinition,
   ResolvedIntentionHintPluginConfig,
 } from "./types.js";
@@ -41,10 +42,10 @@ function resolveIntentDenyPatterns(
 }
 
 export function filterIntentsForAgent(
-  intents: readonly IntentDefinition[],
+  intents: readonly IntentCatalogEntry[],
   config: ResolvedIntentionHintPluginConfig,
   agentId: string | undefined,
-): IntentDefinition[] {
+): IntentCatalogEntry[] {
   const denyPatterns = resolveIntentDenyPatterns(config, agentId);
   if (denyPatterns.length === 0) return [...intents];
 
@@ -55,7 +56,7 @@ export function filterIntentsForAgent(
 }
 
 export class IntentCatalog {
-  private intents: IntentDefinition[] = [];
+  private intents: IntentCatalogEntry[] = [];
   private pluginRoot: string;
 
   private constructor(pluginRoot: string) {
@@ -82,11 +83,11 @@ export class IntentCatalog {
     this.intents = [];
   }
 
-  setIntents(intents: IntentDefinition[]): void {
+  setIntents(intents: IntentCatalogEntry[]): void {
     this.intents = [...intents];
   }
 
-  get(): readonly IntentDefinition[] {
+  get(): readonly IntentCatalogEntry[] {
     return this.intents;
   }
 
@@ -97,15 +98,15 @@ export class IntentCatalog {
   filterForAgent(
     config: ResolvedIntentionHintPluginConfig,
     agentId: string | undefined,
-  ): IntentDefinition[] {
+  ): IntentCatalogEntry[] {
     return filterIntentsForAgent(this.intents, config, agentId);
   }
 
   private loadFromDir(
     intentDirectory: string,
     silent: boolean,
-  ): IntentDefinition[] {
-    const result: IntentDefinition[] = [];
+  ): IntentCatalogEntry[] {
+    const result: IntentCatalogEntry[] = [];
 
     if (!fs.existsSync(intentDirectory)) {
       return result;
@@ -122,12 +123,7 @@ export class IntentCatalog {
       const parsed = matter(content);
 
       const data = parsed.data as Record<string, unknown>;
-      const id = typeof data.id === "string" ? data.id.trim() : undefined;
-      const name =
-        typeof data.name === "string"
-          ? data.name.trim()
-          : (id ?? entry.replace(".md", ""));
-      const enabled = data.enabled !== false;
+      const id = entry.slice(0, -".md".length);
       const triggers = Array.isArray(data.triggers)
         ? data.triggers.filter((x): x is string => typeof x === "string")
         : [];
@@ -135,30 +131,22 @@ export class IntentCatalog {
         ? data.examples.filter((x): x is string => typeof x === "string")
         : [];
 
-      if (!id || !triggers.length) {
+      if (!triggers.length) {
         if (!silent) {
           logger.warn(
-            `skipping invalid intent file: ${entry}. (missing id or triggers)`,
+            `skipping invalid intent file: ${entry}. (missing triggers)`,
           );
         }
         continue;
       }
 
-      const existingIndex = result.findIndex((d) => d.id === id);
       const definition: IntentDefinition = {
-        id,
-        name,
-        enabled,
         triggers,
         examples,
         prompt: parsed.content.trim(),
       };
 
-      if (existingIndex >= 0) {
-        result[existingIndex] = definition;
-      } else {
-        result.push(definition);
-      }
+      result.push({ id, definition });
     }
 
     return result;

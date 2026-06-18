@@ -6,11 +6,11 @@ import {
 } from "openclaw/plugin-sdk/agent-runtime";
 import type { OpenClawPluginApi } from "../api.js";
 import { logger } from "../api.js";
-import { FALLBACK_INTENT } from "./constants.js";
+import { FALLBACK_INTENT_ID } from "./constants.js";
 import { buildIntentionPrompt, parseIntentionResult } from "./prompt.js";
 import { resolveCanonicalSessionKeyFromSessionId } from "./session.js";
 import type {
-  IntentDefinition,
+  IntentCatalogEntry,
   IntentionResult,
   RecentTurn,
   ResolvedIntentionHintPluginConfig,
@@ -82,7 +82,7 @@ export async function runIntentionSubagent(params: {
   messageProvider?: string;
   channelId?: string;
   modelRef: { provider: string; model: string };
-  intents: readonly IntentDefinition[];
+  intents: readonly IntentCatalogEntry[];
 }): Promise<IntentionResult | undefined> {
   const subagentSessionId = `intention-hint-${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 8)}`;
   const parentSessionKey =
@@ -122,7 +122,7 @@ export async function runIntentionSubagent(params: {
       .join("\n")
       .trim();
 
-    const validIds = [...params.intents.map((i) => i.id), FALLBACK_INTENT.id];
+    const validIds = [...params.intents.map((i) => i.id), FALLBACK_INTENT_ID];
 
     const parsed = parseIntentionResult(rawReply, validIds);
     if (!parsed) {

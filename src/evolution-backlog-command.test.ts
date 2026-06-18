@@ -106,13 +106,13 @@ describe("evolution-backlog command", () => {
         "--operation",
         "refine",
         "--target-intent",
-        "PRODUCTIVITY",
+        "productivity",
       ]),
     ).toBe(0);
     const targeted = JSON.parse(output.at(-1)!);
     expect(targeted).toMatchObject({
       operation: "refine",
-      targetIntentIds: ["PRODUCTIVITY"],
+      targetIntentIds: ["productivity"],
     });
 
     expect(
@@ -136,7 +136,7 @@ describe("evolution-backlog command", () => {
         "--operation",
         "refine",
         "--target-intent",
-        "PRODUCTIVITY",
+        "productivity",
       ]),
     ).toBe(0);
     const targeted = JSON.parse(output.at(-1)!);
@@ -189,7 +189,7 @@ describe("evolution-backlog command", () => {
         "--operation",
         "refine",
         "--target-intent",
-        "PRODUCTIVITY",
+        "productivity",
       ]),
     ).toBe(1);
     expect(fs.readFileSync(backlogPath, "utf-8")).toBe("{ broken");
@@ -201,13 +201,9 @@ describe("evolution-backlog command", () => {
     fs.writeFileSync(
       path.join(intentsDir, "one.md"),
       `---
-id: ONE
-name: One
 triggers: [one]
 examples: [one]
 ---
-Detected.
-
 ## Guidelines
 - Do it.
 
@@ -216,7 +212,7 @@ Detected.
 `,
     );
 
-    expect(run(["validate-intents", "--id", "ONE"])).toBe(0);
+    expect(run(["validate-intents", "--id", "one"])).toBe(0);
     expect(JSON.parse(output.at(-1)!)).toMatchObject({
       valid: true,
       errors: [],

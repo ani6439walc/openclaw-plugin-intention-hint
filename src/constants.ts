@@ -15,10 +15,8 @@ export const UNTRUSTED_CONTEXT_HEADER =
 
 import { IntentDefinition } from "./types.js";
 
+export const FALLBACK_INTENT_ID = "OTHER";
 export const FALLBACK_INTENT: IntentDefinition = {
-  enabled: true,
-  id: "OTHER",
-  name: "Unclassified",
   triggers: [],
   examples: [],
   prompt:

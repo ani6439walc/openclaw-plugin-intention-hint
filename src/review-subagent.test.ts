@@ -29,16 +29,15 @@ const snapshot: ReviewSnapshot = {
   recent: [],
   matchedIntent: {
     id: "OTHER",
-    name: "Fallback",
-    enabled: true,
-    triggers: ["Requests that do not match a defined intent"],
-    examples: ["help with this"],
-    prompt: "Detected fallback intent.\n\n## Guidelines\n\n- Ask for context.",
+    definition: {
+      triggers: ["Requests that do not match a defined intent"],
+      examples: ["help with this"],
+      prompt: "## Guidelines\n\n- Ask for context.",
+    },
   },
   intentCatalog: [
     {
       id: "OTHER",
-      name: "Fallback",
       triggers: ["Requests that do not match a defined intent"],
       examples: ["help with this"],
     },
@@ -53,10 +52,13 @@ describe("buildReviewPrompt", () => {
       "sole purpose is to improve the content and routing quality of intention-hint intents/*.md files",
     );
     expect(prompt).toContain(
-      "Frontmatter is classification-only: id, name, enabled: true, triggers[], and examples[]",
+      "Intent ids come from Markdown filenames without the .md suffix",
     );
     expect(prompt).toContain(
-      "detection line, ## Guidelines, ## Skills & Tools, ## Response Strategy",
+      "Frontmatter is classification-only and contains only triggers[] and examples[]",
+    );
+    expect(prompt).toContain(
+      "## Guidelines, ## Skills & Tools, ## Response Strategy",
     );
     expect(prompt).toContain('indented "skill: <name>" line');
     expect(prompt).toContain("Concrete Workflow");
@@ -135,7 +137,7 @@ describe("parseReviewFindings", () => {
             trigger: "skill_candidate",
             hasFinding: true,
             operation: "refine",
-            targetIntentIds: ["PRODUCTIVITY"],
+            targetIntentIds: ["productivity"],
             dedupeKey: "deploy-flow",
             summary: "Deployment flow is reusable",
             evidence: ["Five related tool calls"],
@@ -152,7 +154,7 @@ describe("parseReviewFindings", () => {
       {
         trigger: "skill_candidate",
         operation: "refine",
-        targetIntentIds: ["PRODUCTIVITY"],
+        targetIntentIds: ["productivity"],
         dedupeKey: "deploy-flow",
         summary: "Deployment flow is reusable",
         evidence: ["Five related tool calls"],
@@ -166,7 +168,7 @@ describe("parseReviewFindings", () => {
     const raw = `\`\`\`json
 {"findings":[
   {"trigger":"unknown","hasFinding":true,"operation":"refine","targetIntentIds":["X"],"dedupeKey":"x","summary":"x","evidence":[],"correctionGoal":"x","suggestedChange":"x"},
-  {"trigger":"weak_intent","hasFinding":true,"operation":"refine","targetIntentIds":["PRODUCTIVITY"],"dedupeKey":"weak","summary":"weak","evidence":[],"correctionGoal":"improve","suggestedChange":"add examples"}
+  {"trigger":"weak_intent","hasFinding":true,"operation":"refine","targetIntentIds":["productivity"],"dedupeKey":"weak","summary":"weak","evidence":[],"correctionGoal":"improve","suggestedChange":"add examples"}
 ]}
 \`\`\``;
 

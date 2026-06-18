@@ -72,9 +72,6 @@ grep -l "<trigger>" ~/.openclaw/plugins/intention-hint/intents/*.md
 
 ```markdown
 ---
-name: <Intent Name>
-id: <intent-id>
-enabled: true
 triggers:
   - "<trigger phrase 1>"
   - "<trigger phrase 2>"

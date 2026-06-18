@@ -15,7 +15,7 @@ describe("BacklogWriter", () => {
   const finding = {
     trigger: "skill_candidate" as const,
     operation: "refine" as const,
-    targetIntentIds: ["PRODUCTIVITY"],
+    targetIntentIds: ["productivity"],
     dedupeKey: "deploy-flow",
     summary: "Reusable deployment flow",
     evidence: ["Five related tool calls"],
@@ -56,7 +56,7 @@ describe("BacklogWriter", () => {
           id: "IMP-20260611-001",
           type: "skill_candidate",
           operation: "refine",
-          targetIntentIds: ["PRODUCTIVITY"],
+          targetIntentIds: ["productivity"],
           dedupeKey: "deploy-flow",
           frequency: 1,
           status: "pending",
@@ -114,7 +114,7 @@ describe("BacklogWriter", () => {
         {
           frequency: 2,
           operation: "refine",
-          targetIntentIds: ["PRODUCTIVITY"],
+          targetIntentIds: ["productivity"],
         },
       ],
     });

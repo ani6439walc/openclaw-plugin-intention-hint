@@ -1,6 +1,10 @@
 import type { EvolutionTrigger } from "./trigger-checker.js";
 import type { EvolutionOperation } from "./evolution-backlog.js";
-import type { IntentDefinition, IntentionResult } from "./types.js";
+import type {
+  IntentCatalogEntry,
+  IntentDefinition,
+  IntentionResult,
+} from "./types.js";
 
 export type ReviewState = {
   input?: string;
@@ -24,9 +28,9 @@ export type ReviewSnapshot = {
   turnNumber: number;
   current: ReviewState;
   recent: ReviewState[];
-  matchedIntent?: IntentDefinition;
+  matchedIntent?: IntentCatalogEntry;
   intentCatalog: Array<
-    Pick<IntentDefinition, "id" | "name" | "triggers" | "examples">
+    { id: string } & Pick<IntentDefinition, "triggers" | "examples">
   >;
 };
 

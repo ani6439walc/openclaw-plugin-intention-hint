@@ -3,21 +3,21 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { StatsAggregator } from "./stats-aggregator.js";
-import type { IntentDefinition } from "./types.js";
+import type { IntentCatalogEntry } from "./types.js";
 import type { SessionState } from "./session-tracker.js";
 
 describe("StatsAggregator", () => {
   let tempDir: string;
   let aggregator: StatsAggregator;
 
-  const intent: IntentDefinition = {
-    id: "VERSION_CONTROL",
-    name: "Version Control",
-    enabled: true,
-    triggers: ["commit"],
-    examples: [],
-    prompt:
-      "Use these skills:\n  skill: git-master\nskill: git-master\nskill: dev-lifecycle",
+  const intent: IntentCatalogEntry = {
+    id: "version-control",
+    definition: {
+      triggers: ["commit"],
+      examples: [],
+      prompt:
+        "Use these skills:\n  skill: git-master\nskill: git-master\nskill: dev-lifecycle",
+    },
   };
 
   function createState(overrides: Partial<SessionState> = {}): SessionState {
@@ -25,7 +25,7 @@ describe("StatsAggregator", () => {
       input: "commit this",
       intent: {
         result: {
-          intent: "VERSION_CONTROL (Version Control)",
+          intent: "version-control",
           reason: "test",
           goal: "Commit changes",
           confidence: 0.75,
@@ -114,7 +114,7 @@ describe("StatsAggregator", () => {
       otherRate: 0,
     });
     expect(stats.summary).not.toHaveProperty("confidenceTotal");
-    expect(stats.intents.VERSION_CONTROL).toMatchObject({
+    expect(stats.intents["version-control"]).toMatchObject({
       turns: 1,
       share: 1,
       averageConfidence: 0.75,
@@ -151,7 +151,7 @@ describe("StatsAggregator", () => {
       adoptedSkillOpportunities: 1,
       skillAdoptionRate: 0.5,
     });
-    expect(stats.routing.byIntent.VERSION_CONTROL).toMatchObject({
+    expect(stats.routing.byIntent["version-control"]).toMatchObject({
       recommendationTurns: 1,
       adoptedTurns: 1,
       recommendedSkillOpportunities: 2,
@@ -169,7 +169,7 @@ describe("StatsAggregator", () => {
     expect(stats.daily["2026-06-11"]).toMatchObject({
       turns: 1,
       erroredTurns: 1,
-      intents: { VERSION_CONTROL: 1 },
+      intents: { "version-control": 1 },
       skills: { "git-master": 1 },
       tools: { exec: 2 },
       routing: {
@@ -208,7 +208,7 @@ describe("StatsAggregator", () => {
       createState({
         intent: {
           result: {
-            intent: "VERSION_CONTROL (Version Control)",
+            intent: "version-control",
             reason: "test",
             goal: "Commit changes",
             confidence: 0.25,
@@ -226,20 +226,25 @@ describe("StatsAggregator", () => {
 
     const stats = readStats();
     expect(stats.summary.averageConfidence).toBe(0.5);
-    expect(stats.intents.VERSION_CONTROL.averageConfidence).toBe(0.5);
+    expect(stats.intents["version-control"].averageConfidence).toBe(0.5);
     expect(stats.tools.exec.averageDurationMs).toBeCloseTo(150);
     expect(stats.summary).not.toHaveProperty("confidenceTotal");
-    expect(stats.intents.VERSION_CONTROL).not.toHaveProperty("confidenceTotal");
+    expect(stats.intents["version-control"]).not.toHaveProperty(
+      "confidenceTotal",
+    );
     expect(stats.tools.exec).not.toHaveProperty("durationTotalMs");
     expect(stats.tools.exec).not.toHaveProperty("durationSamples");
   });
 
   it("is idempotent and excludes intents without recommended skills from routing", () => {
-    const noSkillsIntent = { ...intent, id: "CHAT", prompt: "Just chat." };
+    const noSkillsIntent: IntentCatalogEntry = {
+      id: "chat",
+      definition: { triggers: ["chat"], examples: [], prompt: "Just chat." },
+    };
     const state = createState({
       intent: {
         result: {
-          intent: "CHAT (Casual Chat)",
+          intent: "chat",
           reason: "test",
           goal: "Chat",
           confidence: 0.9,
@@ -312,7 +317,7 @@ describe("StatsAggregator", () => {
       createState({
         intent: {
           result: {
-            intent: "OTHER (Fallback)",
+            intent: "OTHER",
             reason: "test",
             goal: "Other",
             confidence: 0.4,

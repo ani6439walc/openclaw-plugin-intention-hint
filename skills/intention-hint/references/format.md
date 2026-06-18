@@ -4,12 +4,11 @@ Rules for generating intent definition files. The canonical format spec lives in
 
 ## Required section order
 
-1. YAML frontmatter (`id`, `name`, `enabled: true`, `triggers[]`, `examples[]`)
-2. Detected intent detection line
-3. `## Guidelines`
-4. `## Skills & Tools`
-5. `## Response Strategy`
-6. `## Concrete Workflow` (optional)
+1. YAML frontmatter (`triggers[]`, `examples[]`)
+2. `## Guidelines`
+3. `## Skills & Tools`
+4. `## Response Strategy`
+5. `## Concrete Workflow` (optional)
 
 ## Skill hint format
 

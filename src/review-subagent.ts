@@ -45,8 +45,8 @@ const REVIEW_INSTRUCTIONS: Record<
 
 const INTENT_CRAFT_RUBRIC = `Intent Markdown review rules:
 - Decide whether the evidence calls for creating, refining, splitting, or merging an intent. Prefer the smallest maintainable boundary.
-- Frontmatter is classification-only: id, name, enabled: true, triggers[], and examples[]. Triggers describe the user goal and boundary; examples are realistic user messages.
-- The body guides execution and must use this order: detection line, ## Guidelines, ## Skills & Tools, ## Response Strategy, then optional ## Concrete Workflow.
+- Intent ids come from Markdown filenames without the .md suffix. Frontmatter is classification-only and contains only triggers[] and examples[]. Triggers describe the user goal and boundary; examples are realistic user messages.
+- The body guides execution and must use this order: ## Guidelines, ## Skills & Tools, ## Response Strategy, then optional ## Concrete Workflow.
 - Put skill hints on an indented "skill: <name>" line beneath a descriptive list item.
 - Put concrete tool call shapes in Skills & Tools or workflow steps; do not use vague tool prose.
 - Include Concrete Workflow for multi-step or sequence-sensitive intents. Use short numbered "### Step N — <name>" sections.
@@ -108,13 +108,13 @@ Requested trigger reviews:
 ${triggerPrompts}
 
 Return JSON only:
-{"findings":[{"trigger":"skill_candidate","hasFinding":true,"operation":"refine","targetIntentIds":["PRODUCTIVITY"],"dedupeKey":"stable-short-key","summary":"...","evidence":["..."],"correctionGoal":"...","suggestedChange":"..."},{"trigger":"process_gap","hasFinding":false}]}
+{"findings":[{"trigger":"skill_candidate","hasFinding":true,"operation":"refine","targetIntentIds":["productivity"],"dedupeKey":"stable-short-key","summary":"...","evidence":["..."],"correctionGoal":"...","suggestedChange":"..."},{"trigger":"process_gap","hasFinding":false}]}
 
 For every hasFinding=true item:
 - correctionGoal must name the intent Markdown outcome.
 - operation must be create, refine, split, or merge.
 - targetIntentIds must list every existing or proposed intent ID affected by the change.
-- suggestedChange must be a concrete intent Markdown draft or patch instruction, including the exact frontmatter fields or body sections to add/change.
+- suggestedChange must be a concrete intent Markdown draft or patch instruction, including the exact triggers/examples or body sections to add/change.
 
 Review snapshot:
 ${JSON.stringify(snapshot)}`;

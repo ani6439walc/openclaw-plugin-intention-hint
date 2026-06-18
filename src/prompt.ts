@@ -3,33 +3,44 @@ import {
   DEFAULT_MEDIUM_COMPLEXITY_PROMPT,
   DEFAULT_HIGH_COMPLEXITY_PROMPT,
   FALLBACK_INTENT,
+  FALLBACK_INTENT_ID,
   INTENTION_HINT_PLUGIN_TAG,
   UNTRUSTED_CONTEXT_HEADER,
 } from "./constants.js";
 import type {
+  IntentCatalogEntry,
   IntentDefinition,
   IntentionResult,
   RecentTurn,
   ResolvedIntentionHintPluginConfig,
 } from "./types.js";
 
-function getEnabledIntentsWithFallback(
-  intents: readonly IntentDefinition[],
-): IntentDefinition[] {
-  return [...intents.filter((intent) => intent.enabled), FALLBACK_INTENT];
+const FALLBACK_INTENT_ENTRY: IntentCatalogEntry = {
+  id: FALLBACK_INTENT_ID,
+  definition: FALLBACK_INTENT,
+};
+
+function getIntentsWithFallback(
+  intents: readonly IntentCatalogEntry[],
+): IntentCatalogEntry[] {
+  return [...intents, FALLBACK_INTENT_ENTRY];
 }
 
-function buildIntentCatalog(intents: readonly IntentDefinition[]): string {
-  return getEnabledIntentsWithFallback(intents)
-    .map((intent) => {
-      const lines = [`<intent id="${intent.id}" name="${intent.name}">`];
-      if (intent.triggers.length > 0) {
+function buildIntentCatalog(intents: readonly IntentCatalogEntry[]): string {
+  return getIntentsWithFallback(intents)
+    .map((entry) => {
+      const lines = [`<intent id="${entry.id}">`];
+      if (entry.definition.triggers.length > 0) {
         lines.push(`triggers:`);
-        lines.push(...intent.triggers.map((trigger) => `- ${trigger}`));
+        lines.push(
+          ...entry.definition.triggers.map((trigger) => `- ${trigger}`),
+        );
       }
-      if (intent.examples.length > 0) {
+      if (entry.definition.examples.length > 0) {
         lines.push(`examples:`);
-        lines.push(...intent.examples.map((example) => `- ${example}`));
+        lines.push(
+          ...entry.definition.examples.map((example) => `- ${example}`),
+        );
       }
       lines.push(`</intent>`);
       return lines.join("\n");
@@ -37,12 +48,12 @@ function buildIntentCatalog(intents: readonly IntentDefinition[]): string {
     .join("\n");
 }
 
-function buildIntentCategories(intents: readonly IntentDefinition[]): string {
+function buildIntentCategories(intents: readonly IntentCatalogEntry[]): string {
   const categoryMap = new Map<string, string[]>();
-  for (const intent of getEnabledIntentsWithFallback(intents)) {
-    const underscoreIndex = intent.id.indexOf("_");
+  for (const intent of getIntentsWithFallback(intents)) {
+    const separatorIndex = intent.id.indexOf("-");
     const prefix =
-      underscoreIndex > 0 ? intent.id.slice(0, underscoreIndex) : "OTHER";
+      separatorIndex > 0 ? intent.id.slice(0, separatorIndex) : "OTHER";
     if (!categoryMap.has(prefix)) {
       categoryMap.set(prefix, []);
     }
@@ -53,7 +64,7 @@ function buildIntentCategories(intents: readonly IntentDefinition[]): string {
   const standaloneIntents: string[] = [];
   for (const [prefix, ids] of categoryMap) {
     if (ids.length >= 2) {
-      categoryLines.push(`- ${prefix}_*: ${ids.join(", ")}`);
+      categoryLines.push(`- ${prefix}-*: ${ids.join(", ")}`);
     } else {
       standaloneIntents.push(...ids);
     }
@@ -94,7 +105,7 @@ function buildConversationMarkdown(
 export function buildIntentionPrompt(params: {
   conversation?: RecentTurn[];
   latest: string;
-  intents: readonly IntentDefinition[];
+  intents: readonly IntentCatalogEntry[];
   currentTime?: string;
 }): string {
   const timeLine = params.currentTime ? `${params.currentTime} ` : "";
@@ -115,7 +126,7 @@ You receive conversation history, the latest user message, and available intent 
 3. **Goal continuity**: If the latest message continues, corrects, refines, or asks to execute a relevant historical goal, prefer its related intent and preserve or refine the relevant historical goal in the new output goal.
 4. **Topic switch**: If the latest message introduces an independent topic, a different subject, or a different desired outcome, classify it fresh and replace the output goal with the new goal.
 5. **Short messages**: First determine whether the message points to a specific historical goal. Do not inherit the most recent intent merely because the message is short or contains a continuation marker.
-6. DO NOT FORCE classification - default to OTHER (Fallback) if uncertain.
+6. DO NOT FORCE classification - default to OTHER if uncertain.
 7. Validate output: ensure all required JSON fields are present, intent exists in catalog (or OTHER), confidence is 0.0-1.0, complexity is low|medium|high.
 </classification_rules>
 
@@ -123,7 +134,7 @@ You receive conversation history, the latest user message, and available intent 
 Return classification as a JSON object. Output MUST be plain JSON only — do NOT wrap in \`\`\`json code blocks.
 
 Required fields:
-- "intent": string - Format: "<id> (<name>)" (e.g., "MEMORY_LOOKUP (Memory Lookup)" or "OTHER (Fallback)")
+- "intent": string - Intent id exactly as shown in the catalog (e.g., "memory-lookup" or "OTHER")
 - "reason": string - Brief reason for classification
 - "goal": string - What the user wants to achieve
 - "confidence": number - 0.0 (guessing) to 1.0 (certain)
@@ -134,7 +145,7 @@ Optional fields:
 
 Example output:
 {
-  "intent": "MEMORY_LOOKUP (Memory Lookup)",
+  "intent": "memory-lookup",
   "reason": "User asked to recall previous conversation topic",
   "goal": "Retrieve memory of past discussion about Python async",
   "confidence": 0.9,
@@ -146,7 +157,7 @@ Complexity levels:
 - "medium": task requiring moderate context analysis or broader scope that needs some investigation before execution.
 - "high": multi-step investigation, research, complex code operations, or broad scope requiring full SOP workflow and structural changes.
 
-Fallback: If no intent confidently matches, return intent as "OTHER" (Fallback).
+Fallback: If no intent confidently matches, return intent as "OTHER".
 </output_format>
 
 <intent_catalog>
@@ -201,12 +212,10 @@ export function parseIntentionResult(
 
     // Resolve intent ID
     let intent = parsed.intent;
-    let intentName: string | undefined;
 
     const idNameMatch = intent.match(/^([A-Za-z0-9_-]+)\s*\(([^)]+)\)/);
     if (idNameMatch) {
       intent = idNameMatch[1];
-      intentName = idNameMatch[2];
     }
 
     const caseInsensitiveMatch = validIntentIds.find(
@@ -214,14 +223,11 @@ export function parseIntentionResult(
     );
     if (caseInsensitiveMatch) {
       intent = caseInsensitiveMatch;
-      if (intentName) {
-        intent = `${caseInsensitiveMatch.toUpperCase()} (${intentName})`;
-      }
     } else if (!validIntentIds.includes(intent)) {
       const otherMatch = validIntentIds.find(
-        (id) => id.toLowerCase() === FALLBACK_INTENT.id.toLowerCase(),
+        (id) => id.toLowerCase() === FALLBACK_INTENT_ID.toLowerCase(),
       );
-      intent = otherMatch ?? validIntentIds[0] ?? FALLBACK_INTENT.id;
+      intent = otherMatch ?? validIntentIds[0] ?? FALLBACK_INTENT_ID;
     }
 
     // Build result
@@ -285,17 +291,16 @@ function resolveIntentId(intent: string): string {
 
 function findEnabledIntent(
   result: IntentionResult,
-  intents: readonly IntentDefinition[],
+  intents: readonly IntentCatalogEntry[],
 ): IntentDefinition | undefined {
   const intentId = resolveIntentId(result.intent).toLowerCase();
-  return intents.find(
-    (intent) => intent.enabled && intent.id.toLowerCase() === intentId,
-  );
+  return intents.find((intent) => intent.id.toLowerCase() === intentId)
+    ?.definition;
 }
 
 export function buildPromptPrefix(
   result: IntentionResult,
-  intents: readonly IntentDefinition[],
+  intents: readonly IntentCatalogEntry[],
   config: ResolvedIntentionHintPluginConfig,
 ): string | undefined {
   const intentDef = findEnabledIntent(result, intents);

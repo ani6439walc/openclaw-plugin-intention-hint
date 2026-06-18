@@ -36,7 +36,7 @@ index.ts
        │    └─ review-queue.ts → ReviewQueue (serialized background evolution reviews)
        │
        ├─ prompt.ts → buildIntentionPrompt() (pure function — no API dependency)
-       │    ├─ JSON output format with <id> (<name>) intent style
+       │    ├─ JSON output format with filename-based intent ids
        │    ├─ parseIntentionResult() — JSON parser with code-block tolerance
        │    ├─ <intent_categories> — auto-derived from ID prefixes
        │    ├─ <current_time> — injects local timezone time
@@ -187,9 +187,9 @@ pnpm run build
         config: {
           agents: ["main"],
           intentDeny: {
-            main: ["MEMORY_*"], // deny matching intent IDs for main
-            "research-*": ["CHAT", "TYPO"],
-            "*": ["AGENT_DISPATCH"], // global deny for every agent
+            main: ["memory-*"], // deny matching filename intent IDs for main
+            "research-*": ["chat", "typo"],
+            "*": ["agent-dispatch"], // global deny for every agent
           },
           model: "google/gemini-3-flash", // lightweight scanner model
           modelFallback: "openai/gpt-5-mini",
@@ -308,8 +308,8 @@ Backlog CLI:
 ```bash
 pnpm run evolution-backlog -- list --json
 pnpm run evolution-backlog -- show --id IMP-...
-pnpm run evolution-backlog -- set-target --id IMP-... --operation refine --target-intent PRODUCTIVITY
-pnpm run evolution-backlog -- validate-intents --id PRODUCTIVITY
+pnpm run evolution-backlog -- set-target --id IMP-... --operation refine --target-intent productivity
+pnpm run evolution-backlog -- validate-intents --id productivity
 pnpm run evolution-backlog -- mark-processed --id IMP-... --expected-updated-at <timestamp>
 ```
 
@@ -328,7 +328,7 @@ The classification sub-agent returns JSON:
 
 ```json
 {
-  "intent": "MEMORY_LOOKUP (Memory Lookup)",
+  "intent": "memory-lookup",
   "reason": "User asked to recall previous conversation",
   "goal": "Retrieve memory of past discussion",
   "confidence": 0.9,
@@ -337,15 +337,15 @@ The classification sub-agent returns JSON:
 }
 ```
 
-- `intent` format: `<id> (<name>)` e.g. `MEMORY_LOOKUP (Memory Lookup)` or `OTHER (Fallback)`
-- Parser extracts ID via regex `^([A-Za-z0-9_-]+)\s*\(` and normalizes case-insensitively against valid intent IDs
+- `intent` format: exact filename id, e.g. `memory-lookup` or `OTHER`
+- Intent ids are derived from active intent filenames by removing the `.md` suffix
 - Fallbacks to `OTHER` if parsed intent not found in catalog
 
 ### Intent Categories
 
 The classification prompt auto-derives categories from intent ID prefixes:
 
-- **2+ intents with same prefix** → `<PREFIX>\_\*: <id1>, <id2>, ...)
+- **2+ intents with same prefix** → `<prefix>-\*: <id1>, <id2>, ...)
 - **Standalone intents** → `STANDALONE: <id1>, <id2>, (...)
 
 Example:
@@ -353,10 +353,9 @@ Example:
 ```
 <intent_categories>
 The following categories group intents by their ID prefix:
-- MEMORY_*: MEMORY_COMPARE, MEMORY_EMOTION, MEMORY_LOOKUP, MEMORY_META, MEMORY_RECENT, MEMORY_TIMELINE
-- RESEARCH_*: RESEARCH_GENERAL, RESEARCH_GOOGLE_DEV, RESEARCH_OPENSOURCE, RESEARCH_REALTIME
-- OTHER_*: CHAT, HUMANITIES, PRODUCTIVITY, SUMMARIZATION, TYPO, OTHER
-- STANDALONE: ANI_VISUAL, IMAGE_ANALYSIS, IMAGE_GENERATION
+- memory-*: memory-compare, memory-emotion, memory-lookup, memory-meta, memory-recent, memory-timeline
+- research-*: research-general, research-google-dev, research-opensource, research-realtime
+- STANDALONE: ani-visual, chat, humanities, image-analysis, image-generation, productivity, summarization, typo, OTHER
 </intent_categories>
 ```
 
@@ -426,7 +425,7 @@ The test suites cover:
 
 - `buildIntentionPrompt()` prompt structure
 - `parseIntentionResult()` JSON parsing (plain, code blocks, malformed, missing fields)
-- Intent ID extraction and normalization from `<id> (<name>)` format
+- Filename-based intent ID validation and fallback behavior
 - Timezone-aware time formatting
 - Config resolution and clamping
 - Session tracker persistence

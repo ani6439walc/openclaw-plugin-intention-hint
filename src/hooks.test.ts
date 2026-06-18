@@ -67,7 +67,7 @@ describe("createHookHandlers tracking guards", () => {
       input: "commit this",
       intent: {
         result: {
-          intent: "VERSION_CONTROL (Version Control)",
+          intent: "version-control",
           reason: "test",
           goal: "Commit changes",
           confidence: 0.9,
@@ -77,12 +77,12 @@ describe("createHookHandlers tracking guards", () => {
       timestamps: { start: "2026-06-11T00:00:00.000Z" },
     };
     const definition = {
-      id: "VERSION_CONTROL",
-      name: "Version Control",
-      enabled: true,
-      triggers: ["commit"],
-      examples: [],
-      prompt: "skill: git-master",
+      id: "version-control",
+      definition: {
+        triggers: ["commit"],
+        examples: [],
+        prompt: "skill: git-master",
+      },
     };
     vi.spyOn(defaultTracker, "hasIntentData").mockReturnValue(true);
     vi.spyOn(defaultTracker, "record").mockImplementation(() => undefined);
@@ -149,12 +149,11 @@ describe("createHookHandlers tracking guards", () => {
     vi.spyOn(defaultStatsAggregator, "record").mockReturnValue(true);
     const definition = {
       id: "OTHER",
-      name: "Fallback",
-      enabled: true,
-      triggers: ["Unmatched requests"],
-      examples: ["help"],
-      prompt:
-        "Detected fallback intent.\n\n## Guidelines\n\n- Ask for context.",
+      definition: {
+        triggers: ["Unmatched requests"],
+        examples: ["help"],
+        prompt: "## Guidelines\n\n- Ask for context.",
+      },
     };
     vi.spyOn(defaultCatalog, "get").mockReturnValue([definition]);
     const enqueue = vi.fn();
@@ -191,7 +190,6 @@ describe("createHookHandlers tracking guards", () => {
           intentCatalog: [
             {
               id: "OTHER",
-              name: "Fallback",
               triggers: ["Unmatched requests"],
               examples: ["help"],
             },

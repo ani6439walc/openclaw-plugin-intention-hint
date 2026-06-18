@@ -92,12 +92,14 @@ export type ResolvedIntentionHintPluginConfig = {
 };
 
 export type IntentDefinition = {
-  enabled: boolean;
-  id: string;
-  name: string;
   triggers: string[];
   examples: string[];
   prompt: string;
+};
+
+export type IntentCatalogEntry = {
+  id: string;
+  definition: IntentDefinition;
 };
 
 export type IntentionResult = {

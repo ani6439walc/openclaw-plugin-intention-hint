@@ -1,7 +1,6 @@
 ---
-id: TYPO
-name: Typo Correction
 triggers:
+  - "The user's message likely contains misspellings or damaged text that should be interpreted before responding."
   - "User input contains obvious typos, garbled text, or truncated text that makes the intended meaning unclear"
 examples:
   - "Help me look up how to use opencaw"
@@ -10,8 +9,6 @@ examples:
   - "can u hlpe me fix thsi"
   - "Check the git sttus"
 ---
-
-Detected "typo" intent. The user's message likely contains misspellings or damaged text that should be interpreted before responding.
 
 ## Guidelines
 

@@ -5,41 +5,33 @@ import {
   buildPromptPrefix,
 } from "./prompt.js";
 import type {
-  IntentDefinition,
+  IntentCatalogEntry,
   IntentionResult,
   ResolvedIntentionHintPluginConfig,
   RecentTurn,
 } from "./types.js";
-import { FALLBACK_INTENT } from "./constants.js";
+import { FALLBACK_INTENT, FALLBACK_INTENT_ID } from "./constants.js";
 
 describe("buildIntentionPrompt", () => {
-  const mockIntents: IntentDefinition[] = [
+  const mockIntents: IntentCatalogEntry[] = [
     {
       id: "coding",
-      name: "Coding Task",
-      triggers: ["write code", "implement", "create function"],
-      examples: [
-        "Write a function to sort an array",
-        "Implement a login system",
-      ],
-      enabled: true,
-      prompt: "You are helping with coding tasks.",
+      definition: {
+        triggers: ["write code", "implement", "create function"],
+        examples: [
+          "Write a function to sort an array",
+          "Implement a login system",
+        ],
+        prompt: "You are helping with coding tasks.",
+      },
     },
     {
       id: "debugging",
-      name: "Debugging",
-      triggers: ["fix bug", "error", "not working"],
-      examples: ["My code throws an error", "Fix this bug"],
-      enabled: true,
-      prompt: "You are helping debug issues.",
-    },
-    {
-      id: "disabled-intent",
-      name: "Disabled Intent",
-      triggers: ["test"],
-      examples: [],
-      enabled: false,
-      prompt: "This should not appear.",
+      definition: {
+        triggers: ["fix bug", "error", "not working"],
+        examples: ["My code throws an error", "Fix this bug"],
+        prompt: "You are helping debug issues.",
+      },
     },
   ];
 
@@ -49,22 +41,34 @@ describe("buildIntentionPrompt", () => {
       latest: "hello",
     });
 
-    expect(result).toContain('<intent id="coding" name="Coding Task">');
-    expect(result).toContain('<intent id="debugging" name="Debugging">');
+    expect(result).toContain('<intent id="coding">');
+    expect(result).toContain('<intent id="debugging">');
+    expect(result).not.toContain("name=");
     expect(result).toContain("triggers:");
     expect(result).toContain("- write code");
     expect(result).toContain("examples:");
     expect(result).toContain("- Write a function to sort an array");
   });
 
-  it("should not include disabled intents", () => {
+  it("should include every loaded intent because disabled frontmatter is removed", () => {
+    const intents: IntentCatalogEntry[] = [
+      ...mockIntents,
+      {
+        id: "formerly-disabled",
+        definition: {
+          triggers: ["test"],
+          examples: [],
+          prompt: "This should appear.",
+        },
+      },
+    ];
     const result = buildIntentionPrompt({
-      intents: mockIntents,
+      intents,
       latest: "hello",
     });
 
-    expect(result).not.toContain('<intent id="disabled-intent"');
-    expect(result).not.toContain("Disabled Intent");
+    expect(result).toContain('<intent id="formerly-disabled">');
+    expect(result).toContain("- test");
   });
 
   it("should always include fallback intent", () => {
@@ -73,8 +77,8 @@ describe("buildIntentionPrompt", () => {
       latest: "hello",
     });
 
-    expect(result).toContain(FALLBACK_INTENT.id);
-    expect(result).toContain(FALLBACK_INTENT.name);
+    expect(result).toContain(FALLBACK_INTENT_ID);
+    expect(result).toContain('<intent id="OTHER">');
   });
 
   it("should include conversation history when provided", () => {
@@ -177,9 +181,9 @@ describe("parseIntentionResult", () => {
     expect(result!.complexity).toBe("medium");
   });
 
-  it("should parse intent with id and name format", () => {
+  it("should store pure id when a matching id is wrapped with display text", () => {
     const raw = JSON.stringify({
-      intent: "MEMORY_LOOKUP (Memory Lookup)",
+      intent: "memory-lookup (Memory Lookup)",
       reason: "User asked to recall previous conversation topic",
       goal: "Retrieve memory of past discussion",
       confidence: 0.9,
@@ -187,13 +191,13 @@ describe("parseIntentionResult", () => {
     });
 
     const result = parseIntentionResult(raw, [
-      "memory_lookup",
+      "memory-lookup",
       "coding",
-      "other",
+      FALLBACK_INTENT_ID,
     ]);
 
     expect(result).toBeDefined();
-    expect(result!.intent).toBe("MEMORY_LOOKUP (Memory Lookup)");
+    expect(result!.intent).toBe("memory-lookup");
     expect(result!.reason).toBe(
       "User asked to recall previous conversation topic",
     );
@@ -392,39 +396,31 @@ describe("parseIntentionResult", () => {
 });
 
 describe("buildPromptPrefix", () => {
-  const mockIntents: IntentDefinition[] = [
+  const mockIntents: IntentCatalogEntry[] = [
     {
       id: "coding",
-      name: "Coding Task",
-      triggers: [],
-      examples: [],
-      enabled: true,
-      prompt:
-        "You are helping with coding tasks. Write clean, well-tested code.",
+      definition: {
+        triggers: [],
+        examples: [],
+        prompt:
+          "You are helping with coding tasks. Write clean, well-tested code.",
+      },
     },
     {
       id: "debugging",
-      name: "Debugging",
-      triggers: [],
-      examples: [],
-      enabled: true,
-      prompt: "You are helping debug issues. Be thorough in your analysis.",
+      definition: {
+        triggers: [],
+        examples: [],
+        prompt: "You are helping debug issues. Be thorough in your analysis.",
+      },
     },
     {
-      id: "AGENT_DISPATCH",
-      name: "Agent Dispatch & Orchestration",
-      triggers: [],
-      examples: [],
-      enabled: true,
-      prompt: "Detected agent dispatch and orchestration intent.",
-    },
-    {
-      id: "disabled-intent",
-      name: "Disabled",
-      triggers: [],
-      examples: [],
-      enabled: false,
-      prompt: "This intent is disabled.",
+      id: "agent-dispatch",
+      definition: {
+        triggers: [],
+        examples: [],
+        prompt: "Agent dispatch and orchestration guidance.",
+      },
     },
   ];
 
@@ -469,9 +465,9 @@ describe("buildPromptPrefix", () => {
     expect(prefix).toContain("MEDIUM_COMPLEXITY_PROMPT");
   });
 
-  it("should match intent ids when result includes display name", () => {
+  it("should match filename intent ids when result includes display text", () => {
     const result: IntentionResult = {
-      intent: "AGENT_DISPATCH (Agent Dispatch & Orchestration)",
+      intent: "agent-dispatch (Agent Dispatch & Orchestration)",
       reason:
         "User is confirming/approving a prior proposal to organize a file",
       goal: "Execute the file reorganization plan",
@@ -481,9 +477,7 @@ describe("buildPromptPrefix", () => {
 
     const prefix = buildPromptPrefix(result, mockIntents, mockConfig);
 
-    expect(prefix).toContain(
-      "Detected agent dispatch and orchestration intent.",
-    );
+    expect(prefix).toContain("Agent dispatch and orchestration guidance.");
     expect(prefix).not.toContain(FALLBACK_INTENT.prompt);
   });
 
@@ -544,21 +538,6 @@ describe("buildPromptPrefix", () => {
     const prefix = buildPromptPrefix(result, mockIntents, mockConfig);
 
     expect(prefix).toContain(FALLBACK_INTENT.prompt);
-  });
-
-  it("should fallback to FALLBACK_INTENT when intent is disabled", () => {
-    const result: IntentionResult = {
-      intent: "disabled-intent",
-      reason: "Request for disabled intent",
-      goal: "Do something",
-      confidence: 0.8,
-      complexity: "low",
-    };
-
-    const prefix = buildPromptPrefix(result, mockIntents, mockConfig);
-
-    expect(prefix).toContain(FALLBACK_INTENT.prompt);
-    expect(prefix).not.toContain("This intent is disabled");
   });
 
   it("should wrap content in intention_hint_plugin tags", () => {

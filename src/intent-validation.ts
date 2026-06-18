@@ -38,8 +38,7 @@ export function validateIntentDirectory(
     try {
       const parsed = matter(fs.readFileSync(filePath, "utf-8"));
       const data = parsed.data as Record<string, unknown>;
-      const id = typeof data.id === "string" ? data.id.trim() : "";
-      const name = typeof data.name === "string" ? data.name.trim() : "";
+      const id = file.slice(0, -".md".length);
       const triggers = Array.isArray(data.triggers)
         ? data.triggers.filter(
             (value): value is string =>
@@ -54,24 +53,25 @@ export function validateIntentDirectory(
         : [];
       const body = parsed.content.trim();
 
-      if (!id) errors.push(`${file}: missing frontmatter id`);
-      if (!name) errors.push(`${file}: missing frontmatter name`);
+      for (const staleField of ["id", "name", "enabled"]) {
+        if (staleField in data) {
+          errors.push(`${file}: stale frontmatter field ${staleField}`);
+        }
+      }
       if (triggers.length === 0)
         errors.push(`${file}: triggers must contain at least one string`);
       if (examples.length === 0)
         errors.push(`${file}: examples must contain at least one string`);
       if (!body) errors.push(`${file}: Markdown body is empty`);
 
-      if (id) {
-        const key = id.toLowerCase();
-        const duplicate = seenIds.get(key);
-        if (duplicate)
-          errors.push(
-            `${file}: duplicate intent id ${id} already used by ${duplicate}`,
-          );
-        else seenIds.set(key, file);
-        intents.push({ id, file });
-      }
+      const key = id.toLowerCase();
+      const duplicate = seenIds.get(key);
+      if (duplicate)
+        errors.push(
+          `${file}: duplicate intent id ${id} already used by ${duplicate}`,
+        );
+      else seenIds.set(key, file);
+      intents.push({ id, file });
 
       const headings = [...body.matchAll(/^## (.+)$/gm)].map((match) =>
         match[1].trim(),
@@ -103,9 +103,9 @@ export function validateIntentDirectory(
     }
   }
 
-  const available = new Set(intents.map((intent) => intent.id.toLowerCase()));
+  const available = new Set(intents.map((intent) => intent.id));
   for (const target of targetIntentIds) {
-    if (!available.has(target.toLowerCase()))
+    if (!available.has(target))
       errors.push(`target intent not found: ${target}`);
   }
 

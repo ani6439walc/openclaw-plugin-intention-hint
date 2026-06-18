@@ -13,17 +13,12 @@ describe("validateIntentDirectory", () => {
   });
   afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
 
-  const valid = (id: string) => `---
-id: ${id}
-name: ${id}
-enabled: true
+  const valid = () => `---
 triggers:
   - "trigger"
 examples:
   - "example"
 ---
-Detected.
-
 ## Guidelines
 - Do it.
 
@@ -35,24 +30,55 @@ Detected.
 `;
 
   it("accepts valid intents and requested targets", () => {
-    fs.writeFileSync(path.join(dir, "one.md"), valid("ONE"));
-    expect(validateIntentDirectory(dir, ["ONE"])).toMatchObject({
+    fs.writeFileSync(path.join(dir, "one.md"), valid());
+    expect(validateIntentDirectory(dir, ["one"])).toMatchObject({
       valid: true,
       errors: [],
     });
   });
 
-  it("rejects duplicate IDs, missing frontmatter, and section order", () => {
-    fs.writeFileSync(path.join(dir, "one.md"), valid("ONE"));
+  it("rejects stale frontmatter fields", () => {
     fs.writeFileSync(
-      path.join(dir, "two.md"),
-      valid("ONE")
+      path.join(dir, "one.md"),
+      `---
+id: ONE
+name: One
+enabled: true
+triggers: ["trigger"]
+examples: ["example"]
+---
+## Guidelines
+- Do it.
+
+## Response Strategy
+- Respond.
+`,
+    );
+
+    const result = validateIntentDirectory(dir);
+    expect(result.valid).toBe(false);
+    expect(result.errors.join("\n")).toContain(
+      "one.md: stale frontmatter field id",
+    );
+    expect(result.errors.join("\n")).toContain(
+      "one.md: stale frontmatter field name",
+    );
+    expect(result.errors.join("\n")).toContain(
+      "one.md: stale frontmatter field enabled",
+    );
+  });
+
+  it("rejects duplicate filename IDs, missing frontmatter, and section order", () => {
+    fs.writeFileSync(path.join(dir, "one.md"), valid());
+    fs.writeFileSync(
+      path.join(dir, "ONE.md"),
+      valid()
         .replace("## Skills & Tools", "## Response Strategy")
         .replace("## Response Strategy\n- Respond.", "## Guidelines\n- Again."),
     );
     const result = validateIntentDirectory(dir, ["MISSING"]);
     expect(result.valid).toBe(false);
-    expect(result.errors.join("\n")).toContain("duplicate intent id ONE");
+    expect(result.errors.join("\n")).toContain("duplicate intent id one");
     expect(result.errors.join("\n")).toContain(
       "duplicate ## Guidelines section",
     );

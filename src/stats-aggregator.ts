@@ -1,6 +1,6 @@
 import { logger } from "../api.js";
 import type { SessionState } from "./session-tracker.js";
-import type { IntentDefinition } from "./types.js";
+import type { IntentCatalogEntry } from "./types.js";
 import {
   pluginRoot,
   statsPath,
@@ -142,19 +142,19 @@ function rate(numerator: number, denominator: number): number {
 
 function resolveIntentId(
   resultIntent: string,
-  definition: IntentDefinition | undefined,
+  definition: IntentCatalogEntry | undefined,
 ): string {
   if (definition) return definition.id;
   return resultIntent.match(/^([A-Za-z0-9_-]+)/)?.[1] ?? resultIntent;
 }
 
 function extractRecommendedSkills(
-  definition: IntentDefinition | undefined,
+  definition: IntentCatalogEntry | undefined,
 ): string[] {
   if (!definition) return [];
   return [
     ...new Set(
-      definition.prompt
+      definition.definition.prompt
         .split(/\r?\n/)
         .map((line) => line.match(/^\s*skill:\s*(\S+)\s*$/i)?.[1])
         .filter((skill): skill is string => !!skill),
@@ -264,7 +264,7 @@ export class StatsAggregator {
   record(
     sessionId: string | undefined,
     state: SessionState,
-    intentDefinition?: IntentDefinition,
+    intentDefinition?: IntentCatalogEntry,
     options: { nowMs?: number } = {},
   ): boolean {
     const result = state.intent?.result;

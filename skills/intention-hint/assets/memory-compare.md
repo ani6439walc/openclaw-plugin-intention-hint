@@ -1,15 +1,12 @@
 ---
-id: MEMORY_COMPARE
-name: Memory Comparison Query
 triggers:
+  - "The user wants two or more remembered subjects to be compared without merging them into a single recall path."
   - "User is asking about differences, similarities, trade-offs, or contrasts between two or more remembered subjects, periods, trips, approaches, or records"
 examples:
   - "Which of these two approaches is better?"
   - "What's the difference between last month's and this month's data?"
   - "How does the Japan trip compare to the Chiayi trip?"
 ---
-
-Detected "memory comparison" intent. The user wants two or more remembered subjects to be compared without merging them into a single recall path.
 
 ## Guidelines
 
