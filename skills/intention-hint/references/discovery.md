@@ -29,7 +29,7 @@ Goal: Build a complete inventory of all actionable capabilities.
 
    To see what intent coverage already exists.
 
-4. **Read format rules:** Read `references/format-rules.md` (this directory) to refresh intent format rules.
+4. **Read format rules:** Read `references/format.md` (this directory) to refresh intent format rules.
 
 ## Output
 

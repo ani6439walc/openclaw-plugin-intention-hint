@@ -48,7 +48,7 @@
     "format": "prettier --write '**/*.md' '**/*.json' '**/*.ts'",
     "test": "vitest run",
     "build": "tsc",
-    "backlog": "node dist/src/backlog-cli.js"
+    "evolution-backlog": "node dist/src/evolution-backlog-command.js"
   },
   "dependencies": {
     "gray-matter": "4.0.3",

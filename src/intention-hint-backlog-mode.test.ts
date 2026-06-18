@@ -5,7 +5,7 @@ import matter from "gray-matter";
 
 const skillPath = path.resolve("skills/intention-hint/SKILL.md");
 const referencePath = path.resolve(
-  "skills/intention-hint/references/evolve-workflow.md",
+  "skills/intention-hint/references/evolution.md",
 );
 
 describe("intention-hint backlog mode", () => {
@@ -21,16 +21,18 @@ describe("intention-hint backlog mode", () => {
     });
     expect(parsed.data).not.toHaveProperty("disable-model-invocation");
     expect(parsed.content).toContain("## Mode: evolve");
-    expect(parsed.content).toContain("references/evolve-workflow.md");
+    expect(parsed.content).toContain("references/evolution.md");
 
     expect(reference).toContain("only when the user explicitly asks");
     expect(reference).toContain("Process exactly one pending finding");
-    expect(reference).toContain("pnpm run backlog -- show");
-    expect(reference).toContain("pnpm run backlog -- set-target");
-    expect(reference).toContain("pnpm run backlog -- validate-intents");
-    expect(reference).toContain("pnpm run backlog -- mark-processed");
-    expect(reference).toContain("pnpm run backlog -- mark-dismissed");
-    expect(reference).toContain("pnpm run backlog -- list --json");
+    expect(reference).toContain("pnpm run evolution-backlog -- show");
+    expect(reference).toContain("pnpm run evolution-backlog -- set-target");
+    expect(reference).toContain(
+      "pnpm run evolution-backlog -- validate-intents",
+    );
+    expect(reference).toContain("pnpm run evolution-backlog -- mark-processed");
+    expect(reference).toContain("pnpm run evolution-backlog -- mark-dismissed");
+    expect(reference).toContain("pnpm run evolution-backlog -- list --json");
     expect(reference).toContain("obtain explicit user confirmation");
     expect(reference).toContain("leave the item `pending`");
     expect(reference).toContain("duplicate, superseded, unsafe");

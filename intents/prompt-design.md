@@ -94,7 +94,7 @@ Detected "prompt design" intent. The user wants help designing or refining promp
   exec({ command: "find ~/.openclaw/skills ~/.openclaw/workspace -name 'SKILL.md' -o -name '\*.md' | grep -i '<keyword>'", workdir: "~/.openclaw" })
 
 - Manage the intention-hint evolution backlog (show, mark-processed, mark-dismissed):
-  exec({ command: "pnpm run backlog -- <subcommand>" })
+  exec({ command: "pnpm run evolution-backlog -- <subcommand>" })
 
 ## Response Strategy
 

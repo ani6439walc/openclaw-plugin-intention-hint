@@ -7,10 +7,10 @@ Enter this mode only when the user explicitly asks to process the evolution back
 
 - Treat current `intents/*.md` and the loaded catalog as the source of truth.
   `suggestedChange` is evidence and advice, not a patch to apply blindly.
-- Follow `references/format-rules.md` and the relevant design/inventory references for intent
+- Follow `references/format.md` and the relevant design/inventory references for intent
   boundaries, collision checks, and workflow quality.
 - Do not edit `~/.openclaw/plugins/intention-hint/evolution.json` directly. Use
-  `pnpm run backlog -- ...` for every backlog read or mutation.
+  `pnpm run evolution-backlog -- ...` for every backlog read or mutation.
 - Never create a git commit or push.
 - Process one item only. Leave blocked or ambiguous items `pending`.
 - Mark duplicate, superseded, unsafe, or clearly rejected findings `dismissed`
@@ -21,8 +21,9 @@ Enter this mode only when the user explicitly asks to process the evolution back
 
 ## Select And Ground
 
-1. From the plugin root, run `pnpm run backlog -- show --id <item-id>` when the
-   user supplied an ID; otherwise run `pnpm run backlog -- show`. The default
+1. From the plugin root, run
+   `pnpm run evolution-backlog -- show --id <item-id>` when the user supplied
+   an ID; otherwise run `pnpm run evolution-backlog -- show`. The default
    selects highest `frequency`, then oldest `createdAt`.
 2. Re-read the selected item immediately before processing. It must still be
    `pending`.
@@ -33,7 +34,7 @@ Enter this mode only when the user explicitly asks to process the evolution back
    with:
 
    ```bash
-   pnpm run backlog -- set-target --id <item-id> --operation <operation> --target-intent <intent-id>
+   pnpm run evolution-backlog -- set-target --id <item-id> --operation <operation> --target-intent <intent-id>
    ```
 
    Repeat `--target-intent` for multiple targets, then re-run `show` and use
@@ -71,7 +72,7 @@ examples, and body guidance:
    files. Mark it dismissed using the latest selected `updatedAt`:
 
    ```bash
-   pnpm run backlog -- mark-dismissed --id <item-id> --expected-updated-at <timestamp>
+   pnpm run evolution-backlog -- mark-dismissed --id <item-id> --expected-updated-at <timestamp>
    ```
 
    Report the dismissal reason and stop processing this item.
@@ -90,7 +91,7 @@ examples, and body guidance:
 6. Validate the resulting files:
 
    ```bash
-   pnpm run backlog -- validate-intents --id <target-intent-id>
+   pnpm run evolution-backlog -- validate-intents --id <target-intent-id>
    pnpm run test
    pnpm run build
    ```
@@ -101,7 +102,7 @@ examples, and body guidance:
    latest `show` or `set-target` result:
 
    ```bash
-   pnpm run backlog -- mark-processed --id <item-id> --expected-updated-at <timestamp>
+   pnpm run evolution-backlog -- mark-processed --id <item-id> --expected-updated-at <timestamp>
    ```
 
 8. If an edit, validation, or status update fails, restore only the files in
@@ -115,5 +116,5 @@ was processed or dismissed, whether a rollback occurred, and the remaining
 pending count from:
 
 ```bash
-pnpm run backlog -- list --json
+pnpm run evolution-backlog -- list --json
 ```

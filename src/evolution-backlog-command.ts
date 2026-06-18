@@ -47,13 +47,13 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
-export function resolveDefaultBacklogCliRoot(
+export function resolveDefaultEvolutionBacklogRoot(
   env: NodeJS.ProcessEnv = process.env,
 ): string {
   return resolvePluginDataRoot(resolveStateDir(env), PLUGIN_ID);
 }
 
-export function runBacklogCli(
+export function runEvolutionBacklogCommand(
   rawArgs: string[],
   pluginRoot: string,
   io: CliIo = {
@@ -67,7 +67,7 @@ export function runBacklogCli(
     const backlogPath = evolutionBacklogPath(pluginRoot);
     if (!command)
       throw new Error(
-        "usage: backlog <list|show|set-target|validate-intents|mark-processed|mark-dismissed>",
+        "usage: evolution-backlog <list|show|set-target|validate-intents|mark-processed|mark-dismissed>",
       );
 
     if (command === "validate-intents") {
@@ -178,8 +178,8 @@ export function runBacklogCli(
 
 const currentFile = fileURLToPath(import.meta.url);
 if (process.argv[1] && path.resolve(process.argv[1]) === currentFile) {
-  process.exitCode = runBacklogCli(
+  process.exitCode = runEvolutionBacklogCommand(
     process.argv.slice(2),
-    resolveDefaultBacklogCliRoot(),
+    resolveDefaultEvolutionBacklogRoot(),
   );
 }

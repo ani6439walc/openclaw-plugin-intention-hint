@@ -18,7 +18,7 @@ index.ts
        │    └─ DEFAULT_TIMEOUT_MS, FALLBACK_INTENT, default complexity prompts, UNTRUSTED_CONTEXT_HEADER
        │
        ├─ types.ts → all shared type definitions
-       ├─ evolution-types.ts → Self-Evolution review types (ReviewState, ReviewSnapshot, EvolutionFinding, EvolutionSource)
+       ├─ evolution-types.ts → Evolution review types (ReviewState, ReviewSnapshot, EvolutionFinding, EvolutionSource)
        │
        ├─ intent-loader.ts → runtime catalog
        │    └─ loads intent .md files from $OPENCLAW_STATE_DIR/plugins/intention-hint/intents
@@ -56,14 +56,14 @@ index.ts
        │    ├─ uses file-utils.ts for fileExists(), readJsonFile(), safeWriteJson()
        │    └─ $OPENCLAW_STATE_DIR/plugins/intention-hint/stats.json
        │
-       ├─ trigger-checker.ts + review-subagent.ts → Intent Self-Evolution review
+       ├─ trigger-checker.ts + review-subagent.ts → Intent Evolution review
        │    ├─ trigger-checker.ts → checkEvolutionTriggers() (six configurable triggers)
        │    ├─ review-subagent.ts → buildReviewPrompt() + parseReviewFindings() + runReviewSubagent()
        │    └─ backlog-writer.ts + evolution-backlog.ts → $OPENCLAW_STATE_DIR/plugins/intention-hint/evolution.json
        │         ├─ backlog-writer.ts uses file-utils.ts for safeWriteJson()
        │         └─ evolution-backlog.ts uses file-utils.ts for readJsonFile(), writeJsonAtomic()
        │
-       ├─ backlog-cli.ts + intent-validation.ts → transactional backlog processing support
+       ├─ evolution-backlog-command.ts + intent-validation.ts → transactional backlog processing support
        │    └─ skills/intention-hint/references/process-backlog.md
        │
        ├─ session.ts → session guards (isEnabledForAgent, isEligibleInteractiveSession, etc.)
@@ -75,29 +75,29 @@ index.ts
 
 ### Module Responsibilities
 
-| Module                    | Purpose                                                                                                   |
-| ------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `plugin.ts`               | Plugin entry point, registers hooks on OpenClaw lifecycle events                                          |
-| `hooks.ts`                | Event handlers for prompt building, tool/agent tracking, and session cleanup                              |
-| `subagent.ts`             | Runs the intention classification sub-agent with model selection                                          |
-| `intent-loader.ts`        | Loads and catalogs intent definitions from YAML-frontmatter `.md` files                                   |
-| `file-utils.ts`           | Shared filesystem helpers — atomic JSON I/O, directory management, path resolution                        |
-| `constants.ts`            | Shared defaults — timeouts, fallback intent, complexity prompts, untrusted header                         |
-| `types.ts`                | All shared type definitions for plugin, config, intent, result, and turn shapes                           |
-| `evolution-types.ts`      | Shared types for Self-Evolution pipeline — ReviewState, ReviewSnapshot, EvolutionFinding, EvolutionSource |
-| `session-tracker.ts`      | Persist and clean up session data in runtime `sessions/` JSON files                                       |
-| `stats-aggregator.ts`     | Aggregate idempotent runtime usage statistics into `stats.json`                                           |
-| `trigger-checker.ts`      | Detect six configurable Self-Evolution triggers from completed turns                                      |
-| `review-subagent.ts`      | Build trigger-specific review prompts and run the tool-free review sub-agent                              |
-| `review-queue.ts`         | Serialized promise queue for background evolution reviews                                                 |
-| `backlog-writer.ts`       | Merge review findings atomically into `evolution.json`                                                    |
-| `evolution-backlog.ts`    | Validate/migrate backlog schema and provide atomic mutation primitives                                    |
-| `backlog-cli.ts`          | List, target, validate, and optimistically complete pending backlog items                                 |
-| `intent-validation.ts`    | Validate Intent Markdown structure, IDs, targets, and catalog loading                                     |
-| `conversation-extract.ts` | Extract and truncate recent conversation turns for intent context                                         |
-| `prompt.ts`               | **Core prompt & parser** — builds classification prompt, parses JSON result                               |
-| `session.ts`              | Session eligibility guards (agent allow-list, chat type, internal run detection)                          |
-| `config.ts`               | Zod schema validation with defaults and clamping for plugin configuration                                 |
+| Module                         | Purpose                                                                                              |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `plugin.ts`                    | Plugin entry point, registers hooks on OpenClaw lifecycle events                                     |
+| `hooks.ts`                     | Event handlers for prompt building, tool/agent tracking, and session cleanup                         |
+| `subagent.ts`                  | Runs the intention classification sub-agent with model selection                                     |
+| `intent-loader.ts`             | Loads and catalogs intent definitions from YAML-frontmatter `.md` files                              |
+| `file-utils.ts`                | Shared filesystem helpers — atomic JSON I/O, directory management, path resolution                   |
+| `constants.ts`                 | Shared defaults — timeouts, fallback intent, complexity prompts, untrusted header                    |
+| `types.ts`                     | All shared type definitions for plugin, config, intent, result, and turn shapes                      |
+| `evolution-types.ts`           | Shared types for Evolution pipeline — ReviewState, ReviewSnapshot, EvolutionFinding, EvolutionSource |
+| `session-tracker.ts`           | Persist and clean up session data in runtime `sessions/` JSON files                                  |
+| `stats-aggregator.ts`          | Aggregate idempotent runtime usage statistics into `stats.json`                                      |
+| `trigger-checker.ts`           | Detect six configurable Evolution triggers from completed turns                                      |
+| `review-subagent.ts`           | Build trigger-specific review prompts and run the tool-free review sub-agent                         |
+| `review-queue.ts`              | Serialized promise queue for background evolution reviews                                            |
+| `backlog-writer.ts`            | Merge review findings atomically into `evolution.json`                                               |
+| `evolution-backlog.ts`         | Validate/migrate backlog schema and provide atomic mutation primitives                               |
+| `evolution-backlog-command.ts` | List, target, validate, and optimistically complete pending backlog items                            |
+| `intent-validation.ts`         | Validate Intent Markdown structure, IDs, targets, and catalog loading                                |
+| `conversation-extract.ts`      | Extract and truncate recent conversation turns for intent context                                    |
+| `prompt.ts`                    | **Core prompt & parser** — builds classification prompt, parses JSON result                          |
+| `session.ts`                   | Session eligibility guards (agent allow-list, chat type, internal run detection)                     |
+| `config.ts`                    | Zod schema validation with defaults and clamping for plugin configuration                            |
 
 Every `session_end` removes the ended session from tracker memory. Final lifecycle reasons (`new`, `reset`, `idle`, `daily`, `compaction`, and `deleted`) also delete that session's JSON; restart-oriented reasons preserve it for reload. Each `session_end` additionally removes session JSON files under the runtime `sessions/` directory whose modification time is strictly older than 14 days. Cleanup is fail-open and does not touch root-level `stats.json`, `evolution.json`, transcripts, or other plugin data.
 
@@ -212,7 +212,7 @@ pnpm run build
             enabled: false,
             model: "google/gemini-3-flash",
             modelFallback: "openai/gpt-5-mini",
-            thinking: "medium", // self-evolution review subagent thinking level
+            thinking: "medium", // evolution review subagent thinking level
             timeoutMs: 30000,
             triggers: {
               skillCandidate: { enabled: true, toolCalls: 5 },
@@ -251,13 +251,13 @@ pnpm run build
 | `complexityPrompts` | `object`   | built-in     | Custom classification prompt overrides per complexity level.                                                                |
 | `evolution`         | `object`   | disabled     | Post-turn trigger review configuration. Findings are stored in `$OPENCLAW_STATE_DIR/plugins/intention-hint/evolution.json`. |
 
-`evolution.thinking` independently controls the Self-Evolution review
+`evolution.thinking` independently controls the Evolution review
 subagent's thinking level. Both thinking settings accept `off`, `minimal`,
 `low`, `medium`, `high`, `xhigh`, `adaptive`, or `max`.
 
-### Intent Self-Evolution
+### Intent Evolution
 
-Intent Self-Evolution is an opt-in observation and proposal pipeline. It does
+Intent Evolution is an opt-in observation and proposal pipeline. It does
 not edit intent files automatically. When enabled, each completed tracked turn
 is checked for six trigger types:
 
@@ -306,11 +306,11 @@ Detailed transactional steps live in
 Backlog CLI:
 
 ```bash
-pnpm run backlog -- list --json
-pnpm run backlog -- show --id IMP-...
-pnpm run backlog -- set-target --id IMP-... --operation refine --target-intent PRODUCTIVITY
-pnpm run backlog -- validate-intents --id PRODUCTIVITY
-pnpm run backlog -- mark-processed --id IMP-... --expected-updated-at <timestamp>
+pnpm run evolution-backlog -- list --json
+pnpm run evolution-backlog -- show --id IMP-...
+pnpm run evolution-backlog -- set-target --id IMP-... --operation refine --target-intent PRODUCTIVITY
+pnpm run evolution-backlog -- validate-intents --id PRODUCTIVITY
+pnpm run evolution-backlog -- mark-processed --id IMP-... --expected-updated-at <timestamp>
 ```
 
 All mutations validate schema v2 and use a same-directory temporary file plus
@@ -433,9 +433,9 @@ The test suites cover:
 - Intent filtering via deny patterns
 - Internal/inter-session turn detection and conversation-history filtering
 - Per-turn historical intent matching, duplicate handling, and prompt injection
-- Six Self-Evolution triggers, thresholds, and multi-trigger turns
+- Six Evolution triggers, thresholds, and multi-trigger turns
 - Intention-hint Skill review prompts, response parsing, and tool-free reviewer runs
 - Serialized background reviews and atomic, idempotent evolution backlog writes
-- Schema v1-to-v2 migration, structured finding targets, and backlog CLI concurrency checks
+- Schema v1-to-v2 migration, structured finding targets, and evolution-backlog command concurrency checks
 - Intent Markdown structure/catalog validation and explicit-only intention-hint backlog mode
 - Protection of root-level `evolution.json` from session loading and retention cleanup

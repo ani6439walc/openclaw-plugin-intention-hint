@@ -12,7 +12,7 @@ When enough information is collected, stop asking discovery questions and switch
 ## Safety checks
 
 - If the proposed design is still too broad or collides badly, do not force a final draft yet. Say what decision is still unresolved and ask the smallest next question.
-- Use the README's required skill/tool format (see `references/format-rules.md`).
+- Use the README's required skill/tool format (see `references/format.md`).
 - Do not invent ad-hoc labels or freeform tool prose when a concrete call shape is more appropriate.
 
 ## Collision warning format

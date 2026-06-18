@@ -1,6 +1,6 @@
 ---
 name: intention-hint
-description: "Design, inventory, or evolve intent definitions for the intention-hint plugin. Use when creating/refining a single intent (design), bootstrapping or re-auditing the full catalog (inventory), or processing a self-evolution backlog finding (evolve)."
+description: "Design, inventory, or evolve intent definitions for the intention-hint plugin. Use when creating/refining a single intent (design), bootstrapping or re-auditing the full catalog (inventory), or processing an evolution backlog finding (evolve)."
 ---
 
 # Intention Hint Skill
@@ -13,7 +13,7 @@ Manage the full lifecycle of intent definitions: from single-intent CRUD (design
 What does the user want?
 ├─ Create/rename/split/merge/refine ONE intent → design
 ├─ Bootstrap or re-audit the ENTIRE catalog → inventory
-└─ Process a self-evolution backlog finding → evolve
+└─ Process an evolution backlog finding → evolve
 ```
 
 If ambiguous, ask: "Are you working on a single intent, auditing the whole system, or processing a backlog finding?"
@@ -115,7 +115,7 @@ mv intent.md ~/.openclaw/plugins/intention-hint/intents/<intent-id>.md
 | ----------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------ |
 | **Interview stalls** — user does not reply or gives vague answers | Restate with recommended options ("A or B?")   | Mark as `incomplete`, suggest resuming later                 |
 | **Collision detected** — new intent overlaps existing             | Suggest split or merge, show collision details | Force-create but tag as `experimental`, flag for next review |
-| **format-rules.md validation fails**                              | Read error message, fix format and retry       | Display full format-rules.md for manual inspection           |
+| **format.md validation fails**                                    | Read error message, fix format and retry       | Display full format.md for manual inspection                 |
 
 ### Anti-patterns
 
@@ -123,7 +123,7 @@ mv intent.md ~/.openclaw/plugins/intention-hint/intents/<intent-id>.md
 | --- | ----------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------- |
 | 1   | **Ask multiple questions at once**              | Confuses user, degrades response quality             | Interview one question at a time                  |
 | 2   | **Cross-reference other intents in body**       | Classification sub-agent only sees triggers/examples | Express boundaries via triggers and examples only |
-| 3   | **Skip format-rules.md before writing**         | Inconsistent format breaks plugin parsing            | Always read format-rules.md first                 |
+| 3   | **Skip format.md before writing**               | Inconsistent format breaks plugin parsing            | Always read format.md first                       |
 | 4   | **Create a new intent when one already exists** | Causes duplication and collision                     | Check existing intents during interview           |
 | 5   | **Use vague descriptions as triggers**          | Classification cannot match accurately               | Triggers must be concrete phrases or keywords     |
 
@@ -191,13 +191,13 @@ Validate all new intents, check for collisions, and deliver.
 
 ### When to use
 
-User explicitly asks to process a self-evolution backlog finding.
+User explicitly asks to process an evolution backlog finding.
 
 Keywords: "process backlog", "evolve intent", "handle evolution finding", "process the next finding"
 
 **Never enter this mode merely because `~/.openclaw/plugins/intention-hint/evolution.json` contains pending items.**
 
-Read and follow `references/evolve-workflow.md` before processing a finding.
+Read and follow `references/evolution.md` before processing a finding.
 
 ### Workflow
 
@@ -205,10 +205,10 @@ Read and follow `references/evolve-workflow.md` before processing a finding.
 
 ```bash
 # Show all pending findings (picks highest frequency, oldest createdAt)
-pnpm run backlog -- show
+pnpm run evolution-backlog -- show
 
 # Or show a specific finding
-pnpm run backlog -- show --id <item-id>
+pnpm run evolution-backlog -- show --id <item-id>
 ```
 
 Re-read the selected item — it must still be `pending`.
@@ -227,7 +227,7 @@ Before applying a suggested body edit, compare the target intent's `id`, `name`,
 For legacy items with `operation: unknown`, infer metadata:
 
 ```bash
-pnpm run backlog -- set-target --id <item-id> --operation <operation> --target-intent <intent-id>
+pnpm run evolution-backlog -- set-target --id <item-id> --operation <operation> --target-intent <intent-id>
 ```
 
 **Step 3 — Backup + Apply**
@@ -249,7 +249,7 @@ Then apply:
 **Step 4 — Validate**
 
 ```bash
-pnpm run backlog -- validate-intents --id <target-intent-id>
+pnpm run evolution-backlog -- validate-intents --id <target-intent-id>
 pnpm run test
 pnpm run build
 ```
@@ -258,10 +258,10 @@ pnpm run build
 
 ```bash
 # All checks pass → mark processed
-pnpm run backlog -- mark-processed --id <item-id> --expected-updated-at <timestamp>
+pnpm run evolution-backlog -- mark-processed --id <item-id> --expected-updated-at <timestamp>
 
 # Duplicate/superseded/unsafe/rejected finding → mark dismissed
-pnpm run backlog -- mark-dismissed --id <item-id> --expected-updated-at <timestamp>
+pnpm run evolution-backlog -- mark-dismissed --id <item-id> --expected-updated-at <timestamp>
 
 # Validation fails → restore from backup, leave item pending
 ```
@@ -322,8 +322,8 @@ grep -E "^(## Guidelines|## Skills & Tools|## Response Strategy)" <file>
 
 ### Test prompts (dry_run)
 
-| #   | Prompt                                           | Expected behavior                                                                                     | Mode      |
-| --- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------- | --------- |
-| 1   | "Help me create a new intent for git operations" | Route to **design** → classify=create → interview Q1-Q4 → ground → draft → validate                   | design    |
-| 2   | "Audit the entire intent system from scratch"    | Route to **inventory** → discovery → clustering → 🔴 CHECKPOINT → interview → generate → review       | inventory |
-| 3   | "Process the next evolution backlog finding"     | Route to **evolve** → `pnpm run backlog -- show` → ground → backup → apply → validate → mark/rollback | evolve    |
+| #   | Prompt                                           | Expected behavior                                                                                               | Mode      |
+| --- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- | --------- |
+| 1   | "Help me create a new intent for git operations" | Route to **design** → classify=create → interview Q1-Q4 → ground → draft → validate                             | design    |
+| 2   | "Audit the entire intent system from scratch"    | Route to **inventory** → discovery → clustering → 🔴 CHECKPOINT → interview → generate → review                 | inventory |
+| 3   | "Process the next evolution backlog finding"     | Route to **evolve** → `pnpm run evolution-backlog -- show` → ground → backup → apply → validate → mark/rollback | evolve    |

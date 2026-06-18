@@ -94,7 +94,7 @@ export function buildReviewPrompt(
     })
     .join("\n\n");
 
-  return `You are an Intent Self-Evolution reviewer.
+  return `You are an Intent Evolution reviewer.
 Your sole purpose is to improve the content and routing quality of intention-hint intents/*.md files.
 Review only the requested triggers. Each trigger is independent and may return hasFinding=false.
 Do not invent evidence. Do not modify files; propose intent Markdown drafts or patches only.

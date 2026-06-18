@@ -56,7 +56,7 @@ Detected "infrastructure management" intent. The user wants to manage home-infra
 - When `gateway config.patch` fails with a protected config path error, do not fall back to direct JSON file editing with `jq`, `write`, `cat`, or `echo`; read current config and use `gateway config.apply` with the corrected full config, or use the documented configuration wizard.
 - Before deleting workspace directories, ensure data is ingested to wiki, backed up, or recoverable from git.
 - For git-based restoration of deleted files, use `git restore <path>` or `git checkout HEAD -- <path>` before retrying archival or cleanup.
-- When modifying intention-hint evolution behavior, update both the skill file and the evolve-workflow reference when both define the same rule.
+- When modifying intention-hint evolution behavior, update both the skill file and the evolution reference when both define the same rule.
 - Use dismissed status for duplicate, superseded, unsafe, or clearly rejected findings; leave ambiguous or blocked evolution items pending.
 
 ## Skills & Tools
@@ -142,9 +142,9 @@ Detected "infrastructure management" intent. The user wants to manage home-infra
   edit({ path: "skills/<skill-name>/SKILL.md", edits: [{ oldText: "<old>", newText: "<new>" }] })
 
 - Manage intention-hint evolution backlog items from the plugin root:
-  exec({ command: "pnpm run backlog -- show" })
-  exec({ command: "pnpm run backlog -- mark-dismissed --id <item-id> --expected-updated-at <timestamp>" })
-  exec({ command: "pnpm run backlog -- validate-intents --id <intent-id>" })
+  exec({ command: "pnpm run evolution-backlog -- show" })
+  exec({ command: "pnpm run evolution-backlog -- mark-dismissed --id <item-id> --expected-updated-at <timestamp>" })
+  exec({ command: "pnpm run evolution-backlog -- validate-intents --id <intent-id>" })
 
 ## Response Strategy
 
@@ -227,8 +227,8 @@ TOOLS.md   target      & route      & mutate     health
 
 - Read the target skill file and references before editing behavior rules.
 - Make only the requested behavior change, preserving existing workflow boundaries.
-- Run validation from the plugin root: `pnpm run backlog -- validate-intents`, `pnpm run test`, and `pnpm run build`.
-- Mark the backlog item processed or dismissed with the backlog CLI only after validation passes.
+- Run validation from the plugin root: `pnpm run evolution-backlog -- validate-intents`, `pnpm run test`, and `pnpm run build`.
+- Mark the backlog item processed or dismissed with the evolution-backlog command only after validation passes.
 - Report the diff summary and remaining pending count.
 
 ### Step 5 — Verify Health

@@ -1,6 +1,6 @@
 # Agent Guide: Intention Hint
 
-This repository is an OpenClaw plugin. It classifies the user's intent before the main reply, injects a routing hint through `before_prompt_build`, records per-session runtime data, aggregates usage stats, and optionally writes self-evolution backlog findings.
+This repository is an OpenClaw plugin. It classifies the user's intent before the main reply, injects a routing hint through `before_prompt_build`, records per-session runtime data, aggregates usage stats, and optionally writes evolution backlog findings.
 
 Use this file as the working contract for coding agents. The README explains the product in more detail; this guide explains how to change the code safely.
 
@@ -23,7 +23,7 @@ pnpm run typecheck          # TypeScript, no emit
 pnpm run test               # Full Vitest suite
 pnpm run build              # Compile to dist/
 pnpm run format             # Prettier for md/json/ts files
-pnpm run backlog -- <cmd>   # Operate on the evolution backlog after build
+pnpm run evolution-backlog -- <cmd>   # Operate on the evolution backlog after build
 ```
 
 Run `pnpm run typecheck` and `pnpm run test` before handing off code changes. Run `pnpm run build` when changing CLI behavior, package metadata, SDK imports, or anything that depends on emitted `dist/` output.
@@ -67,8 +67,8 @@ Use the existing module boundaries:
 - `src/stats-aggregator.ts`: usage aggregation into `dataRoot/stats.json`.
 - `src/backlog-writer.ts`: evolution findings into `dataRoot/evolution.json`.
 - `src/evolution-backlog.ts`: backlog schema validation, migration, and atomic mutations.
-- `src/backlog-cli.ts`: command-line backlog workflow. Default CLI root must use the OpenClaw state-dir helper, not package root.
-- `src/prompt.ts`, `src/subagent.ts`, `src/review-subagent.ts`, `src/trigger-checker.ts`: classification and self-evolution logic.
+- `src/evolution-backlog-command.ts`: command-line backlog workflow. Default root must use the OpenClaw state-dir helper, not package root.
+- `src/prompt.ts`, `src/subagent.ts`, `src/review-subagent.ts`, `src/trigger-checker.ts`: classification and evolution logic.
 - `src/session.ts`: session eligibility guards.
 - `src/*.test.ts`: tests are colocated with the module they protect.
 
@@ -119,7 +119,7 @@ Typical mapping:
 - Session persistence and cleanup: `src/session-tracker.test.ts`.
 - Stats behavior: `src/stats-aggregator.test.ts`.
 - Evolution backlog writes: `src/backlog-writer.test.ts` and `src/evolution-backlog.test.ts`.
-- Backlog CLI behavior: `src/backlog-cli.test.ts`.
+- Evolution backlog command behavior: `src/evolution-backlog-command.test.ts`.
 
 When changing runtime paths, include tests for both the desired new location and non-overwrite migration behavior.
 
@@ -137,11 +137,11 @@ Do not edit `~/.openclaw/plugins/intention-hint/evolution.json` manually. Use:
 
 ```bash
 pnpm run build
-pnpm run backlog -- show
-pnpm run backlog -- list --json
-pnpm run backlog -- validate-intents --id <intent-id>
-pnpm run backlog -- mark-processed --id <item-id> --expected-updated-at <timestamp>
-pnpm run backlog -- mark-dismissed --id <item-id> --expected-updated-at <timestamp>
+pnpm run evolution-backlog -- show
+pnpm run evolution-backlog -- list --json
+pnpm run evolution-backlog -- validate-intents --id <intent-id>
+pnpm run evolution-backlog -- mark-processed --id <item-id> --expected-updated-at <timestamp>
+pnpm run evolution-backlog -- mark-dismissed --id <item-id> --expected-updated-at <timestamp>
 ```
 
 Process one backlog finding at a time unless the user explicitly asks for a bounded batch. For split, merge, rename, deletion, or any broad intent-boundary change, show the planned file operations and get explicit confirmation first.

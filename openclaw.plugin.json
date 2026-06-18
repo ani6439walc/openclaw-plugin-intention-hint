@@ -167,7 +167,7 @@
       },
       "evolution": {
         "type": "object",
-        "description": "Optional post-turn Intent Self-Evolution reviews and plugin-local backlog.",
+        "description": "Optional post-turn Intent Evolution reviews and plugin-local backlog.",
         "additionalProperties": false,
         "properties": {
           "enabled": {
@@ -176,11 +176,11 @@
           },
           "model": {
             "type": "string",
-            "description": "Dedicated model for Self-Evolution reviews."
+            "description": "Dedicated model for Evolution reviews."
           },
           "modelFallback": {
             "type": "string",
-            "description": "Fallback model for Self-Evolution reviews."
+            "description": "Fallback model for Evolution reviews."
           },
           "thinking": {
             "type": "string",
@@ -194,7 +194,7 @@
               "adaptive",
               "max"
             ],
-            "description": "Thinking level for the Self-Evolution review sub-agent.",
+            "description": "Thinking level for the Evolution review sub-agent.",
             "default": "medium"
           },
           "timeoutMs": {

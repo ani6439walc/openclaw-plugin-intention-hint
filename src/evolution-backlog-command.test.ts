@@ -2,15 +2,18 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resolveDefaultBacklogCliRoot, runBacklogCli } from "./backlog-cli.js";
+import {
+  resolveDefaultEvolutionBacklogRoot,
+  runEvolutionBacklogCommand,
+} from "./evolution-backlog-command.js";
 
-describe("backlog CLI", () => {
+describe("evolution-backlog command", () => {
   let root: string;
   let output: string[];
   let errors: string[];
 
   beforeEach(() => {
-    root = fs.mkdtempSync(path.join(os.tmpdir(), "backlog-cli-"));
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "evolution-backlog-"));
     fs.mkdirSync(path.join(root, "sessions"));
     output = [];
     errors = [];
@@ -55,15 +58,15 @@ describe("backlog CLI", () => {
   afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
 
   const run = (args: string[]) =>
-    runBacklogCli(args, root, {
+    runEvolutionBacklogCommand(args, root, {
       stdout: (value) => output.push(value),
       stderr: (value) => errors.push(value),
     });
 
   it("resolves the direct CLI root from OpenClaw state dir", () => {
-    expect(resolveDefaultBacklogCliRoot({ OPENCLAW_STATE_DIR: root })).toBe(
-      path.join(root, "plugins", "intention-hint"),
-    );
+    expect(
+      resolveDefaultEvolutionBacklogRoot({ OPENCLAW_STATE_DIR: root }),
+    ).toBe(path.join(root, "plugins", "intention-hint"));
   });
 
   it("shows the highest-frequency pending item by default", () => {

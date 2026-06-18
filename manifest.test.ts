@@ -55,8 +55,10 @@ describe("intention-hint manifest", () => {
     expect(timeoutMs.maximum).toBe(120000);
   });
 
-  it("exposes disabled-by-default Self-Evolution settings", () => {
+  it("exposes disabled-by-default Evolution settings", () => {
     const evolution = manifest.configSchema.properties.evolution;
+    expect(JSON.stringify(evolution)).not.toMatch(/self[- ]?evolution/i);
+    expect(evolution.description).toContain("Evolution reviews");
     expect(evolution.properties.enabled.default).toBe(false);
     expect(evolution.properties.timeoutMs).toMatchObject({
       minimum: 250,
