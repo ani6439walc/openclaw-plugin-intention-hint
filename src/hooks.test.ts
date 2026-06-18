@@ -632,7 +632,7 @@ describe("createHookHandlers topic switch flow", () => {
     );
   });
 
-  it("skips intent classifier and records compact state on same-topic continuation", async () => {
+  it("runs inherited intent classifier without subagent and records compact state on same-topic continuation", async () => {
     const topicContext = {
       keywords: ["topic", "checker"],
       topic: "User is continuing work on the topic checker.",

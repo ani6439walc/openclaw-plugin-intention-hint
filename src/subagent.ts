@@ -163,7 +163,7 @@ export async function runTopicSwitchSubagent(params: {
   messageProvider?: string;
   modelRef: { provider: string; model: string };
 }): Promise<TopicSwitchResult | undefined> {
-  const subagentSessionId = `intention-hint-topic-${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 8)}`;
+  const subagentSessionId = `intention-hint-${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 8)}`;
   const parentSessionKey =
     params.sessionKey ??
     resolveCanonicalSessionKeyFromSessionId({
@@ -173,7 +173,7 @@ export async function runTopicSwitchSubagent(params: {
     });
   const subagentScope =
     parentSessionKey ?? params.sessionId ?? crypto.randomUUID();
-  const subagentSuffix = `intention-hint-topic:${crypto.createHash("sha1").update(`${subagentScope}:${params.latest}`).digest("hex").slice(0, 12)}`;
+  const subagentSuffix = `intention-hint:${crypto.createHash("sha1").update(`${subagentScope}:${params.latest}`).digest("hex").slice(0, 12)}`;
   const subagentSessionKey = parentSessionKey
     ? `${parentSessionKey}:${subagentSuffix}`
     : `agent:${params.agentId}:${subagentSuffix}`;

@@ -95,7 +95,7 @@ function findIntentBody(
   );
 }
 
-function buildInheritedIntentResult(
+function runInheritedIntentClassifier(
   latest: HistoricalIntentRecord,
   topicContext: NonNullable<Awaited<ReturnType<typeof runTopicSwitchSubagent>>>,
 ): IntentionResult {
@@ -233,11 +233,11 @@ export function createHookHandlers(deps: HookDeps) {
 
       const latestHistoricalIntent =
         historicalIntents[historicalIntents.length - 1];
-      const isSameTopicContinuation =
+      const useInheritedIntentClassifier =
         topicContext?.topicChanged === false && latestHistoricalIntent;
 
-      const result = isSameTopicContinuation
-        ? buildInheritedIntentResult(latestHistoricalIntent, topicContext)
+      const result = useInheritedIntentClassifier
+        ? runInheritedIntentClassifier(latestHistoricalIntent, topicContext)
         : await classifier({
             api,
             config: refreshedConfig,

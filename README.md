@@ -111,12 +111,10 @@ graph LR
     B -->|no| Z[skip]
     C -->|yes| Z
     C -->|no| D[refresh config and intents]
-    D --> E{first tracked turn?}
-    E -->|yes| F[run intent classifier]
-    E -->|no| G[run topic switch checker]
+    D --> G[run topic switch checker]
     G --> H{topic changed?}
-    H -->|yes or checker failed| F
-    H -->|no| I[inherit previous intent]
+    H -->|yes, initial without history, or checker failed| F[run intent classifier subagent]
+    H -->|no with history| I[run inherited intent classifier locally]
     F --> J[parse intention result]
     I --> J
     J --> K{resolved?}
@@ -353,7 +351,7 @@ The classification sub-agent returns JSON:
 - Intent ids are derived from active intent filenames by removing the `.md` suffix
 - Fallbacks to `other` if parsed intent not found in catalog
 - `keywords` are normalized core nouns or short phrases from the latest user message
-- `topic` is deterministic from the first 1-3 keywords joined with `/`
+- `topic` is a concise natural-language phrase describing the current topic
 - `intentChange=false` marks same-topic continuation turns that inherited the previous intent
 - Topic switch metadata is stored in session history; no separate cache or experience store is written
 - Durable session goals are managed by OpenClaw `/goal` and goal tools, not by intention-hint
@@ -378,13 +376,13 @@ The following categories group intents by their ID prefix:
 
 ### Topic Switch Checking
 
-On the first tracked turn, the plugin runs only the intent classifier. On later
-tracked turns, it first runs a lightweight topic switch checker using the latest
-user message and recent session history (`intent`, `keywords`, `topic`, `complexity`).
-If the checker says the topic changed, that topic context is passed into the
-classifier. If the checker says the topic did not change, the plugin skips
-classification, inherits the latest historical intent/topic/keywords, uses the
-checker complexity for the latest message, and records the current turn with
+Every tracked turn first runs a lightweight topic switch checker using the
+latest user message and recent session history (`intent`, `keywords`, `topic`,
+`complexity`). If the checker says the topic changed, or there is no historical
+intent to inherit, that topic context is passed into the classifier subagent. If
+the checker says the topic did not change, the plugin runs a local inherited
+intent classifier, reuses the latest historical intent, uses the checker
+complexity for the latest message, and records the current turn with
 `intentChange=false`. If the checker fails, the plugin logs and falls back to
 classifier-only behavior.
 
