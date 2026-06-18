@@ -158,6 +158,7 @@ export async function runTopicSwitchSubagent(params: {
   agentId: string;
   sessionKey?: string;
   sessionId?: string;
+  conversation?: RecentTurn[];
   latest: string;
   history: readonly HistoricalIntentRecord[];
   messageProvider?: string;
@@ -181,6 +182,7 @@ export async function runTopicSwitchSubagent(params: {
   const prompt = buildTopicSwitchPrompt({
     latest: params.latest,
     history: params.history,
+    conversation: params.conversation,
     currentTime: resolveCurrentTime(params.api),
   });
 

@@ -519,6 +519,12 @@ describe("createHookHandlers topic switch flow", () => {
       expect.objectContaining({
         latest: "implement topic checker",
         history: [],
+        conversation: expect.arrayContaining([
+          expect.objectContaining({
+            role: "user",
+            text: "implement topic checker",
+          }),
+        ]),
       }),
     );
     expect(classifier).toHaveBeenCalledWith(

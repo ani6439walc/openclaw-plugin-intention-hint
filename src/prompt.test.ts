@@ -208,6 +208,36 @@ describe("buildTopicSwitchPrompt", () => {
     expect(prompt).toContain("## Latest message:");
     expect(prompt).toContain("繼續實作 topic checker");
   });
+
+  it("includes recent conversation context for first-turn topic checks", () => {
+    const prompt = buildTopicSwitchPrompt({
+      latest: "我之前那個奇怪的想法",
+      history: [],
+      conversation: [
+        {
+          role: "user",
+          text: "我最近壓力大嗎",
+          historicalIntent: {
+            intent: "memory-emotion",
+            topic: "User is asking about their recent stress level.",
+            keywords: ["壓力", "大", "最近"],
+          },
+        },
+        {
+          role: "assistant",
+          text: "最近沒有看到明顯的壓力訊號。",
+        },
+      ],
+    });
+
+    expect(prompt).toContain("# Conversation context");
+    expect(prompt).toContain("## Recent history");
+    expect(prompt).toContain("**user**: 我最近壓力大嗎");
+    expect(prompt).toContain(
+      "intent: memory-emotion; topic: User is asking about their recent stress level.; keywords: 壓力, 大, 最近",
+    );
+    expect(prompt).toContain("**assistant**: 最近沒有看到明顯的壓力訊號。");
+  });
 });
 
 describe("parseTopicSwitchResult", () => {

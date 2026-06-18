@@ -377,8 +377,8 @@ The following categories group intents by their ID prefix:
 ### Topic Switch Checking
 
 Every tracked turn first runs a lightweight topic switch checker using the
-latest user message and recent session history (`intent`, `keywords`, `topic`,
-`complexity`). If the checker says the topic changed, or there is no historical
+latest user message, recent conversation context, and recent session history
+(`intent`, `keywords`, `topic`, `complexity`). If the checker says the topic changed, or there is no historical
 intent to inherit, that topic context is passed into the classifier subagent. If
 the checker says the topic did not change, the plugin runs a local inherited
 intent classifier, reuses the latest historical intent, uses the checker

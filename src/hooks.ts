@@ -225,6 +225,7 @@ export function createHookHandlers(deps: HookDeps) {
         agentId: effectiveAgentId,
         sessionKey: resolvedSessionKey,
         sessionId: ctx.sessionId,
+        conversation,
         latest: latestUserMessage,
         history: historicalIntents,
         messageProvider: ctx.messageProvider,

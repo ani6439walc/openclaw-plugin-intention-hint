@@ -168,15 +168,18 @@ function buildHistoricalTopicContext(
 export function buildTopicSwitchPrompt(params: {
   latest: string;
   history: readonly HistoricalIntentRecord[];
+  conversation?: RecentTurn[];
   currentTime?: string;
 }): string {
   const timeLine = params.currentTime ? `${params.currentTime} ` : "";
   const history = buildHistoricalTopicContext(params.history);
+  const conversationMd = buildConversationMarkdown(params.conversation);
+  const conversationSection = conversationMd ? `\n${conversationMd}\n` : "";
 
   return `${timeLine}You are a lightweight topic continuity checker.
 Another model is preparing the final user-facing answer and needs compact topic routing context before intent resolution.
 Your job is to decide whether the user's latest message continues the recent topic or switches to a new one.
-Use only the latest message and recent historical intent metadata. Do not classify intent.
+Use only the latest message, recent conversation context, and recent historical intent metadata. Do not classify intent.
 
 <rules>
 1. Extract 3-8 core nouns or short phrases from the latest user message as keywords.
@@ -205,6 +208,7 @@ complexity must be one of: low, medium, high.
 <recent_history>
 ${history || "- No history"}
 </recent_history>
+${conversationSection}
 
 ## Latest message:
 ${params.latest}`;

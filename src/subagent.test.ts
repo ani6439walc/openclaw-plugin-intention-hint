@@ -55,6 +55,13 @@ describe("runTopicSwitchSubagent", () => {
         timeoutMs: 4321,
       }),
       agentId: "main",
+      conversation: [
+        {
+          role: "user",
+          text: "continue previous implementation",
+          historicalIntent: { intent: "coding", topic: "topic checker" },
+        },
+      ],
       latest: "continue topic checker",
       history: [
         {
@@ -83,6 +90,12 @@ describe("runTopicSwitchSubagent", () => {
         disableTools: true,
         prompt: expect.stringContaining("topic continuity checker"),
       }),
+    );
+    expect(runEmbeddedPiAgent.mock.calls[0][0].prompt).toContain(
+      "# Conversation context",
+    );
+    expect(runEmbeddedPiAgent.mock.calls[0][0].prompt).toContain(
+      "topic: topic checker",
     );
   });
 });
