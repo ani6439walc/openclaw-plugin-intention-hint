@@ -257,6 +257,8 @@ describe("buildIntentInstructionPrompt", () => {
       },
       intentBody:
         "## Concrete Workflow\n\n- Use test-driven-development.\n\n## Tools\n\n- apply_patch",
+      complexityContext:
+        "<complexity_context>Use a balanced flow.</complexity_context>",
     });
 
     expect(prompt).toContain("instruction writer");
@@ -264,6 +266,9 @@ describe("buildIntentInstructionPrompt", () => {
     expect(prompt).toContain("skills and tools");
     expect(prompt).toContain("intent: coding");
     expect(prompt).toContain("intentChange: false");
+    expect(prompt).toContain(
+      "<complexity_context>Use a balanced flow.</complexity_context>",
+    );
     expect(prompt).toContain("Use test-driven-development");
     expect(prompt).toContain("apply_patch");
     expect(prompt).toContain("繼續實作同題續聊");
@@ -571,7 +576,7 @@ describe("buildPromptPrefix", () => {
     },
   };
 
-  it("should build prefix with intent prompt and complexity", () => {
+  it("should build prefix with intent prompt and complexity metadata only", () => {
     const result: IntentionResult = {
       intent: "coding",
       reason: "User wants to write code",
@@ -586,7 +591,22 @@ describe("buildPromptPrefix", () => {
     expect(prefix).toContain("confidence: 0.9");
     expect(prefix).toContain("complexity: medium");
     expect(prefix).toContain("You are helping with coding tasks");
-    expect(prefix).toContain("MEDIUM_COMPLEXITY_PROMPT");
+    expect(prefix).not.toContain("MEDIUM_COMPLEXITY_PROMPT");
+    expect(prefix).not.toContain("<complexity_context>");
+  });
+
+  it("includes intent change metadata when present", () => {
+    const result: IntentionResult = {
+      intent: "coding",
+      reason: "User continues the same topic",
+      intentChange: false,
+      confidence: 0.9,
+      complexity: "medium",
+    };
+
+    const prefix = buildPromptPrefix(result, mockIntents, mockConfig);
+
+    expect(prefix).toContain("intentChange: false");
   });
 
   it("includes topic metadata when present", () => {
@@ -609,20 +629,6 @@ describe("buildPromptPrefix", () => {
     expect(prefix).toContain("topicChanged: true");
     expect(prefix).toContain("topicChangeReason: transition_marker");
     expect(prefix).toContain("previousTopic: docs");
-  });
-
-  it("includes intent change metadata when present", () => {
-    const result: IntentionResult = {
-      intent: "coding",
-      reason: "User continues the same topic",
-      intentChange: false,
-      confidence: 0.9,
-      complexity: "medium",
-    };
-
-    const prefix = buildPromptPrefix(result, mockIntents, mockConfig);
-
-    expect(prefix).toContain("intentChange: false");
   });
 
   it("uses generated instruction text when provided", () => {
@@ -675,20 +681,7 @@ describe("buildPromptPrefix", () => {
     );
   });
 
-  it("should use low complexity prompt for low complexity", () => {
-    const result: IntentionResult = {
-      intent: "coding",
-      reason: "Simple request",
-      confidence: 0.95,
-      complexity: "low",
-    };
-
-    const prefix = buildPromptPrefix(result, mockIntents, mockConfig);
-
-    expect(prefix).toContain("LOW_COMPLEXITY_PROMPT");
-  });
-
-  it("should use high complexity prompt for high complexity", () => {
+  it("should not append complexity prompt text", () => {
     const result: IntentionResult = {
       intent: "coding",
       reason: "Complex request",
@@ -698,7 +691,8 @@ describe("buildPromptPrefix", () => {
 
     const prefix = buildPromptPrefix(result, mockIntents, mockConfig);
 
-    expect(prefix).toContain("HIGH_COMPLEXITY_PROMPT");
+    expect(prefix).toContain("complexity: high");
+    expect(prefix).not.toContain("HIGH_COMPLEXITY_PROMPT");
   });
 
   it("should fallback to FALLBACK_INTENT when intent not found", () => {

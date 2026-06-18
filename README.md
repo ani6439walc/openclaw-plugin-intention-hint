@@ -256,7 +256,7 @@ pnpm run build
 | `queryMode`         | `string`   | `"recent"`   | Context window mode: `recent` (recent turns), `message` (latest message only), `full` (full history).                       |
 | `contextWindow`     | `object`   | see below    | Turn/char limits for conversation extraction.                                                                               |
 | `timeoutMs`         | `number`   | `3000`       | Max wait time for subagent response. Clamped to 250–120000ms.                                                               |
-| `complexityPrompts` | `object`   | built-in     | Custom classification prompt overrides per complexity level.                                                                |
+| `complexityPrompts` | `object`   | built-in     | Custom instruction-generation guidance per complexity level.                                                                |
 | `evolution`         | `object`   | disabled     | Post-turn trigger review configuration. Findings are stored in `$OPENCLAW_STATE_DIR/plugins/intention-hint/evolution.json`. |
 
 `evolution.thinking` independently controls the Evolution review
@@ -394,6 +394,8 @@ After an intent is resolved, the plugin reads the matched intent Markdown body
 and runs a short instruction-writing sub-agent. That sub-agent outputs plain text
 for the main agent: concrete workflow, relevant skills, useful tools, and durable
 Experience notes from the intent when they matter for the latest user message.
+The full complexity guidance is provided to this instruction writer, not appended
+to the final main-agent prefix.
 The generated instruction text replaces direct full intent-body injection. If
 instruction generation fails, `buildPromptPrefix()` falls back to the original
 matched intent body.

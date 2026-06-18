@@ -240,6 +240,8 @@ export async function runIntentInstructionSubagent(params: {
     latest: params.latest,
     result: params.result,
     intentBody: params.intentBody,
+    complexityContext:
+      params.config.complexityPrompts[params.result.complexity],
     currentTime: resolveCurrentTime(params.api),
   });
 

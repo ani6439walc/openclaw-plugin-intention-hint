@@ -144,7 +144,7 @@
       },
       "complexityPrompts": {
         "type": "object",
-        "description": "Custom prompts for each complexity level.",
+        "description": "Custom instruction-generation guidance for each complexity level.",
         "properties": {
           "low": {
             "type": "string",

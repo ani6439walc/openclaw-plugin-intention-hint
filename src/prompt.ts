@@ -1,7 +1,4 @@
 import {
-  DEFAULT_LOW_COMPLEXITY_PROMPT,
-  DEFAULT_MEDIUM_COMPLEXITY_PROMPT,
-  DEFAULT_HIGH_COMPLEXITY_PROMPT,
   FALLBACK_INTENT,
   FALLBACK_INTENT_ID,
   INTENTION_HINT_PLUGIN_TAG,
@@ -13,7 +10,6 @@ import type {
   IntentDefinition,
   IntentionResult,
   RecentTurn,
-  ResolvedIntentionHintPluginConfig,
 } from "./types.js";
 
 export type TopicChangeReason = NonNullable<
@@ -247,6 +243,7 @@ export function buildIntentInstructionPrompt(params: {
   latest: string;
   result: IntentionResult;
   intentBody: string;
+  complexityContext: string;
   currentTime?: string;
 }): string {
   const timeLine = params.currentTime ? `${params.currentTime} ` : "";
@@ -269,6 +266,8 @@ topic: ${params.result.topic ?? ""}
 keywords: ${params.result.keywords?.join(", ") ?? ""}
 intentChange: ${params.result.intentChange ?? true}
 </intent_metadata>
+
+${params.complexityContext}
 
 <matched_intent_markdown>
 ${params.intentBody}
@@ -446,24 +445,9 @@ export function parseIntentionResult(
   }
 }
 
-function resolveComplexityPrompt(
-  result: IntentionResult,
-  config: ResolvedIntentionHintPluginConfig,
-): string {
-  return (
-    config.complexityPrompts[result.complexity] ??
-    (result.complexity === "low"
-      ? DEFAULT_LOW_COMPLEXITY_PROMPT
-      : result.complexity === "medium"
-        ? DEFAULT_MEDIUM_COMPLEXITY_PROMPT
-        : DEFAULT_HIGH_COMPLEXITY_PROMPT)
-  );
-}
-
 function buildPromptPrefixLines(
   result: IntentionResult,
   intentDef: IntentDefinition,
-  config: ResolvedIntentionHintPluginConfig,
   instructionText?: string,
 ): string[] {
   const lines: string[] = [];
@@ -484,8 +468,6 @@ function buildPromptPrefixLines(
   lines.push(`complexity: ${result.complexity}`);
   lines.push("");
   lines.push(instructionText?.trim() || intentDef.prompt);
-  lines.push("");
-  lines.push(resolveComplexityPrompt(result, config));
   return lines;
 }
 
@@ -507,17 +489,12 @@ function findEnabledIntent(
 export function buildPromptPrefix(
   result: IntentionResult,
   intents: readonly IntentCatalogEntry[],
-  config: ResolvedIntentionHintPluginConfig,
+  _config: unknown,
   instructionText?: string,
 ): string | undefined {
   const intentDef = findEnabledIntent(result, intents);
   const effectiveDef = intentDef ?? FALLBACK_INTENT;
-  const lines = buildPromptPrefixLines(
-    result,
-    effectiveDef,
-    config,
-    instructionText,
-  );
+  const lines = buildPromptPrefixLines(result, effectiveDef, instructionText);
 
   return `${UNTRUSTED_CONTEXT_HEADER}
 <${INTENTION_HINT_PLUGIN_TAG}>

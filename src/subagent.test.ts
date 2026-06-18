@@ -133,5 +133,8 @@ describe("runIntentInstructionSubagent", () => {
     expect(runEmbeddedPiAgent.mock.calls[0][0].prompt).toContain(
       "Use test-driven-development",
     );
+    expect(runEmbeddedPiAgent.mock.calls[0][0].prompt).toContain(
+      "MEDIUM / STANDARD tasks",
+    );
   });
 });
