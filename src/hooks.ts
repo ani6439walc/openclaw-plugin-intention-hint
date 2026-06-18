@@ -37,6 +37,7 @@ import {
   getModelRef,
   getReviewModelRef,
   runIntentionSubagent,
+  runTopicSwitchSubagent,
 } from "./subagent.js";
 import { buildPromptPrefix } from "./prompt.js";
 
@@ -50,6 +51,8 @@ export type HookDeps = {
   statsAggregator?: typeof defaultStatsAggregator;
   reviewQueue?: Pick<ReviewQueue, "enqueue">;
   reviewer?: typeof runReviewSubagent;
+  classifier?: typeof runIntentionSubagent;
+  topicChecker?: typeof runTopicSwitchSubagent;
   backlogWriter?: Pick<BacklogWriter, "record">;
 };
 
@@ -92,6 +95,8 @@ export function createHookHandlers(deps: HookDeps) {
   const statsAggregator = deps.statsAggregator ?? defaultStatsAggregator;
   const reviewQueue = deps.reviewQueue ?? defaultReviewQueue;
   const reviewer = deps.reviewer ?? runReviewSubagent;
+  const classifier = deps.classifier ?? runIntentionSubagent;
+  const topicChecker = deps.topicChecker ?? runTopicSwitchSubagent;
   const backlogWriter = deps.backlogWriter ?? defaultBacklogWriter;
 
   async function onBeforePromptBuild(
@@ -178,8 +183,22 @@ export function createHookHandlers(deps: HookDeps) {
         refreshedConfig,
         effectiveAgentId,
       );
+      const topicContext =
+        historicalIntents.length > 0
+          ? await topicChecker({
+              api,
+              config: refreshedConfig,
+              agentId: effectiveAgentId,
+              sessionKey: resolvedSessionKey,
+              sessionId: ctx.sessionId,
+              latest: latestUserMessage,
+              history: historicalIntents,
+              messageProvider: ctx.messageProvider,
+              modelRef,
+            })
+          : undefined;
 
-      const result = await runIntentionSubagent({
+      const result = await classifier({
         api,
         config: refreshedConfig,
         agentId: effectiveAgentId,
@@ -191,6 +210,7 @@ export function createHookHandlers(deps: HookDeps) {
         channelId: ctx.channelId,
         modelRef,
         intents: availableIntents,
+        topicContext,
       });
 
       if (!result) {

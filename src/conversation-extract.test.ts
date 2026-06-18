@@ -76,6 +76,8 @@ describe("attachHistoricalIntents", () => {
           input: "A long historical user message",
           intent: "RESEARCH",
           goal: "Research the historical topic",
+          keywords: ["historical", "topic"],
+          topic: "historical / topic",
         },
       ],
     );
@@ -91,6 +93,8 @@ describe("attachHistoricalIntents", () => {
       historicalIntent: {
         intent: "RESEARCH",
         goal: "Research the historical topic",
+        keywords: ["historical", "topic"],
+        topic: "historical / topic",
       },
     });
   });

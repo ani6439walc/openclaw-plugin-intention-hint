@@ -810,6 +810,8 @@ describe("SessionTracker", () => {
                 intent: "PLANNING",
                 reason: "test",
                 goal: "Create a plan",
+                keywords: ["plan", "change"],
+                topic: "plan / change",
                 confidence: 0.8,
                 complexity: "medium",
               },
@@ -847,6 +849,8 @@ describe("SessionTracker", () => {
           input: "Plan the change",
           intent: "PLANNING",
           goal: "Create a plan",
+          keywords: ["plan", "change"],
+          topic: "plan / change",
         },
         {
           input: "Implement the change",

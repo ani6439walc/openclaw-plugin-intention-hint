@@ -15,7 +15,7 @@ export const UNTRUSTED_CONTEXT_HEADER =
 
 import { IntentDefinition } from "./types.js";
 
-export const FALLBACK_INTENT_ID = "OTHER";
+export const FALLBACK_INTENT_ID = "other";
 export const FALLBACK_INTENT: IntentDefinition = {
   triggers: [],
   examples: [],
@@ -81,7 +81,7 @@ Step-by-Step Planning & Review:
 
 Tool & Skill Flexibility:
 - Do NOT limit yourself to only the tools or skills mentioned in the intent definition
-- Actively consider OTHER tools and skills that might be more appropriate for the task
+- Actively consider additional tools and skills that might be more appropriate for the task
 - If the intent suggests a suboptimal approach, you are free to choose a better one
 
 Approach:

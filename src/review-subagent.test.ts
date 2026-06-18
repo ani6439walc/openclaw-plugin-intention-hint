@@ -16,7 +16,7 @@ const snapshot: ReviewSnapshot = {
   current: {
     input: "No, use the existing helper",
     intent: {
-      intent: "OTHER",
+      intent: "other",
       reason: "unclear",
       goal: "Fix code",
       confidence: 0.2,
@@ -28,7 +28,7 @@ const snapshot: ReviewSnapshot = {
   },
   recent: [],
   matchedIntent: {
-    id: "OTHER",
+    id: "other",
     definition: {
       triggers: ["Requests that do not match a defined intent"],
       examples: ["help with this"],
@@ -37,7 +37,7 @@ const snapshot: ReviewSnapshot = {
   },
   intentCatalog: [
     {
-      id: "OTHER",
+      id: "other",
       triggers: ["Requests that do not match a defined intent"],
       examples: ["help with this"],
     },
@@ -62,6 +62,8 @@ describe("buildReviewPrompt", () => {
     );
     expect(prompt).toContain('indented "skill: <name>" line');
     expect(prompt).toContain("Concrete Workflow");
+    expect(prompt).toContain("optional ## Experience");
+    expect(prompt).toContain("reusable tips, parameters, pitfalls");
     expect(prompt).toContain(
       "Never mention another intent name or id inside an intent body",
     );
@@ -82,13 +84,13 @@ describe("buildReviewPrompt", () => {
   it.each([
     [
       "skill_candidate",
-      "matched intent Markdown should route to",
-      "Skills & Tools section",
+      "matched intent Markdown should preserve",
+      "Skills & Tools, Concrete Workflow, or Experience section",
     ],
     [
       "process_gap",
       "failed execution and recovery path",
-      "Guidelines, Skills & Tools, or Concrete Workflow",
+      "Guidelines, Skills & Tools, Concrete Workflow, or Experience",
     ],
     [
       "satisfaction_check",

@@ -119,7 +119,7 @@ describe("createHookHandlers tracking guards", () => {
       current: {
         input: "不對，應該是別的做法",
         intent: {
-          intent: "OTHER",
+          intent: "other",
           reason: "test",
           goal: "Correct behavior",
           confidence: 0.2,
@@ -148,7 +148,7 @@ describe("createHookHandlers tracking guards", () => {
     vi.spyOn(defaultTracker, "getReviewSnapshot").mockReturnValue(snapshot);
     vi.spyOn(defaultStatsAggregator, "record").mockReturnValue(true);
     const definition = {
-      id: "OTHER",
+      id: "other",
       definition: {
         triggers: ["Unmatched requests"],
         examples: ["help"],
@@ -189,7 +189,7 @@ describe("createHookHandlers tracking guards", () => {
           matchedIntent: definition,
           intentCatalog: [
             {
-              id: "OTHER",
+              id: "other",
               triggers: ["Unmatched requests"],
               examples: ["help"],
             },
@@ -410,5 +410,173 @@ describe("createHookHandlers internal turn guards", () => {
 
     expect(refreshLiveConfigFromRuntime).toHaveBeenCalledOnce();
     expect(getHistoricalIntentRecords).toHaveBeenCalledWith("normal-session");
+  });
+});
+
+describe("createHookHandlers topic switch flow", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const intent = {
+    id: "coding",
+    definition: {
+      triggers: ["implement"],
+      examples: ["implement this"],
+      prompt: "## Guidelines\n\n- Code carefully.",
+    },
+  };
+
+  function createTopicFlowHarness(params: {
+    historicalIntents: ReturnType<
+      typeof defaultTracker.getHistoricalIntentRecords
+    >;
+    topicChecker?: ReturnType<typeof vi.fn>;
+  }) {
+    const record = vi.fn();
+    const tracker = {
+      getHistoricalIntentRecords: vi
+        .fn()
+        .mockReturnValue(params.historicalIntents),
+      rotate: vi.fn(),
+      record,
+      write: vi.fn(),
+    };
+    const catalog = {
+      count: 1,
+      filterForAgent: vi.fn().mockReturnValue([intent]),
+      get: vi.fn().mockReturnValue([intent]),
+    };
+    const classifier = vi.fn().mockResolvedValue({
+      intent: "coding",
+      reason: "User wants implementation",
+      goal: "Implement topic flow",
+      keywords: ["topic", "flow"],
+      topic: "topic / flow",
+      topicChanged: false,
+      topicChangeReason: "initial",
+      confidence: 0.9,
+      complexity: "medium" as const,
+    });
+    const topicChecker = params.topicChecker ?? vi.fn();
+    const handlers = createHookHandlers({
+      api: { config: {} } as OpenClawPluginApi,
+      config: () => resolveConfig({ model: "google/test-intent" }),
+      refreshLiveConfigFromRuntime: vi.fn(),
+      refreshIntents: vi.fn(),
+      catalog: catalog as never,
+      tracker: tracker as never,
+      classifier,
+      topicChecker,
+    });
+
+    return { handlers, tracker, classifier, topicChecker, record };
+  }
+
+  const event = {
+    prompt: "implement topic checker",
+    messages: [
+      {
+        role: "user",
+        content: "implement topic checker",
+        provenance: { kind: "external_user" },
+      },
+    ],
+  } as never;
+  const ctx = {
+    trigger: "user",
+    agentId: "main",
+    sessionId: "session-1",
+    sessionKey: "agent:main:direct:123",
+  };
+
+  it("skips topic checker on the first tracked turn", async () => {
+    const { handlers, classifier, topicChecker, record } =
+      createTopicFlowHarness({ historicalIntents: [] });
+
+    await handlers.onBeforePromptBuild(event, ctx);
+
+    expect(topicChecker).not.toHaveBeenCalled();
+    expect(classifier).toHaveBeenCalledWith(
+      expect.objectContaining({ topicContext: undefined }),
+    );
+    expect(record).toHaveBeenCalledWith(
+      "session-1",
+      expect.objectContaining({
+        current: expect.objectContaining({
+          intent: expect.objectContaining({
+            result: expect.objectContaining({
+              keywords: ["topic", "flow"],
+              topic: "topic / flow",
+              topicChangeReason: "initial",
+            }),
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("runs topic checker before intent classifier on later turns", async () => {
+    const topicContext = {
+      keywords: ["topic", "checker"],
+      topic: "topic / checker",
+      topicChanged: false,
+      topicChangeReason: "same_topic" as const,
+      previousTopic: "topic / checker",
+    };
+    const { handlers, classifier, topicChecker } = createTopicFlowHarness({
+      historicalIntents: [
+        {
+          input: "plan topic checker",
+          intent: "coding",
+          goal: "Plan topic checker",
+          keywords: ["topic", "checker"],
+          topic: "topic / checker",
+        },
+      ],
+      topicChecker: vi.fn().mockResolvedValue(topicContext),
+    });
+
+    await handlers.onBeforePromptBuild(event, ctx);
+
+    expect(topicChecker).toHaveBeenCalledWith(
+      expect.objectContaining({
+        latest: "implement topic checker",
+        history: [
+          expect.objectContaining({
+            topic: "topic / checker",
+            keywords: ["topic", "checker"],
+          }),
+        ],
+      }),
+    );
+    expect(topicChecker.mock.invocationCallOrder[0]).toBeLessThan(
+      classifier.mock.invocationCallOrder[0],
+    );
+    expect(classifier).toHaveBeenCalledWith(
+      expect.objectContaining({ topicContext }),
+    );
+  });
+
+  it("falls back to classifier-only when topic checker returns no result", async () => {
+    const { handlers, classifier, topicChecker } = createTopicFlowHarness({
+      historicalIntents: [
+        {
+          input: "plan topic checker",
+          intent: "coding",
+          goal: "Plan topic checker",
+          keywords: ["topic", "checker"],
+          topic: "topic / checker",
+        },
+      ],
+      topicChecker: vi.fn().mockResolvedValue(undefined),
+    });
+
+    await handlers.onBeforePromptBuild(event, ctx);
+
+    expect(topicChecker).toHaveBeenCalledOnce();
+    expect(classifier).toHaveBeenCalledWith(
+      expect.objectContaining({ topicContext: undefined }),
+    );
   });
 });

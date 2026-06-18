@@ -223,6 +223,8 @@ export class SessionTracker {
           input: state.input,
           intent: result.intent,
           goal: result.goal,
+          keywords: result.keywords ? [...result.keywords] : undefined,
+          topic: result.topic,
         },
       ];
     });

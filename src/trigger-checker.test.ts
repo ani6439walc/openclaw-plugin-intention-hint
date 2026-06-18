@@ -29,7 +29,7 @@ describe("checkEvolutionTriggers", () => {
           input: "不對，應該是另一個做法",
           intent: {
             result: {
-              intent: "OTHER",
+              intent: "other",
               reason: "unclear",
               goal: "Unknown",
               confidence: 0.2,

@@ -156,7 +156,7 @@ After a tracked turn is persisted, `agent_end` synchronously updates `$OPENCLAW_
 
 The versioned stats document contains:
 
-- `summary`: all-time turn, completion/error, skill/tool assistance, confidence, and `OTHER` totals and rates
+- `summary`: all-time turn, completion/error, skill/tool assistance, confidence, and `other` totals and rates
 - `intents`: per-intent share, confidence, complexity, assistance/error counts, and 7-day activity
 - `skills`: actual usage, recommendations parsed from exact `skill: <name>` intent lines, adoption, 7-day activity, lifecycle, and review status
 - `routing`: global and per-intent recommendation/adoption counts for turns and individual skill opportunities
@@ -261,14 +261,14 @@ Intent Evolution is an opt-in observation and proposal pipeline. It does
 not edit intent files automatically. When enabled, each completed tracked turn
 is checked for six trigger types:
 
-| Trigger              | Default condition                                      | Intent Markdown correction target                         |
-| -------------------- | ------------------------------------------------------ | --------------------------------------------------------- |
-| `skill_candidate`    | Current turn has at least 5 tool calls                 | `Skills & Tools` and repeatable `Concrete Workflow` steps |
-| `process_gap`        | Current turn has at least 2 tool errors                | Guidelines, tool examples, and recovery workflow          |
-| `satisfaction_check` | Every 10th tracked turn                                | Boundaries, examples, Guidelines, or Response Strategy    |
-| `missing_intent`     | Classified intent is `OTHER`                           | A narrowly scoped new intent draft                        |
-| `weak_intent`        | Classification confidence is below 0.5                 | Frontmatter triggers/examples and boundary clarity        |
-| `behavior_fix`       | Current input contains a configured correction keyword | Guidance or workflow that encodes the corrected behavior  |
+| Trigger              | Default condition                                      | Intent Markdown correction target                        |
+| -------------------- | ------------------------------------------------------ | -------------------------------------------------------- |
+| `skill_candidate`    | Current turn has at least 5 tool calls                 | `Skills & Tools`, `Concrete Workflow`, or `Experience`   |
+| `process_gap`        | Current turn has at least 2 tool errors                | Guidelines, tool examples, workflow, or pitfalls         |
+| `satisfaction_check` | Every 10th tracked turn                                | Boundaries, examples, Guidelines, or Response Strategy   |
+| `missing_intent`     | Classified intent is `other`                           | A narrowly scoped new intent draft                       |
+| `weak_intent`        | Classification confidence is below 0.5                 | Frontmatter triggers/examples and boundary clarity       |
+| `behavior_fix`       | Current input contains a configured correction keyword | Guidance or workflow that encodes the corrected behavior |
 
 All matching triggers are reviewed in one background, tool-free sub-agent run.
 Each trigger receives a distinct review focus and correction goal, and may return
@@ -281,7 +281,7 @@ the bundled `intention-hint` Skill rules. It receives the full matched intent
 definition and a compact frontmatter catalog for collision checks, plus the current turn and up
 to nine previous tracked turns with truncated content. Depending on the trigger,
 it proposes a new intent draft or targeted changes to frontmatter, Guidelines,
-Skills & Tools, Response Strategy, or Concrete Workflow. It never proposes
+Skills & Tools, Response Strategy, Concrete Workflow, or Experience. It never proposes
 changes to skills, tools, AGENTS.md, SOUL.md, or other production files.
 
 `evolution.json` is protected like `stats.json`: both live at the runtime data
@@ -331,22 +331,29 @@ The classification sub-agent returns JSON:
   "intent": "memory-lookup",
   "reason": "User asked to recall previous conversation",
   "goal": "Retrieve memory of past discussion",
+  "keywords": ["memory", "past discussion"],
+  "topic": "memory / past discussion",
+  "topicChanged": false,
+  "topicChangeReason": "initial",
   "confidence": 0.9,
   "complexity": "medium",
   "suggestion": "Only present when confidence < 0.8"
 }
 ```
 
-- `intent` format: exact filename id, e.g. `memory-lookup` or `OTHER`
+- `intent` format: exact filename id, e.g. `memory-lookup` or `other`
 - Intent ids are derived from active intent filenames by removing the `.md` suffix
-- Fallbacks to `OTHER` if parsed intent not found in catalog
+- Fallbacks to `other` if parsed intent not found in catalog
+- `keywords` are normalized core nouns or short phrases from the latest user message
+- `topic` is deterministic from the first 1-3 keywords joined with `/`
+- Topic switch metadata is stored in session history; no separate cache or experience store is written
 
 ### Intent Categories
 
 The classification prompt auto-derives categories from intent ID prefixes:
 
 - **2+ intents with same prefix** → `<prefix>-\*: <id1>, <id2>, ...)
-- **Standalone intents** → `STANDALONE: <id1>, <id2>, (...)
+- **Standalone intents** → `standalone: <id1>, <id2>, (...)
 
 Example:
 
@@ -355,9 +362,17 @@ Example:
 The following categories group intents by their ID prefix:
 - memory-*: memory-compare, memory-emotion, memory-lookup, memory-meta, memory-recent, memory-timeline
 - research-*: research-general, research-google-dev, research-opensource, research-realtime
-- STANDALONE: ani-visual, chat, humanities, image-analysis, image-generation, productivity, summarization, typo, OTHER
+- standalone: ani-visual, chat, humanities, image-analysis, image-generation, productivity, summarization, typo, other
 </intent_categories>
 ```
+
+### Topic Switch Checking
+
+On the first tracked turn, the plugin runs only the intent classifier. On later
+tracked turns, it first runs a lightweight topic switch checker using the latest
+user message and recent session history (`intent`, `goal`, `keywords`, `topic`),
+then passes that topic context into the classifier. If the checker fails, the
+plugin logs and falls back to classifier-only behavior.
 
 ### Time Injection
 
@@ -369,9 +384,8 @@ The following categories group intents by their ID prefix:
 
 ### Conversation Handling
 
-- `<conversation>` block is **omitted entirely** when conversation is empty or undefined
-- Each turn wraps its text in `<message>` inside `<turn role="...">`
-- Matching historical user turns include `<historical_intent>` with only the prior `intent` and `goal`; assistant, unmatched, and latest user turns do not
+- The conversation context is omitted entirely when conversation is empty or undefined
+- Matching historical user turns include the prior `intent`, `goal`, `keywords`, and `topic`; assistant, unmatched, and latest user turns do not
 - Historical records are matched by normalized user-message text, with duplicate messages paired newest-first
 - Classification rules use historical goals as context while requiring fresh classification on topic switches
 - Extracted via `conversation-extract.ts` with configurable turn/char limits from `contextWindow` config
@@ -408,6 +422,8 @@ influenced by internal task-completion traffic.
 - JSON wrapped in \`\`\`json ... \`\`\` code blocks (tolerant stripping)
 - JSON wrapped in stray \`\`\` markers
 - Required field validation (`intent`, `reason`, `goal`, `confidence`, `complexity`)
+- Keyword normalization and deterministic topic derivation when `keywords` are present
+- Topic switch metadata merged from the pre-classification checker when available
 - Confidence range validation (0.0–1.0)
 - Complexity enum validation (`low`, `medium`, `high`)
 - Optional `suggestion` field (only included when present in JSON)
@@ -425,6 +441,7 @@ The test suites cover:
 
 - `buildIntentionPrompt()` prompt structure
 - `parseIntentionResult()` JSON parsing (plain, code blocks, malformed, missing fields)
+- Topic switch prompt parsing and hook ordering before classification
 - Filename-based intent ID validation and fallback behavior
 - Timezone-aware time formatting
 - Config resolution and clamping

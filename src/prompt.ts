@@ -8,12 +8,25 @@ import {
   UNTRUSTED_CONTEXT_HEADER,
 } from "./constants.js";
 import type {
+  HistoricalIntentRecord,
   IntentCatalogEntry,
   IntentDefinition,
   IntentionResult,
   RecentTurn,
   ResolvedIntentionHintPluginConfig,
 } from "./types.js";
+
+export type TopicChangeReason = NonNullable<
+  IntentionResult["topicChangeReason"]
+>;
+
+export type TopicSwitchResult = {
+  keywords: string[];
+  topic: string;
+  topicChanged: boolean;
+  topicChangeReason: Exclude<TopicChangeReason, "initial">;
+  previousTopic?: string;
+};
 
 const FALLBACK_INTENT_ENTRY: IntentCatalogEntry = {
   id: FALLBACK_INTENT_ID,
@@ -50,10 +63,14 @@ function buildIntentCatalog(intents: readonly IntentCatalogEntry[]): string {
 
 function buildIntentCategories(intents: readonly IntentCatalogEntry[]): string {
   const categoryMap = new Map<string, string[]>();
+  const standaloneIntents: string[] = [];
   for (const intent of getIntentsWithFallback(intents)) {
     const separatorIndex = intent.id.indexOf("-");
-    const prefix =
-      separatorIndex > 0 ? intent.id.slice(0, separatorIndex) : "OTHER";
+    if (separatorIndex <= 0) {
+      standaloneIntents.push(intent.id);
+      continue;
+    }
+    const prefix = intent.id.slice(0, separatorIndex);
     if (!categoryMap.has(prefix)) {
       categoryMap.set(prefix, []);
     }
@@ -61,7 +78,6 @@ function buildIntentCategories(intents: readonly IntentCatalogEntry[]): string {
   }
 
   const categoryLines: string[] = [];
-  const standaloneIntents: string[] = [];
   for (const [prefix, ids] of categoryMap) {
     if (ids.length >= 2) {
       categoryLines.push(`- ${prefix}-*: ${ids.join(", ")}`);
@@ -70,7 +86,7 @@ function buildIntentCategories(intents: readonly IntentCatalogEntry[]): string {
     }
   }
   if (standaloneIntents.length > 0) {
-    categoryLines.push(`- STANDALONE: ${standaloneIntents.join(", ")}`);
+    categoryLines.push(`- standalone: ${standaloneIntents.join(", ")}`);
   }
 
   return categoryLines.length > 0
@@ -88,24 +104,146 @@ function buildConversationMarkdown(
     const turnLines = [`- ${rolePrefix} ${turn.text}`];
 
     if (turn.role === "user" && turn.historicalIntent) {
-      const { intent, goal } = turn.historicalIntent;
-      turnLines.push(`  > *intent: ${intent}, ${goal}*`);
+      const { intent, goal, keywords, topic } = turn.historicalIntent;
+      const metadata = [`intent: ${intent}`, goal];
+      if (topic) metadata.push(`topic: ${topic}`);
+      if (keywords?.length) metadata.push(`keywords: ${keywords.join(", ")}`);
+      turnLines.push(`  > *${metadata.join("; ")}*`);
     }
 
     return turnLines.join("\n");
   });
 
-  return [
-    "## Conversation context",
-    "### Recent history",
-    ...historyLines,
-  ].join("\n");
+  return ["# Conversation context", "## Recent history", ...historyLines].join(
+    "\n",
+  );
+}
+
+export function normalizeKeywords(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const keywords: string[] = [];
+  for (const item of value) {
+    if (typeof item !== "string") continue;
+    const keyword = item.trim().toLowerCase().replace(/\s+/g, " ");
+    if (!keyword || seen.has(keyword)) continue;
+    seen.add(keyword);
+    keywords.push(keyword);
+    if (keywords.length === 8) break;
+  }
+  return keywords;
+}
+
+export function buildTopicFromKeywords(keywords: readonly string[]): string {
+  return keywords.slice(0, 3).join(" / ");
+}
+
+function stripCodeFence(raw: string): string {
+  return raw
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "");
+}
+
+function buildHistoricalTopicContext(
+  records: readonly HistoricalIntentRecord[],
+): string {
+  return records
+    .slice(-3)
+    .map((record) =>
+      [
+        `- intent: ${record.intent}`,
+        `  goal: ${record.goal}`,
+        record.topic ? `  topic: ${record.topic}` : undefined,
+        record.keywords?.length
+          ? `  keywords: ${record.keywords.join(", ")}`
+          : undefined,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    )
+    .join("\n");
+}
+
+export function buildTopicSwitchPrompt(params: {
+  latest: string;
+  history: readonly HistoricalIntentRecord[];
+  currentTime?: string;
+}): string {
+  const timeLine = params.currentTime ? `${params.currentTime} ` : "";
+  const history = buildHistoricalTopicContext(params.history);
+
+  return `${timeLine}You are a lightweight topic continuity checker.
+Decide whether the user's latest message continues the recent topic or switches to a new one.
+Use only the latest message and recent historical intent metadata. Do not classify intent.
+
+<rules>
+1. Extract 3-8 core nouns or short phrases from the latest user message as keywords.
+2. Normalize keywords to lowercase and remove duplicates.
+3. topic is deterministic: the first 1-3 keywords joined by " / ".
+4. topicChanged=true when the user uses an explicit transition marker, requests a new or modified category, or the latest goal is independent from the previous topic.
+5. topicChanged=false when the user is continuing, correcting, approving, or implementing the same topic.
+</rules>
+
+<output_format>
+Return JSON only:
+{
+  "keywords": ["keyword"],
+  "topicChanged": false,
+  "topicChangeReason": "same_topic",
+  "previousTopic": "optional previous topic"
+}
+
+topicChangeReason must be one of: same_topic, transition_marker, keyword_delta, explicit_change.
+</output_format>
+
+<recent_history>
+${history || "- No history"}
+</recent_history>
+
+## Latest message:
+${params.latest}`;
+}
+
+export function parseTopicSwitchResult(
+  raw: string,
+): TopicSwitchResult | undefined {
+  try {
+    const parsed = JSON.parse(stripCodeFence(raw));
+    const keywords = normalizeKeywords(parsed.keywords);
+    if (keywords.length === 0 || typeof parsed.topicChanged !== "boolean") {
+      return;
+    }
+    if (
+      ![
+        "same_topic",
+        "transition_marker",
+        "keyword_delta",
+        "explicit_change",
+      ].includes(parsed.topicChangeReason)
+    ) {
+      return;
+    }
+    return {
+      keywords,
+      topic: buildTopicFromKeywords(keywords),
+      topicChanged: parsed.topicChanged,
+      topicChangeReason: parsed.topicChangeReason,
+      previousTopic:
+        typeof parsed.previousTopic === "string" && parsed.previousTopic.trim()
+          ? parsed.previousTopic.trim()
+          : undefined,
+    };
+  } catch {
+    return;
+  }
 }
 
 export function buildIntentionPrompt(params: {
   conversation?: RecentTurn[];
   latest: string;
   intents: readonly IntentCatalogEntry[];
+  topicContext?: TopicSwitchResult;
   currentTime?: string;
 }): string {
   const timeLine = params.currentTime ? `${params.currentTime} ` : "";
@@ -114,6 +252,16 @@ export function buildIntentionPrompt(params: {
   const intentCategories = buildIntentCategories(params.intents);
   const conversationMd = buildConversationMarkdown(params.conversation);
   const conversationSection = conversationMd ? `\n${conversationMd}\n` : "";
+  const topicContextSection = params.topicContext
+    ? `
+<topic_switch_context>
+keywords: ${params.topicContext.keywords.join(", ")}
+topic: ${params.topicContext.topic}
+topicChanged: ${params.topicContext.topicChanged}
+topicChangeReason: ${params.topicContext.topicChangeReason}
+${params.topicContext.previousTopic ? `previousTopic: ${params.topicContext.previousTopic}\n` : ""}</topic_switch_context>
+`
+    : "";
 
   return `${timeLine}You are an intent classification agent.
 Another model is preparing the final user-facing answer with hints and subagent routing.
@@ -126,17 +274,21 @@ You receive conversation history, the latest user message, and available intent 
 3. **Goal continuity**: If the latest message continues, corrects, refines, or asks to execute a relevant historical goal, prefer its related intent and preserve or refine the relevant historical goal in the new output goal.
 4. **Topic switch**: If the latest message introduces an independent topic, a different subject, or a different desired outcome, classify it fresh and replace the output goal with the new goal.
 5. **Short messages**: First determine whether the message points to a specific historical goal. Do not inherit the most recent intent merely because the message is short or contains a continuation marker.
-6. DO NOT FORCE classification - default to OTHER if uncertain.
-7. Validate output: ensure all required JSON fields are present, intent exists in catalog (or OTHER), confidence is 0.0-1.0, complexity is low|medium|high.
+6. If topic_switch_context is present and topicChanged=true, classify fresh and avoid inheriting the previous goal unless the latest message explicitly asks for it.
+7. If topic_switch_context is present and topicChanged=false, continuity with the previous topic is allowed but not mandatory.
+8. Extract 3-8 lowercase core nouns or short phrases as keywords.
+9. DO NOT FORCE classification - default to other if uncertain.
+10. Validate output: ensure all required JSON fields are present, intent exists in catalog (or other), confidence is 0.0-1.0, complexity is low|medium|high.
 </classification_rules>
 
 <output_format>
 Return classification as a JSON object. Output MUST be plain JSON only — do NOT wrap in \`\`\`json code blocks.
 
 Required fields:
-- "intent": string - Intent id exactly as shown in the catalog (e.g., "memory-lookup" or "OTHER")
+- "intent": string - Intent id exactly as shown in the catalog (e.g., "memory-lookup" or "other")
 - "reason": string - Brief reason for classification
 - "goal": string - What the user wants to achieve
+- "keywords": string[] - 3-8 normalized core nouns or short phrases from the latest message
 - "confidence": number - 0.0 (guessing) to 1.0 (certain)
 - "complexity": string - "low", "medium", or "high"
 
@@ -148,6 +300,7 @@ Example output:
   "intent": "memory-lookup",
   "reason": "User asked to recall previous conversation topic",
   "goal": "Retrieve memory of past discussion about Python async",
+  "keywords": ["python", "async", "memory"],
   "confidence": 0.9,
   "complexity": "medium"
 }
@@ -157,7 +310,7 @@ Complexity levels:
 - "medium": task requiring moderate context analysis or broader scope that needs some investigation before execution.
 - "high": multi-step investigation, research, complex code operations, or broad scope requiring full SOP workflow and structural changes.
 
-Fallback: If no intent confidently matches, return intent as "OTHER".
+Fallback: If no intent confidently matches, return intent as "other".
 </output_format>
 
 <intent_catalog>
@@ -166,25 +319,20 @@ ${intentCategories}
 
 ${intentCatalog}
 </intent_catalog>
+${topicContextSection}
 ${conversationSection}
-### Latest message
+## Latest message:
 ${params.latest}`;
 }
 
 export function parseIntentionResult(
   raw: string,
   validIntentIds: string[],
+  topicContext?: TopicSwitchResult,
 ): IntentionResult | undefined {
   try {
     // Strip ```json code block markers if present
-    let cleaned = raw.trim();
-    const jsonBlockMatch = cleaned.match(/^```json\s*\n([\s\S]*?)\n?```\s*$/);
-    if (jsonBlockMatch) {
-      cleaned = jsonBlockMatch[1].trim();
-    }
-
-    // Also strip any stray ``` markers
-    cleaned = cleaned.replace(/^```/gm, "").replace(/```$/gm, "").trim();
+    const cleaned = stripCodeFence(raw);
 
     // Parse JSON
     const parsed = JSON.parse(cleaned);
@@ -231,10 +379,21 @@ export function parseIntentionResult(
     }
 
     // Build result
+    const keywords = normalizeKeywords(parsed.keywords);
+    const effectiveKeywords =
+      keywords.length > 0 ? keywords : (topicContext?.keywords ?? []);
     const result: IntentionResult = {
       intent,
       reason: parsed.reason,
       goal: parsed.goal,
+      keywords: effectiveKeywords.length > 0 ? effectiveKeywords : undefined,
+      topic:
+        effectiveKeywords.length > 0
+          ? buildTopicFromKeywords(effectiveKeywords)
+          : undefined,
+      topicChanged: topicContext?.topicChanged ?? false,
+      topicChangeReason: topicContext?.topicChangeReason ?? "initial",
+      previousTopic: topicContext?.previousTopic,
       confidence: parsed.confidence,
       complexity: parsed.complexity as "low" | "medium" | "high",
     };
@@ -274,6 +433,15 @@ function buildPromptPrefixLines(
   lines.push(`reason: ${result.reason}`);
   lines.push(`goal: ${result.goal}`);
   if (result.suggestion) lines.push(`suggestion: ${result.suggestion}`);
+  if (result.topic) lines.push(`topic: ${result.topic}`);
+  if (result.keywords?.length)
+    lines.push(`keywords: ${result.keywords.join(", ")}`);
+  if (result.topicChangeReason) {
+    lines.push(`topicChanged: ${result.topicChanged ?? false}`);
+    lines.push(`topicChangeReason: ${result.topicChangeReason}`);
+  }
+  if (result.previousTopic)
+    lines.push(`previousTopic: ${result.previousTopic}`);
   lines.push(`confidence: ${result.confidence}`);
   lines.push(`complexity: ${result.complexity}`);
   lines.push("");

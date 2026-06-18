@@ -1,5 +1,6 @@
 import type { IntentionResult } from "./types.js";
 import type { ResolvedEvolutionConfig } from "./types.js";
+import { FALLBACK_INTENT_ID } from "./constants.js";
 
 export const EVOLUTION_TRIGGER_TYPES = [
   "skill_candidate",
@@ -52,7 +53,8 @@ export function checkEvolutionTriggers(
   }
   if (
     config.missingIntent.enabled &&
-    result?.intent.match(/^([A-Za-z0-9_-]+)/)?.[1]?.toUpperCase() === "OTHER"
+    result?.intent.match(/^([A-Za-z0-9_-]+)/)?.[1]?.toLowerCase() ===
+      FALLBACK_INTENT_ID
   ) {
     matches.push("missing_intent");
   }

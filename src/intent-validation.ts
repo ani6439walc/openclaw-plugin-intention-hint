@@ -8,6 +8,7 @@ const STANDARD_SECTIONS = [
   "Skills & Tools",
   "Response Strategy",
   "Concrete Workflow",
+  "Experience",
 ];
 
 export type IntentValidationResult = {

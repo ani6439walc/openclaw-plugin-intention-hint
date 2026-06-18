@@ -37,6 +37,49 @@ examples:
     });
   });
 
+  it("accepts optional Experience after Concrete Workflow", () => {
+    fs.writeFileSync(
+      path.join(dir, "one.md"),
+      `${valid()}
+## Concrete Workflow
+- Step.
+
+## Experience
+- Tip.
+`,
+    );
+
+    expect(validateIntentDirectory(dir)).toMatchObject({
+      valid: true,
+      errors: [],
+    });
+  });
+
+  it("rejects duplicate Experience sections and bad section order", () => {
+    fs.writeFileSync(
+      path.join(dir, "one.md"),
+      `${valid()}
+## Experience
+- Tip.
+
+## Concrete Workflow
+- Step.
+
+## Experience
+- Duplicate.
+`,
+    );
+
+    const result = validateIntentDirectory(dir);
+    expect(result.valid).toBe(false);
+    expect(result.errors.join("\n")).toContain(
+      "duplicate ## Experience section",
+    );
+    expect(result.errors.join("\n")).toContain(
+      "standard sections are out of order",
+    );
+  });
+
   it("rejects stale frontmatter fields", () => {
     fs.writeFileSync(
       path.join(dir, "one.md"),

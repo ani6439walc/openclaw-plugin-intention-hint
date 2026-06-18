@@ -9,6 +9,7 @@ Rules for generating intent definition files. The canonical format spec lives in
 3. `## Skills & Tools`
 4. `## Response Strategy`
 5. `## Concrete Workflow` (optional)
+6. `## Experience` (optional)
 
 ## Skill hint format
 
@@ -40,6 +41,12 @@ Rules for generating intent definition files. The canonical format spec lives in
 - Include tool call examples inside relevant steps
 - Keep steps short — not explanatory prose
 - Structure: `### Step N — <name>`
+
+## Experience inclusion rule
+
+- Include only durable lessons that help future turns with the same intent.
+- Good entries: reusable tips, parameters, pitfalls, recovery notes, and stable skill/tool lessons.
+- Skip one-off transcripts, user-specific secrets, and general knowledge that belongs in active-memory.
 
 ## No cross-references
 

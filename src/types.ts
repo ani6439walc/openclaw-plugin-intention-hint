@@ -107,11 +107,24 @@ export type IntentionResult = {
   reason: string;
   goal: string;
   suggestion?: string;
+  keywords?: string[];
+  topic?: string;
+  topicChanged?: boolean;
+  topicChangeReason?:
+    | "initial"
+    | "same_topic"
+    | "transition_marker"
+    | "keyword_delta"
+    | "explicit_change";
+  previousTopic?: string;
   confidence: number;
   complexity: "low" | "medium" | "high";
 };
 
-export type HistoricalIntent = Pick<IntentionResult, "intent" | "goal">;
+export type HistoricalIntent = Pick<
+  IntentionResult,
+  "intent" | "goal" | "keywords" | "topic"
+>;
 
 export type HistoricalIntentRecord = HistoricalIntent & {
   input: string;

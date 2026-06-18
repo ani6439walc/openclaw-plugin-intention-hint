@@ -317,7 +317,7 @@ describe("StatsAggregator", () => {
       createState({
         intent: {
           result: {
-            intent: "OTHER",
+            intent: "other",
             reason: "test",
             goal: "Other",
             confidence: 0.4,

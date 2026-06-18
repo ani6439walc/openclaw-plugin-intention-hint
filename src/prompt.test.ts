@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   buildIntentionPrompt,
+  buildTopicSwitchPrompt,
   parseIntentionResult,
+  parseTopicSwitchResult,
   buildPromptPrefix,
 } from "./prompt.js";
 import type {
@@ -78,7 +80,7 @@ describe("buildIntentionPrompt", () => {
     });
 
     expect(result).toContain(FALLBACK_INTENT_ID);
-    expect(result).toContain('<intent id="OTHER">');
+    expect(result).toContain('<intent id="other">');
   });
 
   it("should include conversation history when provided", () => {
@@ -101,10 +103,10 @@ describe("buildIntentionPrompt", () => {
     });
 
     // Check for Markdown format
-    expect(result).toContain("## Conversation context");
-    expect(result).toContain("### Recent history");
+    expect(result).toContain("# Conversation context");
+    expect(result).toContain("## Recent history");
     expect(result).toContain("- **user**: Hello there");
-    expect(result).toContain("> *intent: coding, Implement the feature*");
+    expect(result).toContain("> *intent: coding; Implement the feature*");
     expect(result).toContain("- **assistant**: Hi! How can I help?");
   });
   it("should include latest message in input section", () => {
@@ -113,7 +115,7 @@ describe("buildIntentionPrompt", () => {
       latest: "I need help with code",
     });
 
-    expect(result).toContain("### Latest message");
+    expect(result).toContain("## Latest message:");
     expect(result).toContain("I need help with code");
     expect(result).not.toContain("<latest>");
   });
@@ -137,7 +139,7 @@ describe("buildIntentionPrompt", () => {
 
     expect(result).not.toContain("## Conversation context");
     expect(result).not.toContain("### Recent history");
-    expect(result).toContain("### Latest message");
+    expect(result).toContain("## Latest message:");
     expect(result).toContain("test message");
   });
 
@@ -152,6 +154,7 @@ describe("buildIntentionPrompt", () => {
     expect(result).toContain('"intent":');
     expect(result).toContain('"reason":');
     expect(result).toContain('"goal":');
+    expect(result).toContain('"keywords":');
     expect(result).toContain('"confidence":');
     expect(result).toContain('"complexity":');
     expect(result).toContain("historical_intent");
@@ -161,12 +164,80 @@ describe("buildIntentionPrompt", () => {
   });
 });
 
+describe("buildTopicSwitchPrompt", () => {
+  it("builds a compact topic continuity prompt from historical metadata", () => {
+    const prompt = buildTopicSwitchPrompt({
+      latest: "繼續實作 topic checker",
+      history: [
+        {
+          input: "規劃 topic checker",
+          intent: "coding",
+          goal: "Plan topic checker",
+          keywords: ["topic", "checker"],
+          topic: "topic / checker",
+        },
+      ],
+    });
+
+    expect(prompt).toContain("topic continuity checker");
+    expect(prompt).toContain("intent: coding");
+    expect(prompt).toContain("keywords: topic, checker");
+    expect(prompt).toContain("## Latest message:");
+    expect(prompt).toContain("繼續實作 topic checker");
+  });
+});
+
+describe("parseTopicSwitchResult", () => {
+  it("normalizes keywords and computes topic", () => {
+    const result = parseTopicSwitchResult(
+      JSON.stringify({
+        keywords: [" Topic ", "Checker", "topic", "Flow"],
+        topicChanged: false,
+        topicChangeReason: "same_topic",
+        previousTopic: "topic / checker",
+      }),
+    );
+
+    expect(result).toEqual({
+      keywords: ["topic", "checker", "flow"],
+      topic: "topic / checker / flow",
+      topicChanged: false,
+      topicChangeReason: "same_topic",
+      previousTopic: "topic / checker",
+    });
+  });
+
+  it("accepts fenced JSON and rejects invalid reasons", () => {
+    expect(
+      parseTopicSwitchResult(
+        '```json\n{"keywords":["deploy"],"topicChanged":true,"topicChangeReason":"transition_marker"}\n```',
+      ),
+    ).toMatchObject({
+      keywords: ["deploy"],
+      topic: "deploy",
+      topicChanged: true,
+      topicChangeReason: "transition_marker",
+    });
+
+    expect(
+      parseTopicSwitchResult(
+        JSON.stringify({
+          keywords: ["deploy"],
+          topicChanged: true,
+          topicChangeReason: "initial",
+        }),
+      ),
+    ).toBeUndefined();
+  });
+});
+
 describe("parseIntentionResult", () => {
   it("should parse valid intention result", () => {
     const raw = JSON.stringify({
       intent: "coding",
       reason: "User wants to write code",
       goal: "Implement a sorting function",
+      keywords: [" Sort ", "Array", "sort"],
       confidence: 0.85,
       complexity: "medium",
     });
@@ -177,8 +248,40 @@ describe("parseIntentionResult", () => {
     expect(result!.intent).toBe("coding");
     expect(result!.reason).toBe("User wants to write code");
     expect(result!.goal).toBe("Implement a sorting function");
+    expect(result!.keywords).toEqual(["sort", "array"]);
+    expect(result!.topic).toBe("sort / array");
+    expect(result!.topicChanged).toBe(false);
+    expect(result!.topicChangeReason).toBe("initial");
     expect(result!.confidence).toBe(0.85);
     expect(result!.complexity).toBe("medium");
+  });
+
+  it("merges topic switch metadata into parsed intention results", () => {
+    const result = parseIntentionResult(
+      JSON.stringify({
+        intent: "coding",
+        reason: "User continues implementation",
+        goal: "Implement topic checker",
+        confidence: 0.85,
+        complexity: "medium",
+      }),
+      ["coding", "other"],
+      {
+        keywords: ["topic", "checker", "implementation"],
+        topic: "topic / checker / implementation",
+        topicChanged: false,
+        topicChangeReason: "same_topic",
+        previousTopic: "topic / checker",
+      },
+    );
+
+    expect(result).toMatchObject({
+      keywords: ["topic", "checker", "implementation"],
+      topic: "topic / checker / implementation",
+      topicChanged: false,
+      topicChangeReason: "same_topic",
+      previousTopic: "topic / checker",
+    });
   });
 
   it("should store pure id when a matching id is wrapped with display text", () => {
@@ -463,6 +566,29 @@ describe("buildPromptPrefix", () => {
     expect(prefix).toContain("complexity: medium");
     expect(prefix).toContain("You are helping with coding tasks");
     expect(prefix).toContain("MEDIUM_COMPLEXITY_PROMPT");
+  });
+
+  it("includes topic metadata when present", () => {
+    const result: IntentionResult = {
+      intent: "coding",
+      reason: "User wants code",
+      goal: "Implement topic flow",
+      keywords: ["topic", "flow"],
+      topic: "topic / flow",
+      topicChanged: true,
+      topicChangeReason: "transition_marker",
+      previousTopic: "docs",
+      confidence: 0.9,
+      complexity: "medium",
+    };
+
+    const prefix = buildPromptPrefix(result, mockIntents, mockConfig);
+
+    expect(prefix).toContain("topic: topic / flow");
+    expect(prefix).toContain("keywords: topic, flow");
+    expect(prefix).toContain("topicChanged: true");
+    expect(prefix).toContain("topicChangeReason: transition_marker");
+    expect(prefix).toContain("previousTopic: docs");
   });
 
   it("should match filename intent ids when result includes display text", () => {

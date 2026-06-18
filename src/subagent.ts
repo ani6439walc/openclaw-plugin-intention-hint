@@ -7,9 +7,16 @@ import {
 import type { OpenClawPluginApi } from "../api.js";
 import { logger } from "../api.js";
 import { FALLBACK_INTENT_ID } from "./constants.js";
-import { buildIntentionPrompt, parseIntentionResult } from "./prompt.js";
+import {
+  buildIntentionPrompt,
+  buildTopicSwitchPrompt,
+  parseIntentionResult,
+  parseTopicSwitchResult,
+  type TopicSwitchResult,
+} from "./prompt.js";
 import { resolveCanonicalSessionKeyFromSessionId } from "./session.js";
 import type {
+  HistoricalIntentRecord,
   IntentCatalogEntry,
   IntentionResult,
   RecentTurn,
@@ -83,6 +90,7 @@ export async function runIntentionSubagent(params: {
   channelId?: string;
   modelRef: { provider: string; model: string };
   intents: readonly IntentCatalogEntry[];
+  topicContext?: TopicSwitchResult;
 }): Promise<IntentionResult | undefined> {
   const subagentSessionId = `intention-hint-${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 8)}`;
   const parentSessionKey =
@@ -103,6 +111,7 @@ export async function runIntentionSubagent(params: {
     conversation: params.conversation,
     latest: params.latest,
     intents: params.intents,
+    topicContext: params.topicContext,
     currentTime: resolveCurrentTime(params.api),
   });
   const embeddedRunParams = buildIntentionEmbeddedRunParams({
@@ -124,7 +133,11 @@ export async function runIntentionSubagent(params: {
 
     const validIds = [...params.intents.map((i) => i.id), FALLBACK_INTENT_ID];
 
-    const parsed = parseIntentionResult(rawReply, validIds);
+    const parsed = parseIntentionResult(
+      rawReply,
+      validIds,
+      params.topicContext,
+    );
     if (!parsed) {
       logger.warn("Intention result parse failed", {
         rawReply,
@@ -134,6 +147,63 @@ export async function runIntentionSubagent(params: {
     return parsed;
   } catch (err) {
     logger.warn("Intention subagent error", { error: err });
+    return;
+  }
+}
+
+export async function runTopicSwitchSubagent(params: {
+  api: OpenClawPluginApi;
+  config: ResolvedIntentionHintPluginConfig;
+  agentId: string;
+  sessionKey?: string;
+  sessionId?: string;
+  latest: string;
+  history: readonly HistoricalIntentRecord[];
+  messageProvider?: string;
+  modelRef: { provider: string; model: string };
+}): Promise<TopicSwitchResult | undefined> {
+  const subagentSessionId = `intention-hint-topic-${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 8)}`;
+  const parentSessionKey =
+    params.sessionKey ??
+    resolveCanonicalSessionKeyFromSessionId({
+      api: params.api,
+      agentId: params.agentId,
+      sessionId: params.sessionId,
+    });
+  const subagentScope =
+    parentSessionKey ?? params.sessionId ?? crypto.randomUUID();
+  const subagentSuffix = `intention-hint-topic:${crypto.createHash("sha1").update(`${subagentScope}:${params.latest}`).digest("hex").slice(0, 12)}`;
+  const subagentSessionKey = parentSessionKey
+    ? `${parentSessionKey}:${subagentSuffix}`
+    : `agent:${params.agentId}:${subagentSuffix}`;
+
+  const prompt = buildTopicSwitchPrompt({
+    latest: params.latest,
+    history: params.history,
+    currentTime: resolveCurrentTime(params.api),
+  });
+
+  try {
+    const result = await params.api.runtime.agent.runEmbeddedPiAgent(
+      buildIntentionEmbeddedRunParams({
+        params,
+        subagentSessionId,
+        subagentSessionKey,
+        prompt,
+      }),
+    );
+    const rawReply = ((result.payloads ?? []) as { text?: string }[])
+      .map((payload) => payload.text?.trim() ?? "")
+      .filter(Boolean)
+      .join("\n")
+      .trim();
+    const parsed = parseTopicSwitchResult(rawReply);
+    if (!parsed) {
+      logger.warn("Topic switch result parse failed", { rawReply });
+    }
+    return parsed;
+  } catch (err) {
+    logger.warn("Topic switch subagent error", { error: err });
     return;
   }
 }

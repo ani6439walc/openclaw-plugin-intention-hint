@@ -91,6 +91,10 @@ examples:
 ## Response Strategy
 
 <bullet list of what the agent should do>
+
+## Experience
+
+<optional durable tips, parameters, pitfalls, or recovery notes>
 ```
 
 **Step 5 — Deliver with validation**
@@ -100,7 +104,7 @@ examples:
 python3 -c "import yaml; yaml.safe_load(open('intent.md').read().split('---')[1])"
 
 # Verify required sections exist
-grep -E "^(## Guidelines|## Skills & Tools|## Response Strategy)" intent.md
+grep -E "^(## Guidelines|## Skills & Tools|## Response Strategy|## Experience)" intent.md
 
 # If no collisions, write to target
 mv intent.md ~/.openclaw/plugins/intention-hint/intents/<intent-id>.md
@@ -308,7 +312,7 @@ grep -l "<trigger>" ~/.openclaw/plugins/intention-hint/intents/*.md
 cat ~/.openclaw/plugins/intention-hint/intents/*.md | grep "^id:" | cut -d' ' -f2
 
 # Verify required sections exist
-grep -E "^(## Guidelines|## Skills & Tools|## Response Strategy)" <file>
+grep -E "^(## Guidelines|## Skills & Tools|## Response Strategy|## Experience)" <file>
 ```
 
 ### Decision style

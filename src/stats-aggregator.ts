@@ -8,6 +8,7 @@ import {
   readJsonFile,
   safeWriteJson,
 } from "./file-utils.js";
+import { FALLBACK_INTENT_ID } from "./constants.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DAILY_RETENTION_MS = 90 * DAY_MS;
@@ -324,7 +325,8 @@ export class StatsAggregator {
       stats.summary.toolAssistedTurns += toolCalls.length > 0 ? 1 : 0;
       stats.summary.skillUsageCount += skillsUsed.length;
       stats.summary.toolCallCount += toolCalls.length;
-      stats.summary.otherTurns += intentId.toUpperCase() === "OTHER" ? 1 : 0;
+      stats.summary.otherTurns +=
+        intentId.toLowerCase() === FALLBACK_INTENT_ID ? 1 : 0;
 
       const intent = (stats.intents[intentId] ??= {
         turns: 0,

@@ -55,6 +55,8 @@ export function attachHistoricalIntents(
     turn.historicalIntent = {
       intent: record.intent,
       goal: record.goal,
+      keywords: record.keywords,
+      topic: record.topic,
     };
   }
 

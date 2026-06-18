@@ -13,13 +13,13 @@ const REVIEW_INSTRUCTIONS: Record<
 > = {
   skill_candidate: {
     focus:
-      "Identify reusable skills, tools, and execution sequences that the matched intent Markdown should route to. Exclude one-off tool usage and capabilities outside the intent boundary.",
-    goal: "Refine the matched intent Markdown's Skills & Tools section and add or improve Concrete Workflow steps when the sequence is stable.",
+      "Identify reusable skills, tools, execution sequences, tips, parameters, and pitfalls that the matched intent Markdown should preserve. Exclude one-off tool usage and capabilities outside the intent boundary.",
+    goal: "Refine the matched intent Markdown's Skills & Tools, Concrete Workflow, or Experience section when the sequence or lesson is stable.",
   },
   process_gap: {
     focus:
-      "Trace the failed execution and recovery path, then identify which missing intent guideline, tool call example, or workflow step would have prevented the gap.",
-    goal: "Refine the matched intent Markdown's Guidelines, Skills & Tools, or Concrete Workflow so future runs follow the successful path.",
+      "Trace the failed execution and recovery path, then identify which missing intent guideline, tool call example, workflow step, or Experience pitfall would have prevented the gap.",
+    goal: "Refine the matched intent Markdown's Guidelines, Skills & Tools, Concrete Workflow, or Experience so future runs follow the successful path.",
   },
   satisfaction_check: {
     focus:
@@ -39,17 +39,18 @@ const REVIEW_INSTRUCTIONS: Record<
   behavior_fix: {
     focus:
       "Compare the user correction with the matched intent's routed behavior and identify the specific Markdown instruction that caused, allowed, or failed to prevent the mistake.",
-    goal: "Refine the matched intent Markdown's Guidelines, Response Strategy, Skills & Tools, or Concrete Workflow to encode the corrected behavior.",
+    goal: "Refine the matched intent Markdown's Guidelines, Response Strategy, Skills & Tools, Concrete Workflow, or Experience to encode the corrected behavior.",
   },
 };
 
 const INTENT_CRAFT_RUBRIC = `Intent Markdown review rules:
 - Decide whether the evidence calls for creating, refining, splitting, or merging an intent. Prefer the smallest maintainable boundary.
 - Intent ids come from Markdown filenames without the .md suffix. Frontmatter is classification-only and contains only triggers[] and examples[]. Triggers describe the user goal and boundary; examples are realistic user messages.
-- The body guides execution and must use this order: ## Guidelines, ## Skills & Tools, ## Response Strategy, then optional ## Concrete Workflow.
+- The body guides execution and must use this order: ## Guidelines, ## Skills & Tools, ## Response Strategy, then optional ## Concrete Workflow, then optional ## Experience.
 - Put skill hints on an indented "skill: <name>" line beneath a descriptive list item.
 - Put concrete tool call shapes in Skills & Tools or workflow steps; do not use vague tool prose.
 - Include Concrete Workflow for multi-step or sequence-sensitive intents. Use short numbered "### Step N — <name>" sections.
+- Use Experience for reusable tips, parameters, pitfalls, stable skill/tool lessons, and recovery notes that help future turns with the same intent.
 - Never mention another intent name or id inside an intent body. Express scope boundaries through frontmatter triggers and examples.
 - Do not propose changes to skills, tools, AGENTS.md, SOUL.md, or other production files. The only correction target is intent Markdown content.
 - Return no finding when the evidence does not justify a concrete intent Markdown improvement.`;
