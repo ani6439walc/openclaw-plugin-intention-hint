@@ -21,19 +21,14 @@ examples:
 
 - Read a large Markdown memory note by section:
   skill: treemd
-
 - List tags or inspect linked memory notes after a relevant file is found:
   skill: obsidian
-
 - Extract tags from memory files for sentiment/context analysis:
-
   ```bash
   rg -o '#\S+' memory/YYYY-MM-DD.md | sort | uniq -c | sort -rn
   ```
-
 - Search recorded memory:
   memory_search({ query: "<trigram_keywords>", corpus: "memory", maxResults: 5, minScore: 0.1 })
-
 - Read the most relevant memory file when more detail is needed:
   memory_get({ path: "<memory_file>" })
 

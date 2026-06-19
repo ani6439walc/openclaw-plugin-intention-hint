@@ -20,16 +20,12 @@ examples:
 
 - Read a large Markdown memory note by section:
   skill: treemd
-
 - List tags or inspect linked memory notes after relevant files are found:
   skill: obsidian
-
 - Search recorded memory for subject A:
   memory_search({ query: "<subject_A_trigram_keywords>", corpus: "memory", maxResults: 5, minScore: 0.1 })
-
 - Search recorded memory for subject B:
   memory_search({ query: "<subject_B_trigram_keywords>", corpus: "memory", maxResults: 5, minScore: 0.1 })
-
 - Read the most relevant memory note when more detail is needed:
   memory_get({ path: "<memory_file>" })
 
