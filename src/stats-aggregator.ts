@@ -18,6 +18,9 @@ const REVIEW_ADOPTION_THRESHOLD = 0.7;
 
 type CountMap = Record<string, number>;
 type ComplexityCounts = { low: number; medium: number; high: number };
+type RecordedIntentResult = NonNullable<
+  NonNullable<SessionState["intent"]>["result"]
+>;
 type RoutingCounts = {
   recommendationTurns: number;
   adoptedTurns: number;
@@ -280,7 +283,7 @@ function loadStats(statsFilePath: string, eventTime: string): Stats {
 
 function recordSummaryStats(params: {
   stats: Stats;
-  result: NonNullable<SessionState["intent"]>["result"];
+  result: RecordedIntentResult;
   intentId: string;
   skillsUsed: string[];
   toolCallCount: number;
@@ -288,7 +291,6 @@ function recordSummaryStats(params: {
 }): void {
   const { stats, result, intentId, skillsUsed, toolCallCount, errored } =
     params;
-  if (!result) return;
 
   stats.summary.averageConfidence = rate(
     stats.summary.averageConfidence * stats.summary.turns + result.confidence,
@@ -308,7 +310,7 @@ function recordSummaryStats(params: {
 function recordIntentStats(params: {
   stats: Stats;
   intentId: string;
-  result: NonNullable<SessionState["intent"]>["result"];
+  result: RecordedIntentResult;
   eventTime: string;
   skillsUsed: string[];
   toolCallCount: number;
@@ -323,7 +325,6 @@ function recordIntentStats(params: {
     toolCallCount,
     errored,
   } = params;
-  if (!result) return;
 
   const intent = (stats.intents[intentId] ??= {
     turns: 0,

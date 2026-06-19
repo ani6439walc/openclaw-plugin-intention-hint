@@ -24,7 +24,7 @@ import type {
   ResolvedIntentionHintPluginConfig,
 } from "./types.js";
 
-type EmbeddedSubagentBaseParams = {
+export type EmbeddedSubagentBaseParams = {
   api: OpenClawPluginApi;
   config: ResolvedIntentionHintPluginConfig;
   agentId: string;
