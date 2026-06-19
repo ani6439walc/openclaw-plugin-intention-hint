@@ -156,7 +156,7 @@ describe("runIntentInstructionSubagent", () => {
       "Use test-driven-development",
     );
     expect(runEmbeddedPiAgent.mock.calls[0][0].prompt).toContain(
-      "MEDIUM / STANDARD tasks",
+      "Classify the latest message turn-locally",
     );
     expect(runEmbeddedPiAgent.mock.calls[0][0].prompt).toContain(
       "<conversation_context>",

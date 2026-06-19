@@ -379,7 +379,7 @@ describe("parseTopicSwitchResult", () => {
     ).toBeUndefined();
   });
 
-  it("accepts initial topic metadata for a new conversation", () => {
+  it("normalizes initial topic metadata as topic changed for a new conversation", () => {
     expect(
       parseTopicSwitchResult(
         JSON.stringify({
@@ -393,7 +393,7 @@ describe("parseTopicSwitchResult", () => {
     ).toMatchObject({
       keywords: ["fresh", "topic"],
       topic: "User is starting a fresh topic.",
-      topicChanged: false,
+      topicChanged: true,
       topicChangeReason: "initial",
       complexity: "low",
     });
@@ -495,7 +495,7 @@ describe("parseIntentionResult", () => {
     expect(result!.topic).toBe(
       "User wants help writing code to sort an array.",
     );
-    expect(result!.topicChanged).toBe(false);
+    expect(result!.topicChanged).toBe(true);
     expect(result!.topicChangeReason).toBe("initial");
     expect(result!.confidence).toBe(0.85);
     expect(result!.complexity).toBe("medium");
