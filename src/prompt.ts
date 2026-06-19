@@ -329,8 +329,8 @@ topicChangeReason: ${params.result.topicChangeReason ?? "initial"}
 <matched_intent_markdown>
 ${params.intentBody}
 </matched_intent_markdown>
-${params.complexityContext}
 
+${params.complexityContext}
 ${conversationSection}
 
 <latest_message>
