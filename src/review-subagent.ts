@@ -57,6 +57,7 @@ const INTENT_CRAFT_RUBRIC = `Intent Markdown review rules:
 - Put concrete tool call shapes in Skills & Tools or workflow steps; do not use vague tool prose.
 - Include Concrete Workflow for multi-step or sequence-sensitive intents. Use short numbered "### Step N — <name>" sections.
 - Use Experience for reusable tips, parameters, pitfalls, stable skill/tool lessons, and recovery notes that help future turns with the same intent.
+- The review subagent may use the read tool to inspect SKILL.md files referenced by the review snapshot's Skills Used paths when the skill description is not enough to judge an intent-local improvement. Read only the relevant SKILL.md files and do not inspect unrelated files.
 - For completed reusable workflows, prefer a concise intent-local Experience note or Response Strategy reminder that preserves the pattern in future turns; do not ask the user to record it and do not propose writes outside runtime intent Markdown.
 - Recordability filter: the core question is whether the lesson will save future time.
 - General workflow lessons are recordable only when they are reusable workflows or decision steps, costly error recovery paths, critical parameters/settings/prerequisites, stable user preference or style rules, multi-attempt successful solutions with failure reasons and success conditions, reusable templates/checklists/formats, or stable external dependency/resource locations.
@@ -365,10 +366,10 @@ export async function runReviewSubagent(params: {
       agentDir: "/tmp",
       sessionFile: `/tmp/${runId}.session.jsonl`,
       trigger: "manual",
-      modelRun: true,
+      modelRun: false,
       promptMode: "none",
-      toolsAllow: [],
-      disableTools: true,
+      toolsAllow: ["read"],
+      disableTools: false,
       disableMessageTool: true,
       allowGatewaySubagentBinding: true,
       bootstrapContextMode: "lightweight",

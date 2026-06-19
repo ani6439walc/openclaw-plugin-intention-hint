@@ -81,6 +81,8 @@ describe("buildReviewPrompt", () => {
     expect(prompt).toContain("Concrete Workflow");
     expect(prompt).toContain("optional ## Experience");
     expect(prompt).toContain("reusable tips, parameters, pitfalls");
+    expect(prompt).toContain("may use the read tool to inspect SKILL.md files");
+    expect(prompt).toContain("review snapshot's Skills Used paths");
     expect(prompt).toContain("Recordability filter");
     expect(prompt).toContain("reusable workflows or decision steps");
     expect(prompt).toContain("costly error recovery paths");
@@ -289,7 +291,7 @@ describe("parseReviewFindings", () => {
 });
 
 describe("runReviewSubagent", () => {
-  it("runs an isolated tool-free review with the review timeout", async () => {
+  it("runs an isolated read-only review with the review timeout", async () => {
     const runEmbeddedPiAgent = vi.fn().mockResolvedValue({
       payloads: [{ text: '{"findings":[]}' }],
     });
@@ -321,8 +323,9 @@ describe("runReviewSubagent", () => {
         thinkLevel: "high",
         trigger: "manual",
         promptMode: "none",
-        disableTools: true,
-        toolsAllow: [],
+        modelRun: false,
+        disableTools: false,
+        toolsAllow: ["read"],
         sessionFile: expect.stringMatching(
           /^\/tmp\/intention-hint-review-.+\.session\.jsonl$/,
         ),
