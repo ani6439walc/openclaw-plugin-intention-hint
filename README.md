@@ -396,7 +396,9 @@ The full complexity guidance is provided to this instruction writer, not appende
 to the final main-agent prefix.
 The generated instruction text replaces direct full intent-body injection. If
 instruction generation fails, `buildPromptPrefix()` falls back to the original
-matched intent body.
+matched intent body. The final injected prefix wraps this plain instruction text
+under `result` so downstream prompt previews do not render a bare string beside
+structured intent metadata.
 
 ### Time Injection
 

@@ -782,6 +782,8 @@ describe("buildPromptPrefix", () => {
     );
 
     expect(prefix).toContain("Run tests first, then edit with apply_patch.");
+    expect(prefix).toContain("result: |");
+    expect(prefix).toContain("  Run tests first, then edit with apply_patch.");
     expect(prefix).not.toContain("Write clean, well-tested code.");
   });
 

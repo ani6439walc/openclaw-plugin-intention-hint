@@ -477,7 +477,17 @@ function buildPromptPrefixLines(
   intentDef: IntentDefinition,
   instructionText?: string,
 ): string[] {
-  return [instructionText?.trim() || intentDef.prompt];
+  return [formatPromptResult(instructionText?.trim() || intentDef.prompt)];
+}
+
+function formatPromptResult(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) return 'result: ""';
+
+  return [
+    "result: |",
+    ...trimmed.split(/\r?\n/).map((line) => `  ${line}`),
+  ].join("\n");
 }
 
 function resolveIntentId(intent: string): string {
