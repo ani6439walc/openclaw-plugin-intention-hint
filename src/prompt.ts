@@ -272,10 +272,16 @@ Your job is to read the matched intent Markdown and latest user message, then ou
 
 <rules>
 1. Output plain text only, not JSON and not Markdown fences.
-2. Include the concrete workflow the main agent should follow.
-3. Name any relevant skills and tools from the intent Markdown.
-4. Preserve useful pitfalls, parameters, and experience notes when they matter for this turn.
-5. Do not quote the whole intent file. Keep only actionable guidance.
+2. Treat the matched intent Markdown as a menu of possible guidance, not a checklist.
+3. Include only guidance directly relevant to the latest user message; omit unrelated workflows, tools, skills, pitfalls, and examples.
+4. Prefer the narrowest concrete workflow that fully satisfies the latest message.
+5. Include the concrete workflow the main agent should follow.
+6. Name relevant skills and tools from the intent Markdown only when they matter for this turn.
+7. Preserve useful pitfalls, parameters, and experience notes only when they change the correct action for this turn.
+8. If the latest message is a read-only status check, instruct the main agent to inspect state and report counts/status only. Do not suggest edits, commits, pushes, proposal execution, mark-processed, dismiss, or follow-up dispatch unless explicitly requested.
+9. Use complexity_context only to tune execution depth and verification effort; do not let it override the latest message or safety boundaries.
+10. Use conversation context only to resolve references or continuation. If the latest message is self-contained, prioritize it over historical context.
+11. Do not quote the whole intent file. Keep only actionable guidance.
 </rules>
 
 <intent_metadata>

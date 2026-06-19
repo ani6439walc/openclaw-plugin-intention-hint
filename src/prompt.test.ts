@@ -360,6 +360,13 @@ describe("buildIntentInstructionPrompt", () => {
     );
     expect(prompt).toContain("workflow");
     expect(prompt).toContain("skills and tools");
+    expect(prompt).toContain("menu of possible guidance, not a checklist");
+    expect(prompt).toContain("omit unrelated workflows");
+    expect(prompt).toContain("narrowest concrete workflow");
+    expect(prompt).toContain("read-only status check");
+    expect(prompt).toContain("Do not suggest edits, commits, pushes");
+    expect(prompt).toContain("complexity_context only to tune");
+    expect(prompt).toContain("conversation context only to resolve references");
     expect(prompt).toContain("intent: coding");
     expect(prompt).toContain("intentChange: false");
     expect(prompt).toContain(
