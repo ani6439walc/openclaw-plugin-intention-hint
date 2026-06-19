@@ -138,15 +138,21 @@ function formatToolCalls(
   if (!toolCalls?.length) return "- none";
   return toolCalls
     .map((call) => {
-      const details = [
-        call.error ? `error=${escapeSnapshotText(call.error)}` : undefined,
-        call.durationMs !== undefined
-          ? `durationMs=${call.durationMs}`
-          : undefined,
-      ]
-        .filter(Boolean)
-        .join(", ");
-      return `- ${escapeSnapshotText(call.name)}${details ? `: ${details}` : ""}`;
+      const lines = [`- ${escapeSnapshotText(call.name)}`];
+      if (call.params && Object.keys(call.params).length > 0) {
+        lines.push("  - Params:");
+        for (const [key, value] of Object.entries(call.params)) {
+          lines.push(
+            `    - ${escapeSnapshotText(key)}: ${escapeSnapshotText(value)}`,
+          );
+        }
+      }
+      if (call.error)
+        lines.push(`  - Error: ${escapeSnapshotText(call.error)}`);
+      if (call.durationMs !== undefined) {
+        lines.push(`  - Duration: ${call.durationMs}ms`);
+      }
+      return lines.join("\n");
     })
     .join("\n");
 }

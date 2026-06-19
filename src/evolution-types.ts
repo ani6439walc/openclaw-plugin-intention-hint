@@ -16,6 +16,7 @@ export type ReviewState = {
   }>;
   toolCalls?: Array<{
     name: string;
+    params?: Record<string, string>;
     error?: string;
     durationMs?: number;
   }>;

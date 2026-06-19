@@ -29,7 +29,17 @@ const snapshot: ReviewSnapshot = {
         path: "/skills/test-driven-development/SKILL.md",
       },
     ],
-    toolCalls: [{ name: "exec", error: "failed" }],
+    toolCalls: [
+      {
+        name: "exec",
+        params: {
+          command: "pnpm run test",
+          workdir: "/repo",
+        },
+        error: "failed",
+        durationMs: 42,
+      },
+    ],
     result: "Done",
     timestamps: { start: "2026-06-11T00:00:00.000Z" },
   },
@@ -185,7 +195,12 @@ describe("buildReviewPrompt", () => {
       "  - Path: /skills/test-driven-development/SKILL.md",
     );
     expect(prompt).toContain("### Tool Calls");
-    expect(prompt).toContain("- exec: error=failed");
+    expect(prompt).toContain("- exec");
+    expect(prompt).toContain("  - Params:");
+    expect(prompt).toContain("    - command: pnpm run test");
+    expect(prompt).toContain("    - workdir: /repo");
+    expect(prompt).toContain("  - Error: failed");
+    expect(prompt).toContain("  - Duration: 42ms");
     expect(prompt).toContain("### Assistant Result");
     expect(prompt).toContain("Done");
     expect(prompt).toContain("## Matched Intent");

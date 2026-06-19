@@ -931,7 +931,13 @@ describe("SessionTracker", () => {
             toolCalls: [
               {
                 name: "exec",
-                params: { secret: "do-not-copy" },
+                params: {
+                  path: "/repo/src/review-subagent.ts",
+                  command: `pnpm run test ${"x".repeat(600)}`,
+                  urls: ["https://example.com/a", "https://example.com/b"],
+                  secret: "do-not-copy",
+                  content: "do-not-copy-content",
+                },
                 result: "do-not-copy",
                 error: "e".repeat(600),
               },
@@ -957,8 +963,19 @@ describe("SessionTracker", () => {
       expect(snapshot?.current.result).toHaveLength(1500);
       expect(snapshot?.current.toolCalls?.[0]).toEqual({
         name: "exec",
+        params: {
+          path: "/repo/src/review-subagent.ts",
+          command: `pnpm run test ${"x".repeat(486)}`,
+          urls: "https://example.com/a, https://example.com/b",
+        },
         error: "e".repeat(500),
       });
+      expect(snapshot?.current.toolCalls?.[0].params).not.toHaveProperty(
+        "secret",
+      );
+      expect(snapshot?.current.toolCalls?.[0].params).not.toHaveProperty(
+        "content",
+      );
 
       tracker.record("review-session", { current: { input: "changed" } });
       expect(snapshot?.current.input).not.toBe("changed");
