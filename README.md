@@ -170,7 +170,7 @@ The versioned stats document contains:
 - `daily`: UTC daily buckets retained for 90 days
 - `processedEvents`: event IDs retained for 90 days to prevent duplicate `agent_end` counting
 
-Rates use `0.0–1.0`. Skill lifecycle is `active` within 30 days, `stale` after 30 days, `archive` after 90 days, or `never_used` when recommended but never used. `needsReview` becomes true after at least five recommendations with adoption below `0.7`. All-time counters do not decrease when rolling data is pruned.
+Rates use `0.0–1.0`. Skill lifecycle is `active` within 30 days, `stale` after 30 days, `archive` after 90 days, or `never-used` when recommended but never used. `needsReview` becomes true after at least five recommendations with adoption below `0.7`. All-time counters do not decrease when rolling data is pruned.
 
 ## Installation
 

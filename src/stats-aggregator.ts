@@ -79,7 +79,7 @@ type Stats = {
       adoptionRate: number;
       lastUsedAt?: string;
       last7DaysUsage: number;
-      lifecycle: "active" | "stale" | "archive" | "never_used";
+      lifecycle: "active" | "stale" | "archive" | "never-used";
       needsReview: boolean;
     }
   >;
@@ -217,7 +217,7 @@ function recomputeDerivedStats(stats: Stats, nowMs: number): void {
       0,
     );
     if (!skill.lastUsedAt) {
-      skill.lifecycle = "never_used";
+      skill.lifecycle = "never-used";
     } else {
       const ageMs = nowMs - Date.parse(skill.lastUsedAt);
       skill.lifecycle =
@@ -367,7 +367,7 @@ function recordSkillStats(params: {
       adoptedTurns: 0,
       adoptionRate: 0,
       last7DaysUsage: 0,
-      lifecycle: "never_used",
+      lifecycle: "never-used",
       needsReview: false,
     });
     if (skillsUsed.includes(skillName)) {

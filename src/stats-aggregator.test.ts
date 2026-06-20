@@ -139,7 +139,7 @@ describe("StatsAggregator", () => {
       adoptedTurns: 0,
       adoptionRate: 0,
       last7DaysUsage: 0,
-      lifecycle: "never_used",
+      lifecycle: "never-used",
       needsReview: false,
     });
     expect(stats.routing).toMatchObject({
@@ -336,7 +336,7 @@ describe("StatsAggregator", () => {
       recommendedTurns: 5,
       adoptedTurns: 0,
       adoptionRate: 0,
-      lifecycle: "never_used",
+      lifecycle: "never-used",
       needsReview: true,
     });
     expect(stats.summary.otherTurns).toBe(1);
