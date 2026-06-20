@@ -441,7 +441,10 @@ describe("buildIntentInstructionPrompt", () => {
     );
     expect(prompt).toContain("workflow");
     expect(prompt).toContain("Skill Recommendation");
+    expect(prompt).toContain("at most 1-3 explicit skill directives");
     expect(prompt).toContain("MUST read skill: <skill-name> at <path>");
+    expect(prompt).toContain("REQUIRED skill: <skill-name>");
+    expect(prompt).toContain("merely related or optional skills");
     expect(prompt).toContain("menu of possible guidance, not a checklist");
     expect(prompt).toContain("omit unrelated workflows");
     expect(prompt).toContain("narrowest concrete workflow");

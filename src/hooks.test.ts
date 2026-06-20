@@ -688,12 +688,13 @@ describe("createHookHandlers topic switch flow", () => {
       expect.objectContaining({
         current: expect.objectContaining({
           input: "implement topic checker",
-          intent: {
+          intent: expect.objectContaining({
+            instructionText: "Follow the generated coding instructions.",
             result: expect.objectContaining({
               intent: "coding",
               topicChanged: false,
             }),
-          },
+          }),
         }),
       }),
     );
