@@ -85,12 +85,17 @@ describe("StatsAggregator", () => {
           "  skill: obsidian",
           "- skill: raw-candidate",
           "MUST read skill: prompt-engineering-expert at /duplicate/SKILL.md",
+          "MUST read skill: `github-pr-workflow`",
+          "REQUIRED skill: test-driven-development.",
+          "MUST read skill: code-review-and-quality at /skills/code-review-and-quality/SKILL.md - needed to assess bot feedback",
         ].join("\n"),
       ),
     ).toEqual([
       "prompt-engineering-expert",
       "test-driven-development",
       "treemd",
+      "github-pr-workflow",
+      "code-review-and-quality",
     ]);
   });
 

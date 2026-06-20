@@ -153,7 +153,12 @@ function resolveIntentId(
 }
 
 const SKILL_RECOMMENDATION_PATTERN =
-  /^\s*(?:[-*]\s*)?(?:(?:MUST|REQUIRED)\s+(?:read\s+)?skill|強烈建議\s+(?:read\s+)?skill)\s*:\s*([^\s,;]+)(?:\s+at\s+\S+)?\s*$/iu;
+  /^\s*(?:[-*]\s*)?(?:(?:MUST|REQUIRED)\s+(?:read\s+)?skill|強烈建議\s+(?:read\s+)?skill)\s*:\s*([^\s,;]+)/iu;
+
+function normalizeRecommendedSkillName(skill: string): string | undefined {
+  const normalized = skill.replace(/^[`"']+|[`"'.!?]+$/g, "");
+  return normalized || undefined;
+}
 
 export function extractRecommendedSkillsFromInstruction(
   instructionText: string | undefined,
@@ -164,6 +169,8 @@ export function extractRecommendedSkillsFromInstruction(
       instructionText
         .split(/\r?\n/)
         .map((line) => line.match(SKILL_RECOMMENDATION_PATTERN)?.[1])
+        .filter((skill): skill is string => !!skill)
+        .map(normalizeRecommendedSkillName)
         .filter((skill): skill is string => !!skill),
     ),
   ];
