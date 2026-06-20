@@ -28,6 +28,7 @@ export interface SkillRecord {
 export interface IntentState {
   input?: RecentTurn[];
   result?: IntentionResult;
+  instructionText?: string;
 }
 
 export interface SessionState {
@@ -348,6 +349,9 @@ export class SessionTracker {
         }
         if (data.current.intent.result !== undefined) {
           current.intent.result = data.current.intent.result;
+        }
+        if (data.current.intent.instructionText !== undefined) {
+          current.intent.instructionText = data.current.intent.instructionText;
         }
       }
       if (data.current.result !== undefined) {

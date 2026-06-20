@@ -152,15 +152,18 @@ function resolveIntentId(
   return resultIntent.match(/^([A-Za-z0-9_-]+)/)?.[1] ?? resultIntent;
 }
 
-function extractRecommendedSkills(
-  definition: IntentCatalogEntry | undefined,
+const SKILL_RECOMMENDATION_PATTERN =
+  /^\s*(?:[-*]\s*)?(?:(?:MUST|REQUIRED)\s+(?:read\s+)?skill|強烈建議\s+(?:read\s+)?skill)\s*:\s*([^\s,;]+)(?:\s+at\s+\S+)?\s*$/iu;
+
+export function extractRecommendedSkillsFromInstruction(
+  instructionText: string | undefined,
 ): string[] {
-  if (!definition) return [];
+  if (!instructionText) return [];
   return [
     ...new Set(
-      definition.definition.prompt
+      instructionText
         .split(/\r?\n/)
-        .map((line) => line.match(/^\s*skill:\s*(\S+)\s*$/i)?.[1])
+        .map((line) => line.match(SKILL_RECOMMENDATION_PATTERN)?.[1])
         .filter((skill): skill is string => !!skill),
     ),
   ];
@@ -490,7 +493,9 @@ export class StatsAggregator {
       const skillsUsed = [
         ...new Set((state.skillsUsed ?? []).map((skill) => skill.name)),
       ];
-      const recommendedSkills = extractRecommendedSkills(intentDefinition);
+      const recommendedSkills = extractRecommendedSkillsFromInstruction(
+        state.intent?.instructionText,
+      );
       const adoptedSkills = recommendedSkills.filter((skill) =>
         skillsUsed.includes(skill),
       );

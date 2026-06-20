@@ -307,10 +307,10 @@ Your job is to read the matched intent Markdown and latest user message, then ou
 4. Prefer the narrowest concrete workflow that fully satisfies the latest message.
 5. Include the concrete workflow the main agent should follow.
 6. **Skill Recommendation (CRITICAL)**:
-   - If the intent Markdown mentions skills, tools, or workflows directly related to the latest message's domain/topic, you MUST output an explicit directive: "MUST read skill: <skill-name> at <path>"
-   - Use STRONG language for highly relevant skills: "MUST", "REQUIRED", "強烈建議"
-   - List skills in priority order: must-read first, then optional reference
-   - Include brief reasoning: why this skill connects to the current intent
+   - Output at most 1-3 explicit skill directives, only for skills that are execution-blocking or clearly high-value for this exact latest message.
+   - Use the parseable directive format only for actual recommendations: "MUST read skill: <skill-name> at <path>" or "REQUIRED skill: <skill-name>".
+   - Do not emit parseable directives for merely related or optional skills; mention those as plain guidance without "MUST read skill:" / "REQUIRED skill:" wording.
+   - Include brief reasoning: why each recommended skill connects to the current turn.
 7. **Experience Preservation (IMPORTANT)**:
    - When the intent Markdown contains pitfalls, parameters, or experience notes that would change the correct action, preserve them verbatim
    - Format as: "⚠️ Critical pitfall: ..." or "💡 Key parameter: ..."

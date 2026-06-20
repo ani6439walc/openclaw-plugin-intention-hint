@@ -139,6 +139,7 @@ interface SessionData {
     intent: {
       input?: RecentTurn[];
       result?: IntentionResult;
+      instructionText?: string;
     };
     skillsUsed?: SkillRecord[];
     toolCalls?: Array<{
@@ -164,13 +165,22 @@ The versioned stats document contains:
 
 - `summary`: all-time turn, completion/error, skill/tool assistance, confidence, and `other` totals and rates
 - `intents`: per-intent share, confidence, complexity, assistance/error counts, and 7-day activity
-- `skills`: actual usage, recommendations parsed from exact `skill: <name>` intent lines, adoption, 7-day activity, lifecycle, and review status
+- `skills`: actual usage, recommendations parsed from instruction-writer output, adoption, 7-day activity, lifecycle, and review status
 - `routing`: global and per-intent recommendation/adoption counts for turns and individual skill opportunities
 - `tools`: calls, assisted turns, errors, average duration, and 7-day calls
 - `daily`: UTC daily buckets retained for 90 days
 - `processedEvents`: event IDs retained for 90 days to prevent duplicate `agent_end` counting
 
-Rates use `0.0–1.0`. Skill lifecycle is `active` within 30 days, `stale` after 30 days, `archive` after 90 days, or `never-used` when recommended but never used. `needsReview` becomes true after at least five recommendations with adoption below `0.7`. All-time counters do not decrease when rolling data is pruned.
+Skill hints in Intent Markdown (`skill: <name>`) are catalog candidates only. They
+describe possible skills the instruction writer may choose from, but they are not
+counted as per-turn recommendations. `recommendedSkillOpportunities` counts only
+explicit instruction-writer directives such as `MUST read skill: <name> at <path>`
+or `REQUIRED skill: <name>`. `adoptedSkillOpportunities` counts the intersection
+between those actual recommendations and skills read during the completed turn.
+Existing stats are not backfilled; the reduced-noise denominator applies to new
+tracked turns.
+
+Rates use `0.0–1.0`. Skill lifecycle is `active` within 30 days, `stale` after 30 days, `archive` after 90 days, or `never-used` when recommended but never used. `needsReview` becomes true after at least five actual recommendations with adoption below `0.7`. All-time counters do not decrease when rolling data is pruned.
 
 ## Installation
 

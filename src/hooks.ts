@@ -276,6 +276,7 @@ export function createHookHandlers(deps: HookDeps) {
     effectiveAgentId: string;
     latestUserMessage: string;
     result: IntentionResult;
+    instructionText?: string;
     conversation: ReturnType<typeof limitConversationTurns>;
   }): void {
     if (!params.sessionId) return;
@@ -291,6 +292,7 @@ export function createHookHandlers(deps: HookDeps) {
             ? {}
             : { input: params.conversation }),
           result: params.result,
+          instructionText: params.instructionText,
         },
         timestamps: { start: new Date().toISOString() },
       },
@@ -381,6 +383,7 @@ export function createHookHandlers(deps: HookDeps) {
         effectiveAgentId: routing.effectiveAgentId,
         latestUserMessage,
         result,
+        instructionText,
         conversation,
       });
 

@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { StatsAggregator } from "./stats-aggregator.js";
+import {
+  extractRecommendedSkillsFromInstruction,
+  StatsAggregator,
+} from "./stats-aggregator.js";
 import type { IntentCatalogEntry } from "./types.js";
 import type { SessionState } from "./session-tracker.js";
 
@@ -30,6 +33,10 @@ describe("StatsAggregator", () => {
           confidence: 0.75,
           complexity: "medium",
         },
+        instructionText: [
+          "MUST read skill: git-master at /skills/git-master/SKILL.md",
+          "REQUIRED skill: dev-lifecycle",
+        ].join("\n"),
       },
       skillsUsed: [{ name: "git-master", path: "/skills/git-master/SKILL.md" }],
       toolCalls: [
@@ -67,6 +74,25 @@ describe("StatsAggregator", () => {
       fs.readFileSync(path.join(tempDir, "stats.json"), "utf-8"),
     );
   }
+
+  it("extracts only explicit instruction skill recommendations", () => {
+    expect(
+      extractRecommendedSkillsFromInstruction(
+        [
+          "MUST read skill: prompt-engineering-expert at /skills/prompt-engineering-expert/SKILL.md",
+          "REQUIRED skill: test-driven-development",
+          "強烈建議 read skill: treemd",
+          "  skill: obsidian",
+          "- skill: raw-candidate",
+          "MUST read skill: prompt-engineering-expert at /duplicate/SKILL.md",
+        ].join("\n"),
+      ),
+    ).toEqual([
+      "prompt-engineering-expert",
+      "test-driven-development",
+      "treemd",
+    ]);
+  });
 
   it("creates stats.json without scanning existing session files", () => {
     const sessionsDir = path.join(tempDir, "sessions");
@@ -178,6 +204,63 @@ describe("StatsAggregator", () => {
         adoptedSkillOpportunities: 1,
       },
     });
+  });
+
+  it("counts actual instruction recommendations instead of catalog candidates", () => {
+    const noisyIntent: IntentCatalogEntry = {
+      id: "prompt-engineering",
+      definition: {
+        triggers: ["prompt"],
+        examples: [],
+        prompt: [
+          "Candidate skills:",
+          "  skill: prompt-engineering-expert",
+          "  skill: interview-me",
+          "  skill: grill-me",
+          "  skill: treemd",
+        ].join("\n"),
+      },
+    };
+
+    aggregator.record(
+      "session-1",
+      createState({
+        intent: {
+          result: {
+            intent: "prompt-engineering",
+            reason: "test",
+            confidence: 0.9,
+            complexity: "medium",
+          },
+          instructionText:
+            "MUST read skill: prompt-engineering-expert at /skills/prompt-engineering-expert/SKILL.md",
+        },
+        skillsUsed: [
+          {
+            name: "prompt-engineering-expert",
+            path: "/skills/prompt-engineering-expert/SKILL.md",
+          },
+        ],
+      }),
+      noisyIntent,
+    );
+
+    const stats = readStats();
+    expect(stats.routing).toMatchObject({
+      recommendationTurns: 1,
+      adoptedTurns: 1,
+      recommendedSkillOpportunities: 1,
+      adoptedSkillOpportunities: 1,
+      skillAdoptionRate: 1,
+    });
+    expect(stats.skills["prompt-engineering-expert"]).toMatchObject({
+      recommendedTurns: 1,
+      adoptedTurns: 1,
+      needsReview: false,
+    });
+    expect(stats.skills["interview-me"]).toBeUndefined();
+    expect(stats.skills["grill-me"]).toBeUndefined();
+    expect(stats.skills.treemd).toBeUndefined();
   });
 
   it("normalizes timestamps to UTC and counts present empty errors", () => {
