@@ -164,7 +164,19 @@ Review the COMPLETE diff, not just the truncated excerpt above.
 {full_diff_block}
 ## Constraints
 - Review-only mode. Do NOT create plans, modify files, or open PRs.
-- Base your review solely on the diff below{". If the diff was truncated, use the git commands above to obtain the full diff first" if truncated else ""}.
+- Base your review solely on the diff below{", use the git commands above to obtain the full diff first" if truncated else ""}.
+
+## Review Dimensions
+Evaluate the diff across these aspects (from Google eng-practices & Palantir):
+- **Design**: Does this change belong in this codebase? Does it integrate well with the existing system?
+- **Functionality**: Does the code behave as intended? Consider edge cases and concurrency.
+- **Complexity**: Is the code more complex than necessary? Flag over-engineering and unnecessary abstractions.
+- **Security**: Input validation, injection risks, auth/authz, sensitive data handling, least privilege.
+- **Naming & Comments**: Are names descriptive? Do comments explain why (not what)?
+- **Tests**: Correct, sensible, and useful tests in the same PR as production code.
+- **Documentation**: If behavior changes, are READMEs/CHANGELOGs/docs updated?
+- **Backwards Compatibility**: Breaking changes in APIs, schemas, or user workflows?
+- **Style**: Consistent with existing codebase conventions and style guides.
 
 ## Output Format
 Return a Markdown review using this exact structure:
