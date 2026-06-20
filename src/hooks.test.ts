@@ -194,11 +194,11 @@ describe("createHookHandlers tracking guards", () => {
           ],
         }),
         triggers: [
-          "skill_candidate",
-          "satisfaction_check",
-          "missing_intent",
-          "weak_intent",
-          "behavior_fix",
+          "skill-candidate",
+          "satisfaction-check",
+          "missing-intent",
+          "weak-intent",
+          "behavior-fix",
         ],
       }),
     );

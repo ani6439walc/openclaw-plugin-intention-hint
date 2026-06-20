@@ -63,7 +63,7 @@ const snapshot: ReviewSnapshot = {
 
 describe("buildReviewPrompt", () => {
   it("grounds every review in bundled intention-hint Markdown rules", () => {
-    const prompt = buildReviewPrompt(snapshot, ["weak_intent"]);
+    const prompt = buildReviewPrompt(snapshot, ["weak-intent"]);
 
     expect(prompt).toContain(
       "sole purpose is to improve the content and routing quality of intention-hint intents/*.md files",
@@ -125,37 +125,37 @@ describe("buildReviewPrompt", () => {
 
   it.each([
     [
-      "skill_candidate",
+      "skill-candidate",
       "matched intent Markdown should preserve",
       "Skills & Tools, Concrete Workflow, or Experience section",
     ],
     [
-      "process_gap",
+      "process-gap",
       "failed execution and recovery path",
       "Guidelines, Skills & Tools, Concrete Workflow, or Experience",
     ],
     [
-      "successful_pattern",
+      "successful-pattern",
       "completed successful turn",
       "preserve the successful pattern",
     ],
     [
-      "satisfaction_check",
+      "satisfaction-check",
       "intent boundary, body guidance, or response-strategy problem",
       "recommend split or merge only when evidence shows a collision",
     ],
     [
-      "missing_intent",
+      "missing-intent",
       "uncategorized user goal",
       "Draft a new, narrowly scoped intent Markdown definition",
     ],
     [
-      "weak_intent",
+      "weak-intent",
       "classification ambiguity",
       "frontmatter triggers/examples",
     ],
     [
-      "behavior_fix",
+      "behavior-fix",
       "matched intent's routed behavior",
       "encode the corrected behavior",
     ],
@@ -170,13 +170,13 @@ describe("buildReviewPrompt", () => {
   );
 
   it("includes only requested trigger-specific instructions", () => {
-    const prompt = buildReviewPrompt(snapshot, ["weak_intent"]);
-    expect(prompt).toContain("weak_intent: Review focus:");
-    expect(prompt).not.toContain("missing_intent: Review focus:");
+    const prompt = buildReviewPrompt(snapshot, ["weak-intent"]);
+    expect(prompt).toContain("weak-intent: Review focus:");
+    expect(prompt).not.toContain("missing-intent: Review focus:");
   });
 
   it("renders a readable XML-wrapped markdown review snapshot without runtime metadata", () => {
-    const prompt = buildReviewPrompt(snapshot, ["weak_intent"]);
+    const prompt = buildReviewPrompt(snapshot, ["weak-intent"]);
 
     expect(prompt).toContain("Review snapshot:");
     expect(prompt).toContain("<review_snapshot>");
@@ -225,7 +225,7 @@ describe("parseReviewFindings", () => {
         findings: [
           { trigger: "broken", hasFinding: true },
           {
-            trigger: "skill_candidate",
+            trigger: "skill-candidate",
             hasFinding: true,
             operation: "refine",
             targetIntentIds: ["productivity"],
@@ -235,15 +235,15 @@ describe("parseReviewFindings", () => {
             correctionGoal: "Create a deployment skill",
             suggestedChange: "Draft SKILL.md",
           },
-          { trigger: "process_gap", hasFinding: false },
+          { trigger: "process-gap", hasFinding: false },
         ],
       }),
-      ["skill_candidate", "process_gap"],
+      ["skill-candidate", "process-gap"],
     );
 
     expect(parsed).toEqual([
       {
-        trigger: "skill_candidate",
+        trigger: "skill-candidate",
         operation: "refine",
         targetIntentIds: ["productivity"],
         dedupeKey: "deploy-flow",
@@ -259,13 +259,13 @@ describe("parseReviewFindings", () => {
     const raw = `\`\`\`json
 {"findings":[
   {"trigger":"unknown","hasFinding":true,"operation":"refine","targetIntentIds":["X"],"dedupeKey":"x","summary":"x","evidence":[],"correctionGoal":"x","suggestedChange":"x"},
-  {"trigger":"weak_intent","hasFinding":true,"operation":"refine","targetIntentIds":["productivity"],"dedupeKey":"weak","summary":"weak","evidence":[],"correctionGoal":"improve","suggestedChange":"add examples"}
+  {"trigger":"weak-intent","hasFinding":true,"operation":"refine","targetIntentIds":["productivity"],"dedupeKey":"weak","summary":"weak","evidence":[],"correctionGoal":"improve","suggestedChange":"add examples"}
 ]}
 \`\`\``;
 
-    expect(parseReviewFindings(raw, ["skill_candidate"])).toEqual([]);
+    expect(parseReviewFindings(raw, ["skill-candidate"])).toEqual([]);
     expect(
-      parseReviewFindings("not json", ["skill_candidate"]),
+      parseReviewFindings("not json", ["skill-candidate"]),
     ).toBeUndefined();
   });
 
@@ -273,7 +273,7 @@ describe("parseReviewFindings", () => {
     const raw = JSON.stringify({
       findings: [
         {
-          trigger: "weak_intent",
+          trigger: "weak-intent",
           hasFinding: true,
           operation: "unknown",
           targetIntentIds: [],
@@ -286,7 +286,47 @@ describe("parseReviewFindings", () => {
       ],
     });
 
-    expect(parseReviewFindings(raw, ["weak_intent"])).toEqual([]);
+    expect(parseReviewFindings(raw, ["weak-intent"])).toEqual([]);
+  });
+
+  it("extracts JSON from prose surrounding the JSON object", () => {
+    const raw = `Looking at this behavior-fix trigger, I need to examine the routing.
+
+**Analysis:**
+1. Context trail looks correct
+2. Routing was appropriate
+3. No refinement needed
+
+{"findings":[{"trigger":"behavior-fix","hasFinding":false}]}`;
+
+    expect(parseReviewFindings(raw, ["behavior-fix"])).toEqual([]);
+  });
+
+  it("extracts hasFinding=true from prose + JSON mixed output", () => {
+    const raw = `Here is my analysis of the evidence...
+
+Some more reasoning text here.
+
+{"findings":[{"trigger":"weak-intent","hasFinding":true,"operation":"refine","targetIntentIds":["productivity"],"dedupeKey":"weak","summary":"ambiguous trigger","evidence":["misclassified twice"],"correctionGoal":"narrow boundary","suggestedChange":"add negative examples"}]}`;
+
+    expect(parseReviewFindings(raw, ["weak-intent"])).toEqual([
+      {
+        trigger: "weak-intent",
+        operation: "refine",
+        targetIntentIds: ["productivity"],
+        dedupeKey: "weak",
+        summary: "ambiguous trigger",
+        evidence: ["misclassified twice"],
+        correctionGoal: "narrow boundary",
+        suggestedChange: "add negative examples",
+      },
+    ]);
+  });
+
+  it("still returns undefined when prose contains no valid JSON", () => {
+    expect(
+      parseReviewFindings("just prose with no JSON at all", ["weak-intent"]),
+    ).toBeUndefined();
   });
 });
 
@@ -312,7 +352,7 @@ describe("runReviewSubagent", () => {
       agentId: "main",
       modelRef: { provider: "google", model: "review" },
       snapshot,
-      triggers: ["weak_intent"],
+      triggers: ["weak-intent"],
     });
 
     expect(runEmbeddedAgent).toHaveBeenCalledWith(

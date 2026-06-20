@@ -27,7 +27,7 @@ describe("evolution-backlog command", () => {
         items: [
           {
             id: "old",
-            type: "behavior_fix",
+            type: "behavior-fix",
             dedupeKey: "old",
             summary: "old",
             correctionGoal: "goal",
@@ -40,7 +40,7 @@ describe("evolution-backlog command", () => {
           },
           {
             id: "new",
-            type: "behavior_fix",
+            type: "behavior-fix",
             dedupeKey: "new",
             summary: "new",
             correctionGoal: "goal",

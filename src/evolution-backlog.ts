@@ -45,6 +45,38 @@ export type EvolutionBacklog = {
   items: BacklogItem[];
 };
 
+const LEGACY_TRIGGER_TYPE_MAP: Record<string, EvolutionTrigger> = {
+  skill_candidate: "skill-candidate",
+  process_gap: "process-gap",
+  successful_pattern: "successful-pattern",
+  satisfaction_check: "satisfaction-check",
+  missing_intent: "missing-intent",
+  weak_intent: "weak-intent",
+  behavior_fix: "behavior-fix",
+};
+
+function normalizeBacklogTriggerTypes(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
+  const value = raw as Record<string, unknown>;
+  const items = value.items;
+  if (!Array.isArray(items)) return raw;
+  return {
+    ...value,
+    items: items.map((item) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) {
+        return item;
+      }
+      const itemValue = item as Record<string, unknown>;
+      const type = itemValue.type;
+      if (typeof type !== "string") return item;
+      return {
+        ...itemValue,
+        type: LEGACY_TRIGGER_TYPE_MAP[type] ?? type,
+      };
+    }),
+  };
+}
+
 const EvolutionSourceSchema = z.object({
   sessionId: z.string(),
   sessionKey: z.string().optional(),
@@ -101,9 +133,12 @@ export function createBacklog(nowIso: string): EvolutionBacklog {
 }
 
 export function parseBacklog(raw: unknown): EvolutionBacklog {
-  const version = z.object({ schemaVersion: z.number() }).parse(raw);
-  if (version.schemaVersion === 2) return EvolutionBacklogSchema.parse(raw);
-  const legacy = BacklogV1Schema.parse(raw);
+  const normalized = normalizeBacklogTriggerTypes(raw);
+  const version = z.object({ schemaVersion: z.number() }).parse(normalized);
+  if (version.schemaVersion === 2) {
+    return EvolutionBacklogSchema.parse(normalized);
+  }
+  const legacy = BacklogV1Schema.parse(normalized);
   return {
     ...legacy,
     schemaVersion: 2,

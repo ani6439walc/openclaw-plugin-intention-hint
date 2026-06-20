@@ -9,7 +9,7 @@ import {
 
 const item = (overrides: Record<string, unknown> = {}) => ({
   id: "IMP-1",
-  type: "behavior_fix",
+  type: "behavior-fix",
   operation: "unknown",
   targetIntentIds: [],
   dedupeKey: "key",
@@ -48,6 +48,24 @@ describe("evolution backlog", () => {
       processedEvents: { event: "time" },
       items: [{ operation: "unknown", targetIntentIds: [] }],
     });
+  });
+
+  it("normalizes legacy underscore trigger types to hyphenated names", () => {
+    const parsed = parseBacklog({
+      schemaVersion: 2,
+      createdAt: "2026-06-11T00:00:00.000Z",
+      updatedAt: "2026-06-11T00:00:00.000Z",
+      processedEvents: {},
+      items: [
+        item({ id: "legacy", type: "successful_pattern" }),
+        item({ id: "current", type: "behavior-fix" }),
+      ],
+    });
+
+    expect(parsed.items.map((value) => value.type)).toEqual([
+      "successful-pattern",
+      "behavior-fix",
+    ]);
   });
 
   it("selects highest frequency pending item then oldest", () => {
