@@ -440,7 +440,8 @@ describe("buildIntentInstructionPrompt", () => {
       "Your job is to read the matched intent Markdown and latest user message",
     );
     expect(prompt).toContain("workflow");
-    expect(prompt).toContain("skills and tools");
+    expect(prompt).toContain("Skill Recommendation");
+    expect(prompt).toContain("MUST read skill: <skill-name> at <path>");
     expect(prompt).toContain("menu of possible guidance, not a checklist");
     expect(prompt).toContain("omit unrelated workflows");
     expect(prompt).toContain("narrowest concrete workflow");
