@@ -270,13 +270,13 @@ is checked for seven trigger types:
 
 | Trigger              | Default condition                                      | Intent Markdown correction target                        |
 | -------------------- | ------------------------------------------------------ | -------------------------------------------------------- |
-| `skill_candidate`    | Current turn has at least 5 tool calls                 | `Skills & Tools`, `Concrete Workflow`, or `Experience`   |
-| `process_gap`        | Current turn has at least 2 tool errors                | Guidelines, tool examples, workflow, or pitfalls         |
-| `successful_pattern` | Successful tool-heavy or skill-assisted completed turn | `Experience`, `Concrete Workflow`, or Response Strategy  |
-| `satisfaction_check` | Every 10th tracked turn                                | Boundaries, examples, Guidelines, or Response Strategy   |
-| `missing_intent`     | Classified intent is `other`                           | A narrowly scoped new intent draft                       |
-| `weak_intent`        | Classification confidence is below 0.5                 | Frontmatter triggers/examples and boundary clarity       |
-| `behavior_fix`       | Current input contains a configured correction keyword | Guidance or workflow that encodes the corrected behavior |
+| `skill-candidate`    | Current turn has at least 5 tool calls                 | `Skills & Tools`, `Concrete Workflow`, or `Experience`   |
+| `process-gap`        | Current turn has at least 2 tool errors                | Guidelines, tool examples, workflow, or pitfalls         |
+| `successful-pattern` | Successful tool-heavy or skill-assisted completed turn | `Experience`, `Concrete Workflow`, or Response Strategy  |
+| `satisfaction-check` | Every 10th tracked turn                                | Boundaries, examples, Guidelines, or Response Strategy   |
+| `missing-intent`     | Classified intent is `other`                           | A narrowly scoped new intent draft                       |
+| `weak-intent`        | Classification confidence is below 0.5                 | Frontmatter triggers/examples and boundary clarity       |
+| `behavior-fix`       | Current input contains a configured correction keyword | Guidance or workflow that encodes the corrected behavior |
 
 All matching triggers are reviewed in one background, read-only sub-agent run.
 Each trigger receives a distinct review focus and correction goal, and may return

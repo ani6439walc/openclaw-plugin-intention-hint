@@ -13,7 +13,7 @@ describe("BacklogWriter", () => {
     turnStart: "2026-06-11T00:00:00.000Z",
   };
   const finding = {
-    trigger: "skill_candidate" as const,
+    trigger: "skill-candidate" as const,
     operation: "refine" as const,
     targetIntentIds: ["productivity"],
     dedupeKey: "deploy-flow",
@@ -54,7 +54,7 @@ describe("BacklogWriter", () => {
       items: [
         {
           id: "IMP-20260611-001",
-          type: "skill_candidate",
+          type: "skill-candidate",
           operation: "refine",
           targetIntentIds: ["productivity"],
           dedupeKey: "deploy-flow",

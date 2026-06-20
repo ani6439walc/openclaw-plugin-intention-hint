@@ -3,13 +3,13 @@ import type { ResolvedEvolutionConfig } from "./types.js";
 import { FALLBACK_INTENT_ID } from "./constants.js";
 
 export const EVOLUTION_TRIGGER_TYPES = [
-  "skill_candidate",
-  "process_gap",
-  "successful_pattern",
-  "satisfaction_check",
-  "missing_intent",
-  "weak_intent",
-  "behavior_fix",
+  "skill-candidate",
+  "process-gap",
+  "successful-pattern",
+  "satisfaction-check",
+  "missing-intent",
+  "weak-intent",
+  "behavior-fix",
 ] as const;
 
 export type EvolutionTrigger = (typeof EVOLUTION_TRIGGER_TYPES)[number];
@@ -50,14 +50,14 @@ export function checkEvolutionTriggers(
     config.skillCandidate.enabled &&
     toolCalls.length >= config.skillCandidate.toolCalls
   ) {
-    matches.push("skill_candidate");
+    matches.push("skill-candidate");
   }
   if (
     config.processGap.enabled &&
     toolCalls.filter((call) => call.error !== undefined).length >=
       config.processGap.toolFailures
   ) {
-    matches.push("process_gap");
+    matches.push("process-gap");
   }
   if (
     config.successfulPattern.enabled &&
@@ -69,34 +69,34 @@ export function checkEvolutionTriggers(
       config.successfulPattern.keywords,
     )
   ) {
-    matches.push("successful_pattern");
+    matches.push("successful-pattern");
   }
   if (
     config.satisfactionCheck.enabled &&
     turnNumber > 0 &&
     turnNumber % config.satisfactionCheck.everyTurns === 0
   ) {
-    matches.push("satisfaction_check");
+    matches.push("satisfaction-check");
   }
   if (
     config.missingIntent.enabled &&
     result?.intent.match(/^([A-Za-z0-9_-]+)/)?.[1]?.toLowerCase() ===
       FALLBACK_INTENT_ID
   ) {
-    matches.push("missing_intent");
+    matches.push("missing-intent");
   }
   if (
     config.weakIntent.enabled &&
     result &&
     result.confidence < config.weakIntent.confidenceBelow
   ) {
-    matches.push("weak_intent");
+    matches.push("weak-intent");
   }
   if (
     config.behaviorFix.enabled &&
     includesAnyKeyword(state.input, config.behaviorFix.keywords)
   ) {
-    matches.push("behavior_fix");
+    matches.push("behavior-fix");
   }
 
   return matches;

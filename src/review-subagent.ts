@@ -12,37 +12,37 @@ const REVIEW_INSTRUCTIONS: Record<
   EvolutionTrigger,
   { focus: string; goal: string }
 > = {
-  skill_candidate: {
+  "skill-candidate": {
     focus:
       "Identify reusable skills, tools, execution sequences, tips, parameters, and pitfalls that the matched intent Markdown should preserve. Exclude one-off tool usage and capabilities outside the intent boundary.",
     goal: "Refine the matched intent Markdown's Skills & Tools, Concrete Workflow, or Experience section when the sequence or lesson is stable.",
   },
-  process_gap: {
+  "process-gap": {
     focus:
       "Trace the failed execution and recovery path, then identify which missing intent guideline, tool call example, workflow step, or Experience pitfall would have prevented the gap.",
     goal: "Refine the matched intent Markdown's Guidelines, Skills & Tools, Concrete Workflow, or Experience so future runs follow the successful path.",
   },
-  successful_pattern: {
+  "successful-pattern": {
     focus:
       "Identify reusable workflow, tool sequence, skill usage, parameters, and pitfalls from a completed successful turn. Exclude one-off details and do not propose writes outside runtime intent Markdown.",
     goal: "Refine the matched intent Markdown's Experience, Concrete Workflow, or Response Strategy so future runs preserve the successful pattern without interrupting the user.",
   },
-  satisfaction_check: {
+  "satisfaction-check": {
     focus:
       "Inspect recent turns for dissatisfaction, repeated requests, or routing corrections that reveal an intent boundary, body guidance, or response-strategy problem. Return no_finding without evidence.",
     goal: "Refine the relevant intent Markdown's boundary, examples, Guidelines, or Response Strategy; recommend split or merge only when evidence shows a collision.",
   },
-  missing_intent: {
+  "missing-intent": {
     focus:
       "Extract the uncategorized user goal, its distinguishing boundary, representative trigger descriptions, examples, required skills/tools, and execution strategy. Check that it is not merely a refinement of an existing intent.",
     goal: "Draft a new, narrowly scoped intent Markdown definition that follows the bundled intention-hint Skill format.",
   },
-  weak_intent: {
+  "weak-intent": {
     focus:
       "Explain the classification ambiguity, likely matched intent, neighboring collision, and missing or misleading trigger/example coverage.",
     goal: "Refine the matched intent Markdown frontmatter triggers/examples and clarify its boundary without adding classification prose to the body.",
   },
-  behavior_fix: {
+  "behavior-fix": {
     focus:
       "Compare the user correction with the matched intent's routed behavior and identify the specific Markdown instruction that caused, allowed, or failed to prevent the mistake.",
     goal: "Refine the matched intent Markdown's Guidelines, Response Strategy, Skills & Tools, Concrete Workflow, or Experience to encode the corrected behavior.",
@@ -97,6 +97,30 @@ function stripCodeFence(raw: string): string {
     .trim()
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/\s*```$/, "");
+}
+
+function extractJsonFromProse(raw: string): string {
+  const stripped = stripCodeFence(raw);
+  // Try direct parse first
+  try {
+    JSON.parse(stripped);
+    return stripped;
+  } catch {
+    // Fallback: find outermost { ... }
+    const firstBrace = stripped.indexOf("{");
+    const lastBrace = stripped.lastIndexOf("}");
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+      const candidate = stripped.slice(firstBrace, lastBrace + 1);
+      try {
+        JSON.parse(candidate);
+        return candidate;
+      } catch {
+        // Return original stripped; let caller handle parse error
+        return stripped;
+      }
+    }
+    return stripped;
+  }
 }
 
 function escapeSnapshotText(value: unknown): string {
@@ -274,6 +298,15 @@ export function buildReviewPrompt(
     })
     .join("\n\n");
 
+  const exampleFindings = triggers
+    .map((trigger, index) => {
+      if (index === 0) {
+        return `{"trigger":"${trigger}","hasFinding":true,"operation":"refine","targetIntentIds":["example-intent"],"dedupeKey":"stable-short-key","summary":"...","evidence":["..."],"correctionGoal":"...","suggestedChange":"..."}`;
+      }
+      return `{"trigger":"${trigger}","hasFinding":false}`;
+    })
+    .join(",");
+
   return `You are an Intent Evolution reviewer.
 Your sole purpose is to improve the content and routing quality of intention-hint intents/*.md files.
 Review only the requested triggers. Each trigger is independent and may return hasFinding=false.
@@ -287,8 +320,9 @@ ${INTENT_CRAFT_RUBRIC}
 Requested trigger reviews:
 ${triggerPrompts}
 
-Return JSON only:
-{"findings":[{"trigger":"skill_candidate","hasFinding":true,"operation":"refine","targetIntentIds":["productivity"],"dedupeKey":"stable-short-key","summary":"...","evidence":["..."],"correctionGoal":"...","suggestedChange":"..."},{"trigger":"process_gap","hasFinding":false}]}
+Output format: Return a single JSON object and nothing else. Do not write analysis, reasoning, or commentary outside the JSON. The entire response must be parseable by JSON.parse without modification.
+Example structure for the requested triggers:
+{"findings":[${exampleFindings}]}
 
 For every hasFinding=true item:
 - correctionGoal must name the intent Markdown outcome.
@@ -305,7 +339,9 @@ export function parseReviewFindings(
   requestedTriggers: readonly EvolutionTrigger[],
 ): EvolutionFinding[] | undefined {
   try {
-    const parsed = ReviewResponseSchema.parse(JSON.parse(stripCodeFence(raw)));
+    const parsed = ReviewResponseSchema.parse(
+      JSON.parse(extractJsonFromProse(raw)),
+    );
     const requested = new Set<string>(requestedTriggers);
     return parsed.findings.flatMap((rawFinding) => {
       const result = FindingSchema.safeParse(rawFinding);

@@ -45,25 +45,25 @@ describe("checkEvolutionTriggers", () => {
         triggers,
       ),
     ).toEqual([
-      "skill_candidate",
-      "process_gap",
-      "successful_pattern",
-      "satisfaction_check",
-      "missing_intent",
-      "weak_intent",
-      "behavior_fix",
+      "skill-candidate",
+      "process-gap",
+      "successful-pattern",
+      "satisfaction-check",
+      "missing-intent",
+      "weak-intent",
+      "behavior-fix",
     ]);
   });
 
   it("only runs satisfaction checks on the configured turn interval", () => {
     expect(checkEvolutionTriggers(state(), 9, triggers)).not.toContain(
-      "satisfaction_check",
+      "satisfaction-check",
     );
     expect(checkEvolutionTriggers(state(), 10, triggers)).toContain(
-      "satisfaction_check",
+      "satisfaction-check",
     );
     expect(checkEvolutionTriggers(state(), 20, triggers)).toContain(
-      "satisfaction_check",
+      "satisfaction-check",
     );
   });
 
@@ -91,10 +91,10 @@ describe("checkEvolutionTriggers", () => {
         custom,
       ),
     ).toEqual([
-      "process_gap",
-      "satisfaction_check",
-      "weak_intent",
-      "behavior_fix",
+      "process-gap",
+      "satisfaction-check",
+      "weak-intent",
+      "behavior-fix",
     ]);
   });
 
@@ -111,7 +111,7 @@ describe("checkEvolutionTriggers", () => {
         1,
         triggers,
       ),
-    ).toContain("successful_pattern");
+    ).toContain("successful-pattern");
   });
 
   it("detects successful reusable patterns from skill-assisted completed turns", () => {
@@ -124,7 +124,7 @@ describe("checkEvolutionTriggers", () => {
         1,
         triggers,
       ),
-    ).toContain("successful_pattern");
+    ).toContain("successful-pattern");
   });
 
   it("does not detect successful patterns for failed turns or completion text without reusable work", () => {
@@ -141,10 +141,10 @@ describe("checkEvolutionTriggers", () => {
         1,
         triggers,
       ),
-    ).not.toContain("successful_pattern");
+    ).not.toContain("successful-pattern");
 
     expect(
       checkEvolutionTriggers(state({ result: "done" }), 1, triggers),
-    ).not.toContain("successful_pattern");
+    ).not.toContain("successful-pattern");
   });
 });
