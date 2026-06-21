@@ -310,6 +310,7 @@ Your job is to read the matched intent Markdown and latest user message, then ou
    - Output at most 1-3 explicit skill directives, only for skills that are execution-blocking or clearly high-value for this exact latest message.
    - Use the parseable directive format only for actual recommendations: "MUST read skill: <skill-name> at <path>" or "REQUIRED skill: <skill-name>".
    - Do not emit parseable directives for merely related or optional skills; mention those as plain guidance without "MUST read skill:" / "REQUIRED skill:" wording.
+   - CRITICAL: Distinguish between skills and tools - built-in tools like web_fetch, terminal, read_file are NOT skills. Skills are referenced with "skill:" prefix (e.g., "skill: compare"), tools are used directly (e.g., "exec({ command: ... })", "read({ path: ... })").
    - Include brief reasoning: why each recommended skill connects to the current turn.
 7. **Experience Preservation (IMPORTANT)**:
    - When the intent Markdown contains pitfalls, parameters, or experience notes that would change the correct action, preserve them verbatim
