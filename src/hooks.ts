@@ -124,6 +124,25 @@ function normalizeFastPathKeyword(value: string): string {
   return value.normalize("NFKC").replace(/\s+/g, "").toLowerCase();
 }
 
+const normalizedFastPathKeywords = new WeakMap<
+  IntentCatalogEntry,
+  Array<{ normalized: string; keyword: string }>
+>();
+
+function getNormalizedFastPathKeywords(
+  intent: IntentCatalogEntry,
+): Array<{ normalized: string; keyword: string }> {
+  const cached = normalizedFastPathKeywords.get(intent);
+  if (cached) return cached;
+
+  const keywords = intent.definition.keywords.map((keyword) => ({
+    normalized: normalizeFastPathKeyword(keyword),
+    keyword: keyword.trim(),
+  }));
+  normalizedFastPathKeywords.set(intent, keywords);
+  return keywords;
+}
+
 function findFastPathA1Intent(
   latest: string,
   intents: readonly IntentCatalogEntry[],
@@ -134,9 +153,9 @@ function findFastPathA1Intent(
   if (!normalizedLatest) return;
 
   for (const intent of intents) {
-    for (const keyword of intent.definition.keywords) {
-      if (normalizeFastPathKeyword(keyword) === normalizedLatest) {
-        return { intent, keyword: keyword.trim() };
+    for (const keyword of getNormalizedFastPathKeywords(intent)) {
+      if (keyword.normalized === normalizedLatest) {
+        return { intent, keyword: keyword.keyword };
       }
     }
   }
