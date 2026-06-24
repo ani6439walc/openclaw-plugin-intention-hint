@@ -753,6 +753,11 @@ export function createHookHandlers(deps: HookDeps) {
         id: entry.id,
         triggers: [...entry.definition.triggers],
         examples: [...entry.definition.examples],
+        domain: entry.definition.domain,
+        fastpath: {
+          keywords: [...(entry.definition.fastpath?.keywords ?? [])],
+          hint: entry.definition.fastpath?.hint,
+        },
       })),
     };
     const triggers = checkEvolutionTriggers(

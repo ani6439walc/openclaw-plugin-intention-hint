@@ -35,7 +35,8 @@ export type ReviewSnapshot = {
   recent: ReviewState[];
   matchedIntent?: IntentCatalogEntry;
   intentCatalog: Array<
-    { id: string } & Pick<IntentDefinition, "triggers" | "examples">
+    { id: string } & Pick<IntentDefinition, "triggers" | "examples"> &
+      Partial<Pick<IntentDefinition, "domain" | "fastpath">>
   >;
 };
 

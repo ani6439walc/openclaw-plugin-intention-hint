@@ -194,6 +194,8 @@ describe("createHookHandlers tracking guards", () => {
               id: "other",
               triggers: ["Unmatched requests"],
               examples: ["help"],
+              domain: "other",
+              fastpath: { keywords: [], hint: undefined },
             },
           ],
         }),
