@@ -490,8 +490,15 @@ describe("createHookHandlers topic switch flow", () => {
     const instructionWriter =
       params.instructionWriter ??
       vi.fn().mockResolvedValue("Follow the generated coding instructions.");
+    const emitAgentEvent = vi.fn().mockReturnValue({
+      emitted: true,
+      stream: "plugin:intention-hint",
+    });
     const handlers = createHookHandlers({
-      api: { config: {} } as OpenClawPluginApi,
+      api: {
+        config: {},
+        agent: { events: { emitAgentEvent } },
+      } as unknown as OpenClawPluginApi,
       config: () =>
         resolveConfig(params.configRaw ?? { model: "google/test-intent" }),
       refreshLiveConfigFromRuntime: vi.fn(),
@@ -510,6 +517,7 @@ describe("createHookHandlers topic switch flow", () => {
       topicChecker,
       instructionWriter,
       record,
+      emitAgentEvent,
     };
   }
 
@@ -528,7 +536,18 @@ describe("createHookHandlers topic switch flow", () => {
     agentId: "main",
     sessionId: "session-1",
     sessionKey: "agent:main:direct:123",
+    runId: "run-1",
   };
+
+  function emittedPipelineEvents(emitAgentEvent: ReturnType<typeof vi.fn>) {
+    return emitAgentEvent.mock.calls.map((call) => call[0]);
+  }
+
+  function emittedPhaseStates(emitAgentEvent: ReturnType<typeof vi.fn>) {
+    return emittedPipelineEvents(emitAgentEvent).map(
+      (event) => `${event.data.phase}:${event.data.state}`,
+    );
+  }
 
   it("uses exact keyword match to inject a prompt without subagent calls", async () => {
     const fastEvent = {
@@ -541,8 +560,14 @@ describe("createHookHandlers topic switch flow", () => {
         },
       ],
     } as never;
-    const { handlers, classifier, topicChecker, instructionWriter, record } =
-      createTopicFlowHarness({ historicalIntents: [] });
+    const {
+      handlers,
+      classifier,
+      topicChecker,
+      instructionWriter,
+      record,
+      emitAgentEvent,
+    } = createTopicFlowHarness({ historicalIntents: [] });
 
     const result = await handlers.onBeforePromptBuild(fastEvent, ctx);
 
@@ -552,6 +577,12 @@ describe("createHookHandlers topic switch flow", () => {
     expect(topicChecker).not.toHaveBeenCalled();
     expect(classifier).not.toHaveBeenCalled();
     expect(instructionWriter).not.toHaveBeenCalled();
+    expect(emittedPhaseStates(emitAgentEvent)).toContain(
+      "exact-keyword-hint:completed",
+    );
+    expect(JSON.stringify(emittedPipelineEvents(emitAgentEvent))).not.toMatch(
+      /fastpath-a[12]/i,
+    );
     expect(record).toHaveBeenCalledWith(
       "session-1",
       expect.objectContaining({
@@ -700,8 +731,14 @@ describe("createHookHandlers topic switch flow", () => {
       topicChangeReason: undefined,
       complexity: "low" as const,
     };
-    const { handlers, classifier, topicChecker, instructionWriter, record } =
-      createTopicFlowHarness({
+    const {
+      handlers,
+      classifier,
+      topicChecker,
+      instructionWriter,
+      record,
+      emitAgentEvent,
+    } = createTopicFlowHarness({
         historicalIntents: [],
         intents: [intent, versionControlIntent],
         topicChecker: vi.fn().mockResolvedValue(topicContext),
@@ -722,6 +759,9 @@ describe("createHookHandlers topic switch flow", () => {
     );
     expect(classifier).not.toHaveBeenCalled();
     expect(instructionWriter).not.toHaveBeenCalled();
+    expect(emittedPhaseStates(emitAgentEvent)).toContain(
+      "topic-keyword-route:completed",
+    );
     expect(record).toHaveBeenCalledWith(
       "session-1",
       expect.objectContaining({
@@ -963,15 +1003,23 @@ describe("createHookHandlers topic switch flow", () => {
       // confidence intentionally omitted (undefined)
       complexity: "medium" as const,
     });
-    const { handlers, instructionWriter, record } = createTopicFlowHarness({
-      historicalIntents: [],
-      classifier,
-    });
+    const { handlers, instructionWriter, record, emitAgentEvent } =
+      createTopicFlowHarness({
+        historicalIntents: [],
+        classifier,
+      });
 
     const result = await handlers.onBeforePromptBuild(event, ctx);
 
     expect(result).toBeUndefined();
     expect(instructionWriter).not.toHaveBeenCalled();
+    expect(emittedPhaseStates(emitAgentEvent)).toEqual(
+      expect.arrayContaining([
+        "low-confidence-observation:completed",
+        "instruction-hint-generation:skipped",
+        "prompt-prefix-injection:skipped",
+      ]),
+    );
     expect(record).toHaveBeenCalled();
   });
 
@@ -1007,8 +1055,14 @@ describe("createHookHandlers topic switch flow", () => {
       topicChangeReason: "initial" as const,
       complexity: "low" as const,
     };
-    const { handlers, classifier, topicChecker, instructionWriter, record } =
-      createTopicFlowHarness({
+    const {
+      handlers,
+      classifier,
+      topicChecker,
+      instructionWriter,
+      record,
+      emitAgentEvent,
+    } = createTopicFlowHarness({
         historicalIntents: [],
         topicChecker: vi.fn().mockResolvedValue(topicContext),
       });
@@ -1032,6 +1086,18 @@ describe("createHookHandlers topic switch flow", () => {
     );
     expect(instructionWriter).toHaveBeenCalledOnce();
     expect(result?.prependContext).toContain("<intention_hint_plugin");
+    expect(emittedPhaseStates(emitAgentEvent)).toEqual(
+      expect.arrayContaining([
+        "topic-continuity-check:started",
+        "topic-continuity-check:completed",
+        "intent-classification:started",
+        "intent-classification:completed",
+        "instruction-hint-generation:started",
+        "instruction-hint-generation:completed",
+        "session-record:completed",
+        "prompt-prefix-injection:completed",
+      ]),
+    );
     expect(record).toHaveBeenCalledWith(
       "session-1",
       expect.objectContaining({
@@ -1135,8 +1201,14 @@ describe("createHookHandlers topic switch flow", () => {
       topicChangeReason: "same-topic" as const,
       complexity: "low" as const,
     };
-    const { handlers, classifier, topicChecker, instructionWriter, record } =
-      createTopicFlowHarness({
+    const {
+      handlers,
+      classifier,
+      topicChecker,
+      instructionWriter,
+      record,
+      emitAgentEvent,
+    } = createTopicFlowHarness({
         historicalIntents: [
           {
             input: "plan topic checker",
@@ -1157,6 +1229,14 @@ describe("createHookHandlers topic switch flow", () => {
     expect(classifier).not.toHaveBeenCalled();
     expect(instructionWriter).not.toHaveBeenCalled();
     expect(result?.prependContext).toBeUndefined();
+    expect(emittedPhaseStates(emitAgentEvent)).toEqual(
+      expect.arrayContaining([
+        "same-topic-inheritance:completed",
+        "intent-classification:skipped",
+        "instruction-hint-generation:skipped",
+        "prompt-prefix-injection:skipped",
+      ]),
+    );
     expect(record).toHaveBeenCalledWith(
       "session-1",
       expect.objectContaining({
@@ -1173,5 +1253,25 @@ describe("createHookHandlers topic switch flow", () => {
       }),
     );
     expect(record.mock.calls[0][1].current.intent.input).toBeUndefined();
+  });
+
+  it("does not require runId to preserve prompt behavior", async () => {
+    const { handlers, emitAgentEvent } = createTopicFlowHarness({
+      historicalIntents: [],
+    });
+
+    const result = await handlers.onBeforePromptBuild(
+      {
+        prompt: "hi",
+        messages: [{ role: "user", content: "hi" }],
+      } as never,
+      {
+        ...ctx,
+        runId: undefined,
+      },
+    );
+
+    expect(result?.prependContext).toContain("<intention_hint_plugin");
+    expect(emitAgentEvent).not.toHaveBeenCalled();
   });
 });
