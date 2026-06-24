@@ -915,17 +915,17 @@ describe("SessionTracker", () => {
         },
       });
 
-      expect(tracker.getHistoricalIntentRecords("keyword-match-session")).toEqual(
-        [
-          expect.objectContaining({
-            input: "hi",
-            intent: "social-casual",
-            keywords: ["hi"],
-            topicChanged: true,
-            topicChangeReason: "keyword-match",
-          }),
-        ],
-      );
+      expect(
+        tracker.getHistoricalIntentRecords("keyword-match-session"),
+      ).toEqual([
+        expect.objectContaining({
+          input: "hi",
+          intent: "social-casual",
+          keywords: ["hi"],
+          topicChanged: true,
+          topicChangeReason: "keyword-match",
+        }),
+      ]);
     });
   });
 
