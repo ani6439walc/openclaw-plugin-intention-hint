@@ -16,7 +16,7 @@ describe("attachHistoricalIntents", () => {
       {
         input: "Plan the release",
         intent: "PLANNING",
-        topicChanged: true,
+        domain: "planning",
         topicChangeReason: "keyword-delta",
       },
     ];
@@ -27,7 +27,7 @@ describe("attachHistoricalIntents", () => {
         text: "Plan the release",
         historicalIntent: {
           intent: "PLANNING",
-          topicChanged: true,
+          domain: "planning",
           topicChangeReason: "keyword-delta",
         },
       },
@@ -53,13 +53,13 @@ describe("attachHistoricalIntents", () => {
       {
         role: "user",
         text: "same message",
-        historicalIntent: { intent: "FIRST" },
+        historicalIntent: { intent: "FIRST", domain: "other" },
       },
       { role: "assistant", text: "first reply" },
       {
         role: "user",
         text: "same   message",
-        historicalIntent: { intent: "SECOND" },
+        historicalIntent: { intent: "SECOND", domain: "other" },
       },
       { role: "assistant", text: "second reply" },
       { role: "user", text: "same message" },
@@ -79,8 +79,7 @@ describe("attachHistoricalIntents", () => {
           intent: "RESEARCH",
           keywords: ["historical", "topic"],
           topic: "historical / topic",
-          topicChanged: false,
-          topicChangeReason: "same-topic",
+          domain: "research",
         },
       ],
     );
@@ -95,10 +94,9 @@ describe("attachHistoricalIntents", () => {
       text: "A long his (truncated...)",
       historicalIntent: {
         intent: "RESEARCH",
+        domain: "research",
         keywords: ["historical", "topic"],
         topic: "historical / topic",
-        topicChanged: false,
-        topicChangeReason: "same-topic",
       },
     });
   });
@@ -112,8 +110,8 @@ describe("attachHistoricalIntents", () => {
       {
         input: "好累想睡了",
         intent: "chat",
+        domain: "chat",
         topic: "User is tired and wants to sleep.",
-        topicChanged: true,
         topicChangeReason: "keyword-delta",
       },
     ];
@@ -128,8 +126,8 @@ describe("attachHistoricalIntents", () => {
         text: "好累想睡了",
         historicalIntent: {
           intent: "chat",
+          domain: "chat",
           topic: "User is tired and wants to sleep.",
-          topicChanged: true,
           topicChangeReason: "keyword-delta",
         },
       },
@@ -162,7 +160,7 @@ describe("attachHistoricalIntents", () => {
       {
         role: "user",
         text: "好累想睡了",
-        historicalIntent: { intent: "chat" },
+        historicalIntent: { intent: "chat", domain: "other" },
       },
       { role: "assistant", text: "快去睡吧" },
       { role: "user", text: "不然這三個 幫我看看" },

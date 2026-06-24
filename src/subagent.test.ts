@@ -60,7 +60,11 @@ describe("runTopicSwitchSubagent", () => {
         {
           role: "user",
           text: "continue previous implementation",
-          historicalIntent: { intent: "coding", topic: "topic checker" },
+          historicalIntent: {
+            intent: "coding",
+            domain: "coding",
+            topic: "topic checker",
+          },
         },
       ],
       latest: "continue topic checker",
@@ -69,6 +73,7 @@ describe("runTopicSwitchSubagent", () => {
         {
           input: "plan topic checker",
           intent: "coding",
+          domain: "coding",
           keywords: ["topic", "checker"],
           topic: "topic / checker",
         },
@@ -81,7 +86,7 @@ describe("runTopicSwitchSubagent", () => {
       topic: "User is continuing work on the topic checker.",
       domain: "coding",
       topicChanged: false,
-      topicChangeReason: "same-topic",
+      topicChangeReason: undefined,
       complexity: "medium",
     });
     expect(runEmbeddedPiAgent).toHaveBeenCalledWith(

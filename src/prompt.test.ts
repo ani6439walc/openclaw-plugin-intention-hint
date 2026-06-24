@@ -97,8 +97,7 @@ describe("buildIntentionPrompt", () => {
         text: "Hello there",
         historicalIntent: {
           intent: "coding",
-          topicChanged: false,
-          topicChangeReason: "same-topic",
+          domain: "coding",
         },
       },
       { role: "assistant", text: "Hi! How can I help?" },
@@ -116,8 +115,9 @@ describe("buildIntentionPrompt", () => {
     expect(result).toContain("Hello there");
     expect(result).toContain("<historical_intent>");
     expect(result).toContain("intent: coding");
-    expect(result).toContain("topicChanged: false");
-    expect(result).toContain("topicChangeReason: same-topic");
+    expect(result).toContain("domain: coding");
+    expect(result).not.toContain("topicChanged:");
+    expect(result).not.toContain("topicChangeReason: same-topic");
     expect(result).toContain('<turn role="assistant">');
     expect(result).toContain("Hi! How can I help?");
   });
@@ -311,9 +311,8 @@ describe("buildTopicSwitchPrompt", () => {
           text: "處理 backlog",
           historicalIntent: {
             intent: "session-lifecycle",
+            domain: "session",
             topic: "User is processing backlog items.",
-            topicChanged: false,
-            topicChangeReason: "same-topic",
           },
         },
         { role: "assistant", text: "開始處理 backlog。" },
@@ -322,8 +321,8 @@ describe("buildTopicSwitchPrompt", () => {
           text: "抱抱",
           historicalIntent: {
             intent: "intimate-roleplay",
+            domain: "chat",
             topic: "User is switching to intimate roleplay.",
-            topicChanged: true,
             topicChangeReason: "keyword-delta",
           },
         },
@@ -359,7 +358,7 @@ describe("parseTopicSwitchResult", () => {
       topic: "User is continuing work on the topic checker flow.",
       domain: "coding",
       topicChanged: false,
-      topicChangeReason: "same-topic",
+      topicChangeReason: undefined,
       complexity: "medium",
     });
   });
@@ -468,10 +467,9 @@ describe("buildIntentInstructionPrompt", () => {
       result: {
         intent: "coding",
         reason: "User wants implementation",
+        domain: "coding",
         keywords: ["topic", "continuation"],
         topic: "User is continuing implementation of the same topic.",
-        topicChanged: false,
-        topicChangeReason: "same-topic",
         confidence: 0.9,
         complexity: "medium",
       },
@@ -485,6 +483,7 @@ describe("buildIntentInstructionPrompt", () => {
           text: "先做 topic checker",
           historicalIntent: {
             intent: "coding",
+            domain: "coding",
             topic: "topic / checker",
             keywords: ["topic", "checker"],
           },
@@ -525,8 +524,9 @@ describe("buildIntentInstructionPrompt", () => {
     );
     expect(prompt).toContain("<latest_message>");
     expect(prompt).toContain("intent: coding");
-    expect(prompt).toContain("topicChanged: false");
-    expect(prompt).toContain("topicChangeReason: same-topic");
+    expect(prompt).toContain("domain: coding");
+    expect(prompt).toContain("topicChangeReason: ");
+    expect(prompt).not.toContain("topicChanged:");
     expect(prompt).toContain(
       "<complexity_context>Use a balanced flow.</complexity_context>",
     );
@@ -561,10 +561,10 @@ describe("parseIntentionResult", () => {
     expect(result!.intent).toBe("coding");
     expect(result!.reason).toBe("User wants to write code");
     expect(result!.keywords).toEqual(["sort", "array"]);
+    expect(result!.domain).toBe("other");
     expect(result!.topic).toBe(
       "User wants help writing code to sort an array.",
     );
-    expect(result!.topicChanged).toBe(true);
     expect(result!.topicChangeReason).toBe("initial");
     expect(result!.confidence).toBe(0.85);
     expect(result!.complexity).toBe("medium");
@@ -581,8 +581,8 @@ describe("parseIntentionResult", () => {
       {
         keywords: ["topic", "checker", "implementation"],
         topic: "User is continuing implementation of the topic checker.",
+        domain: "coding",
         topicChanged: false,
-        topicChangeReason: "same-topic",
         complexity: "high",
       },
     );
@@ -590,8 +590,8 @@ describe("parseIntentionResult", () => {
     expect(result).toMatchObject({
       keywords: ["topic", "checker", "implementation"],
       topic: "User is continuing implementation of the topic checker.",
-      topicChanged: false,
-      topicChangeReason: "same-topic",
+      domain: "coding",
+      topicChangeReason: undefined,
       complexity: "high",
     });
   });

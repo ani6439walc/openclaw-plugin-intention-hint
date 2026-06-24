@@ -107,10 +107,8 @@ function runInheritedIntentClassifier(
     intent: latest.intent,
     reason: "Topic unchanged; inherited previous intent",
     keywords: latest.keywords ? [...latest.keywords] : undefined,
+    domain: latest.domain ?? FALLBACK_INTENT.domain,
     topic: latest.topic,
-    topicChanged: false,
-    topicChangeReason: topicContext.topicChangeReason,
-    previousTopic: latest.topic,
     confidence: latest.confidence ?? 0.8,
     complexity: topicContext.complexity,
   };
@@ -118,6 +116,17 @@ function runInheritedIntentClassifier(
 
 function resolveIntentId(intent: string | undefined): string | undefined {
   return intent?.match(/^([A-Za-z0-9_-]+)/)?.[1]?.toLowerCase();
+}
+
+function findIntentDomain(
+  intents: readonly IntentCatalogEntry[],
+  intent: string | undefined,
+): string {
+  const intentId = resolveIntentId(intent);
+  return (
+    intents.find((entry) => entry.id.toLowerCase() === intentId)?.definition
+      .domain ?? FALLBACK_INTENT.domain
+  );
 }
 
 function normalizeKeywordForMatching(value: string): string {
@@ -272,6 +281,12 @@ function collectIntentDomains(
   return [...new Set(intents.map((intent) => intent.definition.domain))].sort();
 }
 
+function resolveTopicChangeReason(
+  topicContext: NonNullable<Awaited<ReturnType<typeof runTopicSwitchSubagent>>>,
+): IntentionResult["topicChangeReason"] {
+  return topicContext.topicChanged ? topicContext.topicChangeReason : undefined;
+}
+
 const SESSION_END_REASONS_THAT_DELETE_FILE = new Set([
   "new",
   "reset",
@@ -368,12 +383,16 @@ export function createHookHandlers(deps: HookDeps) {
     latestHistoricalIntent: HistoricalIntentRecord | undefined,
   ): void {
     if (topicContext) {
+      const topicChangeReason = resolveTopicChangeReason(topicContext);
       result.complexity = topicContext.complexity;
       result.keywords = [...topicContext.keywords];
+      result.domain =
+        topicContext.domain ?? result.domain ?? FALLBACK_INTENT.domain;
       result.topic = topicContext.topic;
-      result.topicChanged = topicContext.topicChanged;
-      result.topicChangeReason = topicContext.topicChangeReason;
-      result.previousTopic = latestHistoricalIntent?.topic;
+      result.topicChangeReason = topicChangeReason;
+      result.previousTopic = topicChangeReason
+        ? latestHistoricalIntent?.topic
+        : undefined;
     }
   }
 
@@ -423,6 +442,7 @@ export function createHookHandlers(deps: HookDeps) {
           params.availableIntents,
         );
         if (topicKeywordSimilarityMatch) {
+          const topicChangeReason = resolveTopicChangeReason(topicContext);
           topicKeywordSimilarityMatched = true;
           result = {
             intent: topicKeywordSimilarityMatch.intent.id,
@@ -431,10 +451,12 @@ export function createHookHandlers(deps: HookDeps) {
               topicKeywordSimilarityMatch.topicKeyword,
               topicKeywordSimilarityMatch.intentKeyword,
             ],
+            domain: topicContext.domain,
             topic: topicContext.topic,
-            topicChanged: topicContext.topicChanged,
-            topicChangeReason: topicContext.topicChangeReason,
-            previousTopic: latestHistoricalIntent?.topic,
+            topicChangeReason,
+            previousTopic: topicChangeReason
+              ? latestHistoricalIntent?.topic
+              : undefined,
             confidence: topicKeywordSimilarityMatch.score,
             complexity: topicContext.complexity,
           };
@@ -460,6 +482,12 @@ export function createHookHandlers(deps: HookDeps) {
       if (!topicKeywordSimilarityMatched) {
         applyTopicContextToResult(result, topicContext, latestHistoricalIntent);
       }
+      if (!topicContext) {
+        result.domain = findIntentDomain(
+          params.availableIntents,
+          result.intent,
+        );
+      }
     }
     return result;
   }
@@ -483,9 +511,9 @@ export function createHookHandlers(deps: HookDeps) {
       current: {
         input: params.latestUserMessage,
         intent: {
-          ...(params.result.topicChangeReason === "same-topic"
-            ? {}
-            : { input: params.conversation }),
+          ...(params.result.topicChangeReason
+            ? { input: params.conversation }
+            : {}),
           result: params.result,
           instructionText: params.instructionText,
         },
@@ -541,13 +569,16 @@ export function createHookHandlers(deps: HookDeps) {
           intent: exactKeywordMatch.intent.id,
           reason: `Exact keyword match: ${exactKeywordMatch.keyword}`,
           keywords: [exactKeywordMatch.keyword],
+          domain: exactKeywordMatch.intent.definition.domain,
           topic: `Exact keyword match for ${exactKeywordMatch.intent.id}.`,
-          previousTopic: latestHistoricalIntent?.topic,
-          topicChanged: latestHistoricalIntent ? !sameIntent : true,
+          previousTopic:
+            latestHistoricalIntent && !sameIntent
+              ? latestHistoricalIntent.topic
+              : undefined,
           topicChangeReason: !latestHistoricalIntent
             ? "initial"
             : sameIntent
-              ? "same-topic"
+              ? undefined
               : "keyword-match",
           confidence: 1,
           complexity: "low",
@@ -603,7 +634,7 @@ export function createHookHandlers(deps: HookDeps) {
       logger.debug(`intention subagent result: ${JSON.stringify(result)}`);
 
       // Skip intent instruction subagent and hint injection when topic unchanged
-      if (result.topicChanged === false) {
+      if (!result.topicChangeReason) {
         logger.debug(
           "topic unchanged; skipping intent instruction subagent and hint injection.",
         );

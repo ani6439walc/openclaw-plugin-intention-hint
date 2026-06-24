@@ -354,8 +354,8 @@ The classification sub-agent returns JSON:
   "intent": "memory-lookup",
   "reason": "User asked to recall previous conversation",
   "keywords": ["memory", "past discussion"],
+  "domain": "memory",
   "topic": "memory / past discussion",
-  "topicChanged": false,
   "topicChangeReason": "initial",
   "confidence": 0.9,
   "complexity": "medium",
@@ -367,8 +367,9 @@ The classification sub-agent returns JSON:
 - Intent ids are derived from active intent filenames by removing the `.md` suffix
 - Fallbacks to `other` if parsed intent not found in catalog
 - `keywords` are normalized core nouns or short phrases from the latest user message
+- `domain` is the selected intent/topic routing domain
 - `topic` is a concise natural-language phrase describing the current topic
-- `topicChanged=false` with `topicChangeReason="same-topic"` marks same-topic continuation turns that inherited the previous intent
+- `topicChangeReason` is present only when the topic changed; an empty value means same-topic continuation
 - `topicChangeReason="keyword-match"` marks a deterministic frontmatter keyword fast-path match that switched from a previous intent
 - Topic switch metadata is stored in session history; no separate cache or experience store is written
 - Durable session goals are managed by OpenClaw `/goal` and goal tools, not by intention-hint
@@ -395,14 +396,14 @@ The following categories group intents by their ID prefix:
 
 Every tracked turn first runs a lightweight topic switch checker using the
 latest user message, recent conversation context, and recent session history
-(`intent`, `keywords`, `topic`, `topicChanged`, `topicChangeReason`,
-`complexity`). If the checker says the topic changed, or there is no historical
+(`intent`, `domain`, `keywords`, `topic`, `topicChangeReason`, `complexity`).
+If the checker says the topic changed, or there is no historical
 intent to inherit, that topic context is passed into the classifier subagent.
 If the checker says the topic did not change, the plugin runs a local inherited
 intent classifier, reuses the latest historical intent, uses the checker
-complexity for the latest message, and records the current turn with
-`topicChanged=false` plus `topicChangeReason="same-topic"`. If the checker
-fails, the plugin logs and falls back to classifier-only behavior.
+complexity for the latest message, and records the current turn without
+`topicChangeReason`. If the checker fails, the plugin logs and falls back to
+classifier-only behavior.
 
 ### Fast Path A1 Keyword Matching
 
@@ -410,7 +411,7 @@ fails, the plugin logs and falls back to classifier-only behavior.
 - A1 only scans intents with `fastpath.hint`; keyword-only intents are ignored by exact matching.
 - Matching normalizes Unicode, removes whitespace, and lowercases before comparison.
 - A match injects the short `fastpath.hint` and skips the topic checker, classifier, and instruction writer.
-- Topic reasons are `initial`, `same-topic`, or `keyword-match`; update live runtime intents under `$OPENCLAW_STATE_DIR/plugins/intention-hint/intents`.
+- Topic reasons are `initial` or `keyword-match`; same-topic exact matches leave `topicChangeReason` empty.
 
 ### Fast Path A2 Keyword Similarity
 
@@ -420,7 +421,7 @@ fails, the plugin logs and falls back to classifier-only behavior.
 - A2 does not require `fastpath.hint`; hint only gates A1 exact-match injection.
 - A clear similarity match skips the intent classifier, then still runs the instruction writer before injection.
 - Ambiguous, low-score, high-risk, or denied-intent matches fall back to the normal classifier.
-- Same-topic inheritance remains earlier than A2, so `topicChanged=false` turns still record only and return.
+- Same-topic inheritance remains earlier than A2, so turns without `topicChangeReason` still record only and return.
 
 ### Instruction Generation
 
@@ -446,11 +447,11 @@ matched intent body.
 
 - The conversation context is omitted entirely when conversation is empty or undefined
 - Non-empty context is emitted as `<conversation_context>` with reference-only instructions, then one or more `<topic_segment index="...">` blocks containing oldest-to-newest turns
-- Matching historical user turns include a `<historical_intent>` block with prior `intent`, `keywords`, `topic`, `topicChanged`, and `topicChangeReason`; assistant, unmatched, and latest user turns do not
-- When a historical user turn has `topicChanged=true`, prompt building closes the previous segment, inserts a `<topic_boundary>` with reason/topic metadata, and starts the next `<topic_segment>`
+- Matching historical user turns include a `<historical_intent>` block with prior `intent`, `domain`, `keywords`, `topic`, and optional `topicChangeReason`; assistant, unmatched, and latest user turns do not
+- When a historical user turn has `topicChangeReason`, prompt building closes the previous segment, inserts a `<topic_boundary>` with reason/topic metadata, and starts the next `<topic_segment>`
 - Historical records are matched by normalized user-message text, with duplicate messages paired newest-first
 - Classification rules use historical intent metadata as context while requiring fresh classification on topic switches
-- Same-topic continuation turns are identified by `topicChangeReason="same-topic"` and omit `current.intent.input` to avoid duplicating conversation snapshots, while keeping `current.intent.result` for tool tracking, stats, and Evolution
+- Same-topic continuation turns omit `topicChangeReason` and `current.intent.input` to avoid duplicating conversation snapshots, while keeping `current.intent.result` for tool tracking, stats, and Evolution
 - Extracted via `conversation-extract.ts` with configurable turn/char limits from `contextWindow` config
 
 ### Internal User Turns
@@ -487,7 +488,7 @@ influenced by internal task-completion traffic.
 - Required field validation (`intent`, `reason`, `confidence`, `complexity`)
 - Keyword normalization and deterministic topic derivation when `keywords` are present
 - Topic switch metadata merged from the pre-classification checker when available
-- `topicChanged` and `topicChangeReason` metadata used to distinguish fresh classifications from inherited same-topic turns
+- `domain` and optional `topicChangeReason` metadata used to distinguish fresh classifications from inherited same-topic turns
 - Confidence range validation (0.0–1.0)
 - Complexity enum validation (`low`, `medium`, `high`)
 - Optional `suggestion` field (only included when present in JSON)

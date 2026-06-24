@@ -560,7 +560,7 @@ describe("createHookHandlers topic switch flow", () => {
             result: expect.objectContaining({
               intent: "social-casual",
               keywords: ["謝謝"],
-              topicChanged: true,
+              domain: "chat",
               topicChangeReason: "initial",
             }),
             instructionText: "Reply warmly.",
@@ -609,9 +609,8 @@ describe("createHookHandlers topic switch flow", () => {
         complexity: "low" as const,
       },
       expected: {
-        previousTopic: "User is chatting casually.",
-        topicChanged: false,
-        topicChangeReason: "same-topic",
+        previousTopic: undefined,
+        topicChangeReason: undefined,
       },
     },
     {
@@ -625,7 +624,6 @@ describe("createHookHandlers topic switch flow", () => {
       },
       expected: {
         previousTopic: "User is fixing code.",
-        topicChanged: true,
         topicChangeReason: "keyword-match",
       },
     },
@@ -699,7 +697,7 @@ describe("createHookHandlers topic switch flow", () => {
       topic: "User wants a git commit.",
       domain: "git",
       topicChanged: false,
-      topicChangeReason: "initial" as const,
+      topicChangeReason: undefined,
       complexity: "low" as const,
     };
     const { handlers, classifier, topicChecker, instructionWriter, record } =
@@ -734,8 +732,9 @@ describe("createHookHandlers topic switch flow", () => {
               reason: "Topic keyword similarity match: comit -> commit",
               keywords: ["comit", "commit"],
               topic: "User wants a git commit.",
+              domain: "git",
               confidence: expect.closeTo(0.833, 0.01),
-              topicChanged: false,
+              topicChangeReason: undefined,
             }),
           }),
         }),
@@ -771,7 +770,8 @@ describe("createHookHandlers topic switch flow", () => {
       expect.objectContaining({
         result: expect.objectContaining({
           intent: "version-control",
-          topicChanged: true,
+          domain: "git",
+          topicChangeReason: "initial",
         }),
       }),
     );
@@ -1002,7 +1002,8 @@ describe("createHookHandlers topic switch flow", () => {
     const topicContext = {
       keywords: ["initial", "topic"],
       topic: "User is starting an initial topic.",
-      topicChanged: false,
+      domain: "chat",
+      topicChanged: true,
       topicChangeReason: "initial" as const,
       complexity: "low" as const,
     };
@@ -1029,8 +1030,8 @@ describe("createHookHandlers topic switch flow", () => {
     expect(classifier).toHaveBeenCalledWith(
       expect.objectContaining({ topicContext }),
     );
-    expect(instructionWriter).not.toHaveBeenCalled();
-    expect(result?.prependContext).toBeUndefined();
+    expect(instructionWriter).toHaveBeenCalledOnce();
+    expect(result?.prependContext).toContain("<intention_hint_plugin");
     expect(record).toHaveBeenCalledWith(
       "session-1",
       expect.objectContaining({
@@ -1039,7 +1040,7 @@ describe("createHookHandlers topic switch flow", () => {
             result: expect.objectContaining({
               keywords: ["initial", "topic"],
               topic: "User is starting an initial topic.",
-              topicChanged: false,
+              domain: "chat",
               topicChangeReason: "initial",
             }),
           }),
@@ -1052,6 +1053,7 @@ describe("createHookHandlers topic switch flow", () => {
     const topicContext = {
       keywords: ["new", "topic"],
       topic: "User is switching to a new topic.",
+      domain: "chat",
       topicChanged: true,
       topicChangeReason: "transition-marker" as const,
       complexity: "high" as const,
@@ -1064,6 +1066,7 @@ describe("createHookHandlers topic switch flow", () => {
             intent: "coding",
             keywords: ["topic", "checker"],
             topic: "topic / checker",
+            domain: "coding",
             confidence: 0.8,
             complexity: "medium",
           },
@@ -1108,6 +1111,7 @@ describe("createHookHandlers topic switch flow", () => {
           intent: "coding",
           keywords: ["topic", "checker"],
           topic: "topic / checker",
+          domain: "coding",
           confidence: 0.8,
           complexity: "medium",
         },
@@ -1139,6 +1143,7 @@ describe("createHookHandlers topic switch flow", () => {
             intent: "coding",
             keywords: ["topic", "checker"],
             topic: "topic / checker",
+            domain: "coding",
             confidence: 0.85,
             complexity: "high",
           },
@@ -1160,7 +1165,8 @@ describe("createHookHandlers topic switch flow", () => {
           intent: expect.objectContaining({
             result: expect.objectContaining({
               intent: "coding",
-              topicChanged: false,
+              domain: "coding",
+              topicChangeReason: undefined,
             }),
           }),
         }),

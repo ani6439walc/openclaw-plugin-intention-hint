@@ -18,6 +18,14 @@ import {
 } from "./file-utils.js";
 
 const SESSION_RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
+const DEFAULT_MIGRATED_DOMAIN = "other";
+const TOPIC_CHANGE_REASONS = new Set([
+  "initial",
+  "transition-marker",
+  "keyword-delta",
+  "explicit-change",
+  "keyword-match",
+]);
 
 export interface SkillRecord {
   name: string;
@@ -131,6 +139,47 @@ function createReviewState(state: SessionState): ReviewState {
   };
 }
 
+function migrateIntentionResult(result: IntentionResult): boolean {
+  const record = result as IntentionResult & Record<string, unknown>;
+  let changed = false;
+
+  if (typeof record.domain !== "string" || !record.domain.trim()) {
+    result.domain = DEFAULT_MIGRATED_DOMAIN;
+    changed = true;
+  }
+
+  const legacyTopicChanged = record.topicChanged;
+  const legacyReason = record.topicChangeReason as unknown;
+  if (legacyTopicChanged === false || legacyReason === "same-topic") {
+    delete record.topicChanged;
+    delete record.topicChangeReason;
+    changed = true;
+  } else if (legacyTopicChanged === true) {
+    delete record.topicChanged;
+    if (
+      typeof legacyReason !== "string" ||
+      !TOPIC_CHANGE_REASONS.has(legacyReason)
+    ) {
+      result.topicChangeReason = "explicit-change";
+    }
+    changed = true;
+  } else if (record.topicChanged !== undefined) {
+    delete record.topicChanged;
+    changed = true;
+  }
+
+  return changed;
+}
+
+function migrateSessionData(sessionData: SessionData): boolean {
+  let changed = false;
+  for (const state of [sessionData.current, ...(sessionData.history ?? [])]) {
+    const result = state.intent?.result;
+    if (result && migrateIntentionResult(result)) changed = true;
+  }
+  return changed;
+}
+
 function extractSkillInfo(
   toolName: string,
   toolParams: Record<string, unknown>,
@@ -233,7 +282,15 @@ export class SessionTracker {
       const filePath = path.join(sessionsDir, file);
       try {
         const sessionData: SessionData = readJsonFile<SessionData>(filePath);
+        const migrated = migrateSessionData(sessionData);
         this.sessionData.set(sessionData.sessionId, sessionData);
+        if (migrated) {
+          safeWriteJson(
+            filePath,
+            sessionData,
+            "failed to migrate session file",
+          );
+        }
       } catch (err) {
         logger.warn("failed to load session file", {
           error: err,
@@ -283,14 +340,12 @@ export class SessionTracker {
       const record: HistoricalIntentRecord = {
         input: state.input,
         intent: result.intent,
+        domain: result.domain ?? DEFAULT_MIGRATED_DOMAIN,
         confidence: result.confidence,
         complexity: result.complexity,
       };
       if (result.keywords?.length) record.keywords = [...result.keywords];
       if (result.topic) record.topic = result.topic;
-      if (result.topicChanged !== undefined) {
-        record.topicChanged = result.topicChanged;
-      }
       if (result.topicChangeReason) {
         record.topicChangeReason = result.topicChangeReason;
       }

@@ -122,11 +122,10 @@ export type IntentionResult = {
   reason: string;
   suggestion?: string;
   keywords?: string[];
+  domain: string;
   topic?: string;
-  topicChanged?: boolean;
   topicChangeReason?:
     | "initial"
-    | "same-topic"
     | "transition-marker"
     | "keyword-delta"
     | "explicit-change"
@@ -138,7 +137,7 @@ export type IntentionResult = {
 
 export type HistoricalIntent = Pick<
   IntentionResult,
-  "intent" | "keywords" | "topic" | "topicChanged" | "topicChangeReason"
+  "intent" | "domain" | "keywords" | "topic" | "topicChangeReason"
 > &
   Partial<Pick<IntentionResult, "confidence" | "complexity">>;
 
