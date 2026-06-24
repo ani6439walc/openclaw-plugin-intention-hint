@@ -278,15 +278,15 @@ Intent Evolution is an opt-in observation and proposal pipeline. It does
 not edit intent files automatically. When enabled, each completed tracked turn
 is checked for seven trigger types:
 
-| Trigger              | Default condition                                      | Intent Markdown correction target                        |
-| -------------------- | ------------------------------------------------------ | -------------------------------------------------------- |
-| `skill-candidate`    | Current turn has at least 5 tool calls                 | `Skills & Tools`, `Concrete Workflow`, or `Experience`   |
-| `process-gap`        | Current turn has at least 2 tool errors                | Guidelines, tool examples, workflow, or pitfalls         |
-| `successful-pattern` | Successful tool-heavy or skill-assisted completed turn | `Experience`, `Concrete Workflow`, or Response Strategy  |
-| `satisfaction-check` | Every 10th tracked turn                                | Boundaries, examples, Guidelines, or Response Strategy   |
-| `missing-intent`     | Classified intent is `other`                           | A narrowly scoped new intent draft                       |
-| `weak-intent`        | Classification confidence is below 0.5                 | Frontmatter triggers/examples and boundary clarity       |
-| `behavior-fix`       | Current input contains a configured correction keyword | Guidance or workflow that encodes the corrected behavior |
+| Trigger              | Default condition                                      | Intent Markdown correction target                                            |
+| -------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `skill-candidate`    | Current turn has at least 5 tool calls                 | `Skills & Tools`, `Concrete Workflow`, or `Experience`                       |
+| `process-gap`        | Current turn has at least 2 tool errors                | Guidelines, tool examples, workflow, or pitfalls                             |
+| `successful-pattern` | Successful tool-heavy or skill-assisted completed turn | `Experience`, `Concrete Workflow`, or Response Strategy                      |
+| `satisfaction-check` | Every 10th tracked turn                                | Boundaries, examples, Guidelines, or Response Strategy                       |
+| `missing-intent`     | Classified intent is `other`                           | A narrowly scoped new intent draft                                           |
+| `weak-intent`        | Classification confidence is below 0.5                 | Frontmatter triggers/examples/domain/fastpath and boundary clarity           |
+| `behavior-fix`       | Current input contains a configured correction keyword | Fastpath metadata, guidance, or workflow that encodes the corrected behavior |
 
 All matching triggers are reviewed in one background, read-only sub-agent run.
 Each trigger receives a distinct review focus and correction goal, and may return
@@ -296,11 +296,12 @@ fail-open and never block or alter the main reply.
 
 The reviewer is intentionally scoped to improving runtime `intents/*.md`, following
 the bundled `intention-hint` Skill rules. It receives the full matched intent
-definition and a compact frontmatter catalog for collision checks, plus the current turn and up
-to nine previous tracked turns with truncated content. Depending on the trigger,
-it proposes a new intent draft or targeted changes to frontmatter, Guidelines,
-Skills & Tools, Response Strategy, Concrete Workflow, or Experience. It never proposes
-changes to skills, tools, AGENTS.md, SOUL.md, or other production files.
+definition and a compact frontmatter catalog, including domain and fastpath
+metadata, for collision checks, plus the current turn and up to nine previous
+tracked turns with truncated content. Depending on the trigger, it proposes a
+new intent draft or targeted changes to frontmatter, Guidelines, Skills & Tools,
+Response Strategy, Concrete Workflow, or Experience. It never proposes changes
+to skills, tools, AGENTS.md, SOUL.md, or other production files.
 The review sub-agent uses `runEmbeddedAgent` with `promptMode="minimal"`,
 `modelRun=false`, and `toolsAllow=["read"]` so OpenClaw materializes only the
 core `read` tool. The `read` tool is reserved for inspecting relevant

@@ -49,6 +49,11 @@ const snapshot: ReviewSnapshot = {
     definition: {
       triggers: ["Requests that do not match a defined intent"],
       examples: ["help with this"],
+      domain: "other",
+      fastpath: {
+        keywords: ["help"],
+        hint: "Ask one clarifying question.",
+      },
       prompt: "## Guidelines\n\n- Ask for context.",
     },
   },
@@ -57,6 +62,11 @@ const snapshot: ReviewSnapshot = {
       id: "other",
       triggers: ["Requests that do not match a defined intent"],
       examples: ["help with this"],
+      domain: "other",
+      fastpath: {
+        keywords: ["help"],
+        hint: "Ask one clarifying question.",
+      },
     },
   ],
 };
@@ -72,8 +82,12 @@ describe("buildReviewPrompt", () => {
       "Intent ids come from Markdown filenames without the .md suffix",
     );
     expect(prompt).toContain(
-      "Frontmatter is classification-only and contains only triggers[] and examples[]",
+      "Frontmatter is classification-only and contains triggers[], examples[], one required domain, and optional fastpath metadata",
     );
+    expect(prompt).toContain(
+      "fastpath.keywords are exact/similarity routing phrases",
+    );
+    expect(prompt).toContain("fastpath.hint is a short injected A1 hint");
     expect(prompt).toContain(
       "## Guidelines, ## Skills & Tools, ## Response Strategy",
     );
@@ -152,7 +166,7 @@ describe("buildReviewPrompt", () => {
     [
       "weak-intent",
       "classification ambiguity",
-      "frontmatter triggers/examples",
+      "frontmatter triggers/examples/domain/fastpath",
     ],
     [
       "behavior-fix",
@@ -207,6 +221,10 @@ describe("buildReviewPrompt", () => {
     expect(prompt).toContain("Done");
     expect(prompt).toContain("## Matched Intent");
     expect(prompt).toContain("- ID: other");
+    expect(prompt).toContain("- Domain: other");
+    expect(prompt).toContain("### Fastpath");
+    expect(prompt).toContain("- help");
+    expect(prompt).toContain("Hint: Ask one clarifying question.");
     expect(prompt).toContain("## Intent Catalog");
     expect(prompt).toContain("Requests that do not match a defined intent");
 
@@ -215,6 +233,32 @@ describe("buildReviewPrompt", () => {
     expect(prompt).not.toContain("eventId");
     expect(prompt).not.toContain("agentId");
     expect(prompt).not.toContain('"current"');
+  });
+
+  it("formats older snapshots without domain or fastpath metadata", () => {
+    const legacySnapshot = {
+      ...snapshot,
+      matchedIntent: {
+        id: "legacy",
+        definition: {
+          triggers: ["legacy trigger"],
+          examples: ["legacy example"],
+          prompt: "## Guidelines\n\n- Legacy body.",
+        },
+      },
+      intentCatalog: [
+        {
+          id: "legacy",
+          triggers: ["legacy trigger"],
+          examples: ["legacy example"],
+        },
+      ],
+    } as unknown as ReviewSnapshot;
+
+    const prompt = buildReviewPrompt(legacySnapshot, ["weak-intent"]);
+
+    expect(prompt).toContain("- Domain: none");
+    expect(prompt).toContain("Fastpath\n- none");
   });
 });
 

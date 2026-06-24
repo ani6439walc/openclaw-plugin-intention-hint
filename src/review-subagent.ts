@@ -39,19 +39,21 @@ const REVIEW_INSTRUCTIONS: Record<
   },
   "weak-intent": {
     focus:
-      "Explain the classification ambiguity, likely matched intent, neighboring collision, and missing or misleading trigger/example coverage.",
-    goal: "Refine the matched intent Markdown frontmatter triggers/examples and clarify its boundary without adding classification prose to the body.",
+      "Explain the classification ambiguity, likely matched intent, neighboring collision, and missing or misleading trigger/example/domain/fastpath coverage.",
+    goal: "Refine the matched intent Markdown frontmatter triggers/examples/domain/fastpath and clarify its boundary without adding classification prose to the body.",
   },
   "behavior-fix": {
     focus:
-      "Compare the user correction with the matched intent's routed behavior and identify the specific Markdown instruction that caused, allowed, or failed to prevent the mistake.",
-    goal: "Refine the matched intent Markdown's Guidelines, Response Strategy, Skills & Tools, Concrete Workflow, or Experience to encode the corrected behavior.",
+      "Compare the user correction with the matched intent's routed behavior and identify the specific Markdown instruction, domain, or fastpath hint/keyword that caused, allowed, or failed to prevent the mistake.",
+    goal: "Refine the matched intent Markdown's domain, fastpath metadata, Guidelines, Response Strategy, Skills & Tools, Concrete Workflow, or Experience to encode the corrected behavior.",
   },
 };
 
 const INTENT_CRAFT_RUBRIC = `Intent Markdown review rules:
 - Decide whether the evidence calls for creating, refining, splitting, or merging an intent. Prefer the smallest maintainable boundary.
-- Intent ids come from Markdown filenames without the .md suffix. Frontmatter is classification-only and contains only triggers[] and examples[]. Triggers describe the user goal and boundary; examples are realistic user messages.
+- Intent ids come from Markdown filenames without the .md suffix. Frontmatter is classification-only and contains triggers[], examples[], one required domain, and optional fastpath metadata.
+- Triggers describe the user goal and boundary; examples are realistic user messages; domain is the broad routing bucket.
+- fastpath.keywords are exact/similarity routing phrases. fastpath.hint is a short injected A1 hint for safe exact matches. Add or change fastpath only when evidence shows a stable short phrase or a fastpath misroute.
 - The body guides execution and must use this order: ## Guidelines, ## Skills & Tools, ## Response Strategy, then optional ## Concrete Workflow, then optional ## Experience.
 - Put skill hints on an indented "skill: <name>" line beneath a descriptive list item.
 - Put concrete tool call shapes in Skills & Tools or workflow steps; do not use vague tool prose.
@@ -66,7 +68,7 @@ const INTENT_CRAFT_RUBRIC = `Intent Markdown review rules:
 - Skill/tool experience lessons are not recordable when they are pure theory, conclusions without reproducible steps, or one-time non-reusable operations.
 - When evidence resembles an external learning entry, distill only the reusable title, context, solution steps, key paths, parameters, and keywords that directly improve the matched intent's Guidelines, Response Strategy, Concrete Workflow, or Experience; do not propose external file formats or writes.
 - When the lesson is general knowledge rather than intent-routing guidance, return no_finding unless it directly improves the matched intent's Guidelines, Response Strategy, Concrete Workflow, or Experience.
-- Never mention another intent name or id inside an intent body. Express scope boundaries through frontmatter triggers and examples.
+- Never mention another intent name or id inside an intent body. Express scope boundaries through frontmatter triggers, examples, domain, and fastpath.
 - Do not propose changes to skills, tools, AGENTS.md, SOUL.md, or other production files. The only correction target is intent Markdown content.
 - Return no finding when the evidence does not justify a concrete intent Markdown improvement.`;
 
@@ -133,6 +135,16 @@ function escapeSnapshotText(value: unknown): string {
 function formatList(values: readonly string[] | undefined): string {
   if (!values?.length) return "- none";
   return values.map((value) => `- ${escapeSnapshotText(value)}`).join("\n");
+}
+
+function formatFastpath(fastpath?: {
+  keywords: readonly string[];
+  hint?: string;
+}): string {
+  if (!fastpath) return "- none";
+  const lines = ["Keywords:", formatList(fastpath.keywords)];
+  if (fastpath.hint) lines.push(`Hint: ${escapeSnapshotText(fastpath.hint)}`);
+  return lines.join("\n");
 }
 
 function formatIntentResult(
@@ -240,12 +252,16 @@ function formatMatchedIntent(snapshot: ReviewSnapshot): string {
   return [
     "## Matched Intent",
     `- ID: ${escapeSnapshotText(intent.id)}`,
+    `- Domain: ${escapeSnapshotText(intent.definition.domain ?? "none")}`,
     "",
     "### Triggers",
     formatList(intent.definition.triggers),
     "",
     "### Examples",
     formatList(intent.definition.examples),
+    "",
+    "### Fastpath",
+    formatFastpath(intent.definition.fastpath),
     "",
     "### Body",
     escapeSnapshotText(intent.definition.prompt || "none"),
@@ -259,10 +275,13 @@ function formatIntentCatalog(snapshot: ReviewSnapshot): string {
     ...snapshot.intentCatalog.map((entry) =>
       [
         `### ${escapeSnapshotText(entry.id)}`,
+        `Domain: ${escapeSnapshotText(entry.domain ?? "none")}`,
         "Triggers:",
         formatList(entry.triggers),
         "Examples:",
         formatList(entry.examples),
+        "Fastpath:",
+        formatFastpath(entry.fastpath),
       ].join("\n"),
     ),
   ].join("\n\n");
