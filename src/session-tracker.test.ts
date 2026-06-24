@@ -59,6 +59,73 @@ describe("SessionTracker", () => {
       expect(loadedTracker.hasIntentData("existing-session-123")).toBe(true);
     });
 
+    it("migrates legacy topic metadata and missing domain on load", () => {
+      const sessionsDir = path.join(tempDir, "sessions");
+      fs.mkdirSync(sessionsDir, { recursive: true });
+      const filePath = path.join(sessionsDir, "legacy-topic.json");
+      fs.writeFileSync(
+        filePath,
+        JSON.stringify({
+          sessionId: "legacy-topic",
+          history: [
+            {
+              input: "same topic",
+              intent: {
+                result: {
+                  intent: "chat",
+                  reason: "same",
+                  topicChanged: false,
+                  topicChangeReason: "same-topic",
+                  confidence: 0.8,
+                  complexity: "low",
+                },
+              },
+            },
+          ],
+          current: {
+            input: "changed topic",
+            intent: {
+              result: {
+                intent: "coding",
+                reason: "changed",
+                topicChanged: true,
+                confidence: 0.9,
+                complexity: "medium",
+              },
+            },
+          },
+        }),
+      );
+
+      const loadedTracker = SessionTracker.create(tempDir);
+      const migrated = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+
+      expect(loadedTracker.getHistoricalIntentRecords("legacy-topic")).toEqual([
+        expect.objectContaining({
+          input: "same topic",
+          intent: "chat",
+          domain: "other",
+        }),
+        expect.objectContaining({
+          input: "changed topic",
+          intent: "coding",
+          domain: "other",
+          topicChangeReason: "explicit-change",
+        }),
+      ]);
+      expect(migrated.history[0].intent.result).not.toHaveProperty(
+        "topicChanged",
+      );
+      expect(migrated.history[0].intent.result).not.toHaveProperty(
+        "topicChangeReason",
+      );
+      expect(migrated.current.intent.result).not.toHaveProperty("topicChanged");
+      expect(migrated.current.intent.result).toMatchObject({
+        domain: "other",
+        topicChangeReason: "explicit-change",
+      });
+    });
+
     it("should skip corrupted JSON files and log warning", () => {
       const sessionsDir = path.join(tempDir, "sessions");
       fs.mkdirSync(sessionsDir, { recursive: true });
@@ -839,8 +906,8 @@ describe("SessionTracker", () => {
                 intent: "PLANNING",
                 reason: "test",
                 keywords: ["plan", "change"],
+                domain: "planning",
                 topic: "plan / change",
-                topicChanged: true,
                 topicChangeReason: "keyword-delta",
                 confidence: 0.8,
                 complexity: "medium",
@@ -853,6 +920,7 @@ describe("SessionTracker", () => {
               result: {
                 intent: "MISSING_INPUT",
                 reason: "test",
+                domain: "other",
                 confidence: 0.8,
                 complexity: "low",
               },
@@ -865,6 +933,7 @@ describe("SessionTracker", () => {
             result: {
               intent: "CODING",
               reason: "test",
+              domain: "coding",
               confidence: 0.75,
               complexity: "medium",
             },
@@ -876,9 +945,9 @@ describe("SessionTracker", () => {
         {
           input: "Plan the change",
           intent: "PLANNING",
+          domain: "planning",
           keywords: ["plan", "change"],
           topic: "plan / change",
-          topicChanged: true,
           topicChangeReason: "keyword-delta",
           confidence: 0.8,
           complexity: "medium",
@@ -886,6 +955,7 @@ describe("SessionTracker", () => {
         {
           input: "Implement the change",
           intent: "CODING",
+          domain: "coding",
           confidence: 0.75,
           complexity: "medium",
         },
@@ -905,8 +975,8 @@ describe("SessionTracker", () => {
               intent: "social-casual",
               reason: "Fast Path A1 keyword exact match: hi",
               keywords: ["hi"],
+              domain: "chat",
               topic: "Fast-path exact match for social-casual.",
-              topicChanged: true,
               topicChangeReason: "keyword-match",
               confidence: 1,
               complexity: "low",
@@ -921,8 +991,8 @@ describe("SessionTracker", () => {
         expect.objectContaining({
           input: "hi",
           intent: "social-casual",
+          domain: "chat",
           keywords: ["hi"],
-          topicChanged: true,
           topicChangeReason: "keyword-match",
         }),
       ]);
