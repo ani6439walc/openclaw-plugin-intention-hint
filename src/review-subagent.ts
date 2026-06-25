@@ -4,7 +4,10 @@ import type { OpenClawPluginApi } from "../api.js";
 import { logger } from "../api.js";
 import type { EvolutionFinding, ReviewSnapshot } from "./evolution-types.js";
 import type { EvolutionTrigger } from "./trigger-checker.js";
-import type { ResolvedIntentionHintPluginConfig } from "./types.js";
+import type {
+  AvailableSkill,
+  ResolvedIntentionHintPluginConfig,
+} from "./types.js";
 import { EVOLUTION_OPERATIONS } from "./evolution-backlog.js";
 import { extractPayloadText } from "./subagent.js";
 
@@ -210,6 +213,24 @@ function formatSkillsUsed(
     .join("\n");
 }
 
+function formatAvailableSkills(skills: readonly AvailableSkill[] | undefined) {
+  if (!skills?.length) return "## Available Skills\n- none";
+  return [
+    "## Available Skills",
+    ...skills.map((skill) =>
+      [
+        `- ${escapeSnapshotText(skill.name)}`,
+        skill.description
+          ? `  - Description: ${escapeSnapshotText(skill.description)}`
+          : undefined,
+        `  - Location: ${escapeSnapshotText(skill.location)}`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    ),
+  ].join("\n");
+}
+
 function formatReviewState(
   title: string,
   state: ReviewSnapshot["current"],
@@ -301,6 +322,7 @@ export function formatReviewSnapshot(snapshot: ReviewSnapshot): string {
     formatReviewState("Current Turn", snapshot.current, snapshot.turnNumber),
     recent,
     formatMatchedIntent(snapshot),
+    formatAvailableSkills(snapshot.availableSkills),
     formatIntentCatalog(snapshot),
     "</review_snapshot>",
   ].join("\n\n");

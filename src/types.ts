@@ -135,6 +135,12 @@ export type IntentionResult = {
   complexity: "low" | "medium" | "high";
 };
 
+export type AvailableSkill = {
+  name: string;
+  location: string;
+  description: string;
+};
+
 export type HistoricalIntent = Pick<
   IntentionResult,
   "intent" | "domain" | "keywords" | "topic" | "topicChangeReason"

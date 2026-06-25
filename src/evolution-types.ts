@@ -1,6 +1,7 @@
 import type { EvolutionTrigger } from "./trigger-checker.js";
 import type { EvolutionOperation } from "./evolution-backlog.js";
 import type {
+  AvailableSkill,
   IntentCatalogEntry,
   IntentDefinition,
   IntentionResult,
@@ -34,6 +35,7 @@ export type ReviewSnapshot = {
   current: ReviewState;
   recent: ReviewState[];
   matchedIntent?: IntentCatalogEntry;
+  availableSkills?: AvailableSkill[];
   intentCatalog: Array<
     { id: string } & Pick<IntentDefinition, "triggers" | "examples"> &
       Partial<Pick<IntentDefinition, "domain" | "fastpath">>

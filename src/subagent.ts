@@ -20,6 +20,7 @@ import type {
   HistoricalIntentRecord,
   IntentCatalogEntry,
   IntentionResult,
+  AvailableSkill,
   RecentTurn,
   ResolvedIntentionHintPluginConfig,
 } from "./types.js";
@@ -244,6 +245,7 @@ export async function runIntentInstructionSubagent(params: {
   latest: string;
   result: IntentionResult;
   intentBody: string;
+  availableSkills?: AvailableSkill[];
   messageProvider?: string;
   modelRef: { provider: string; model: string };
 }): Promise<string | undefined> {
@@ -258,6 +260,7 @@ export async function runIntentInstructionSubagent(params: {
     latest: params.latest,
     result: params.result,
     intentBody: params.intentBody,
+    availableSkills: params.availableSkills,
     complexityContext:
       params.config.complexityPrompts[params.result.complexity],
     conversation: params.conversation,

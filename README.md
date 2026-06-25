@@ -28,6 +28,8 @@ index.ts
        │    ├─ buildIntentionEmbeddedRunParams() — builds isolated sub-agent run config
        │    └─ uses constants.ts for FALLBACK_INTENT
        │
+       ├─ skill-catalog.ts → resolves skill: <name> references from matched intent Markdown into SKILL.md metadata
+       │
        ├─ hooks.ts → createHookHandlers()
        │    ├─ onBeforePromptBuild → resolve intent → write session data → inject generated hint
        │    ├─ onAfterToolCall → record() → write() (tracks tool usage)
@@ -81,6 +83,7 @@ index.ts
 | `plugin.ts`                    | Plugin entry point, initializes runtime data, seeds empty intent catalogs from skill assets, and registers hooks on OpenClaw lifecycle events |
 | `hooks.ts`                     | Event handlers for prompt building, tool/agent tracking, and session cleanup                                                                  |
 | `subagent.ts`                  | Runs tool-free topic switch, intent classification, and instruction-writing sub-agents with model selection                                   |
+| `skill-catalog.ts`             | Resolves `skill: <name>` references from matched intent Markdown into available skill metadata                                                |
 | `intent-loader.ts`             | Loads and catalogs intent definitions from YAML-frontmatter `.md` files                                                                       |
 | `file-utils.ts`                | Shared filesystem helpers — atomic JSON I/O, directory management, path resolution                                                            |
 | `constants.ts`                 | Shared defaults — timeouts, fallback intent, complexity prompts, untrusted header                                                             |
@@ -107,25 +110,48 @@ Every `session_end` removes the ended session from tracker memory. Final lifecyc
 ```mermaid
 graph LR
     A[before_prompt_build] --> B{session eligible?}
-    B -->|yes| C{internal user turn?}
     B -->|no| Z[skip]
+    B -->|yes| C{internal user turn?}
     C -->|yes| Z
-    C -->|no| D[refresh config and intents]
-    D --> G[run topic switch checker]
-    G --> H{topic changed?}
-    H -->|yes, initial without history, or checker failed| F[run intent classifier subagent]
-    H -->|no with history| I[run inherited intent classifier locally]
-    F --> J[parse intention result]
-    I --> J
-    J --> K{resolved?}
-    K -->|yes| L[run instruction writer]
-    K -->|no| M[warn parse failed]
-    L --> N[write session data]
-    N --> O[inject generated instruction hint]
-    M --> P[skip hint injection]
-    O --> Q[main agent generates]
-    P --> Q
+    C -->|no| D[refresh live config]
+    D --> E[build latest message and historical conversation context]
+    E --> F[refresh intents and apply intentDeny]
+    F --> G{exact keyword with fastpath.hint?}
+    G -->|yes| H[record session with short hint]
+    H --> I[inject fastpath hint]
+    I --> Q[main agent generates]
+    G -->|no| J{model available?}
+    J -->|no| Z
+    J -->|yes| K[run topic continuity checker with domain candidates]
+    K --> L{topic context returned?}
+    L -->|no| P[run intent classifier subagent]
+    L -->|yes| M1{same topic with history?}
+    M1 -->|yes| M[inherit previous intent locally]
+    M1 -->|no| N{domain keyword similarity match?}
+    N -->|yes| O[build routed intent result]
+    N -->|no| P
+    M --> R[record session only]
+    R --> S[skip prompt injection]
+    O --> T{confidence >= 0.7?}
+    P --> U{classifier returned result?}
+    U -->|no| S
+    U -->|yes| T
+    T -->|no| V[record low-confidence observation]
+    V --> S
+    T -->|yes| W[resolve available skills from matched intent]
+    W --> X[run instruction writer subagent]
+    X --> Y[record session with instruction text]
+    Y --> AA[inject generated instruction hint]
+    AA --> Q
+    S --> Q
 ```
+
+`onBeforePromptBuild` emits compact pipeline events for Discord/status consumers
+only on the three visible phases: `topic-continuity-check`,
+`intent-classification`, and `instruction-hint-generation`. Exact keyword and
+domain keyword routes are reported through those semantic phases instead of
+fastpath-specific phase names. Event failures are fail-open and never add text to
+`prependContext`.
 
 ### Session Data Structure
 
@@ -172,10 +198,14 @@ The versioned stats document contains:
 - `processedEvents`: event IDs retained for 90 days to prevent duplicate `agent_end` counting
 
 Skill hints in Intent Markdown (`skill: <name>`) are catalog candidates only. They
-describe possible skills the instruction writer may choose from, but they are not
-counted as per-turn recommendations. `recommendedSkillOpportunities` counts only
-explicit instruction-writer directives such as `MUST read skill: <name> at <path>`
-or `REQUIRED skill: <name>`. `adoptedSkillOpportunities` counts the intersection
+describe possible skills the instruction writer and Evolution reviewer may reason
+about, but they are not counted as per-turn recommendations. When an intent is
+matched, referenced skills are resolved from the matched agent workspace
+`skills/`, `$OPENCLAW_STATE_DIR/skills/`, then bundled OpenClaw `skills/`. Only
+`SKILL.md` frontmatter `name`, path, and `description` are read; missing skills
+are skipped fail-open. `recommendedSkillOpportunities` counts only explicit
+instruction-writer directives such as `MUST read skill: <name> at <path>` or
+`REQUIRED skill: <name>`. `adoptedSkillOpportunities` counts the intersection
 between those actual recommendations and skills read during the completed turn.
 Existing stats are not backfilled; the reduced-noise denominator applies to new
 tracked turns.
@@ -298,14 +328,18 @@ The reviewer is intentionally scoped to improving runtime `intents/*.md`, follow
 the bundled `intention-hint` Skill rules. It receives the full matched intent
 definition and a compact frontmatter catalog, including domain and fastpath
 metadata, for collision checks, plus the current turn and up to nine previous
-tracked turns with truncated content. Depending on the trigger, it proposes a
-new intent draft or targeted changes to frontmatter, Guidelines, Skills & Tools,
-Response Strategy, Concrete Workflow, or Experience. It never proposes changes
-to skills, tools, AGENTS.md, SOUL.md, or other production files.
+tracked turns with truncated content. It also receives the same available skill
+metadata resolved from the matched intent body, so it can judge whether
+Guidelines, Skills & Tools, Concrete Workflow, or Experience should preserve a
+stable skill path. Depending on the trigger, it proposes a new intent draft or
+targeted changes to frontmatter, Guidelines, Skills & Tools, Response Strategy,
+Concrete Workflow, or Experience. It never proposes changes to skills, tools,
+AGENTS.md, SOUL.md, or other production files.
 The review sub-agent uses `runEmbeddedAgent` with `promptMode="minimal"`,
 `modelRun=false`, and `toolsAllow=["read"]` so OpenClaw materializes only the
 core `read` tool. The `read` tool is reserved for inspecting relevant
-`SKILL.md` files referenced by the review snapshot's Skills Used paths.
+`SKILL.md` files referenced by the review snapshot's Skills Used paths or
+available skill metadata.
 
 `evolution.json` is protected like `stats.json`: both live at the runtime data
 root, are not loaded as session state, and are never removed by session
@@ -429,6 +463,10 @@ After an intent is resolved, the plugin reads the matched intent Markdown body
 and runs a short instruction-writing sub-agent. That sub-agent outputs plain text
 for the main agent: concrete workflow, relevant skills, useful tools, and durable
 Experience notes from the intent when they matter for the latest user message.
+Referenced `skill: <name>` hints are resolved into an `<available_skills>` block
+for this writer so it can recommend concrete skill paths without guessing. The
+Evolution review prompt receives the same resolved skill metadata when a matched
+intent exists.
 The full complexity guidance is provided to this instruction writer, not appended
 to the final main-agent prefix.
 The generated instruction text replaces direct full intent-body injection. If

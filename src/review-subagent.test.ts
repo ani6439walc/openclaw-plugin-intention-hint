@@ -57,6 +57,13 @@ const snapshot: ReviewSnapshot = {
       prompt: "## Guidelines\n\n- Ask for context.",
     },
   },
+  availableSkills: [
+    {
+      name: "analysis",
+      location: "/skills/analysis/SKILL.md",
+      description: "Break down ambiguous requests.",
+    },
+  ],
   intentCatalog: [
     {
       id: "other",
@@ -225,6 +232,10 @@ describe("buildReviewPrompt", () => {
     expect(prompt).toContain("### Fastpath");
     expect(prompt).toContain("- help");
     expect(prompt).toContain("Hint: Ask one clarifying question.");
+    expect(prompt).toContain("## Available Skills");
+    expect(prompt).toContain("- analysis");
+    expect(prompt).toContain("  - Description: Break down ambiguous requests.");
+    expect(prompt).toContain("  - Location: /skills/analysis/SKILL.md");
     expect(prompt).toContain("## Intent Catalog");
     expect(prompt).toContain("Requests that do not match a defined intent");
 

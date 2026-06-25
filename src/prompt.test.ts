@@ -461,6 +461,56 @@ describe("parseTopicSwitchResult", () => {
 });
 
 describe("buildIntentInstructionPrompt", () => {
+  it("includes available skills when provided", () => {
+    const prompt = buildIntentInstructionPrompt({
+      latest: "draw architecture",
+      result: {
+        intent: "coding",
+        reason: "User wants implementation",
+        domain: "coding",
+        confidence: 0.95,
+        complexity: "medium",
+      },
+      intentBody: "## Guidelines\n\nUse skill: architecture-diagram.",
+      availableSkills: [
+        {
+          name: "architecture-diagram",
+          location: "/skills/architecture-diagram/SKILL.md",
+          description: "Draw architecture diagrams.",
+        },
+      ],
+      complexityContext:
+        "<complexity_context>Use a balanced flow.</complexity_context>",
+    });
+
+    expect(prompt).toContain("<available_skills>");
+    expect(prompt).toContain("<name>architecture-diagram</name>");
+    expect(prompt).toContain(
+      "<location>/skills/architecture-diagram/SKILL.md</location>",
+    );
+    expect(prompt).toContain(
+      "<description>Draw architecture diagrams.</description>",
+    );
+  });
+
+  it("omits available skills when none are provided", () => {
+    const prompt = buildIntentInstructionPrompt({
+      latest: "draw architecture",
+      result: {
+        intent: "coding",
+        reason: "User wants implementation",
+        domain: "coding",
+        confidence: 0.95,
+        complexity: "medium",
+      },
+      intentBody: "## Guidelines\n\nNo skill references.",
+      complexityContext:
+        "<complexity_context>Use a balanced flow.</complexity_context>",
+    });
+
+    expect(prompt).not.toContain("<available_skills>");
+  });
+
   it("includes the matched intent body, latest message, and instruction requirements", () => {
     const prompt = buildIntentInstructionPrompt({
       latest: "繼續實作同題續聊",

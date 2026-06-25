@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import type { OpenClawPluginApi } from "../api.js";
 import { resolveConfig } from "./config.js";
 import { createHookHandlers } from "./hooks.js";
@@ -162,15 +165,31 @@ describe("createHookHandlers tracking guards", () => {
         examples: ["help"],
         domain: "other",
         fastpath: { keywords: [] },
-        prompt: "## Guidelines\n\n- Ask for context.",
+        prompt: "## Guidelines\n\n- Ask for context.\n  skill: analysis",
       },
     };
     vi.spyOn(defaultCatalog, "get").mockReturnValue([definition]);
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ih-review-skills-"));
+    const workspaceDir = path.join(tmp, "workspace");
+    const skillDir = path.join(workspaceDir, "skills", "analysis");
+    fs.mkdirSync(skillDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(skillDir, "SKILL.md"),
+      "---\nname: analysis\ndescription: Break down unclear tasks.\n---\n",
+    );
     const enqueue = vi.fn();
     const reviewer = vi.fn().mockResolvedValue([]);
     const backlogWriter = { record: vi.fn() };
     const handlers = createHookHandlers({
-      api: { config: {} } as OpenClawPluginApi,
+      api: {
+        config: {},
+        runtime: {
+          state: { resolveStateDir: () => "/missing-state" },
+          agent: {
+            resolveAgentWorkspaceDir: () => workspaceDir,
+          },
+        },
+      } as unknown as OpenClawPluginApi,
       config: () =>
         resolveConfig({
           evolution: {
@@ -197,6 +216,13 @@ describe("createHookHandlers tracking guards", () => {
       expect.objectContaining({
         snapshot: expect.objectContaining({
           matchedIntent: definition,
+          availableSkills: [
+            {
+              name: "analysis",
+              location: path.join(skillDir, "SKILL.md"),
+              description: "Break down unclear tasks.",
+            },
+          ],
           intentCatalog: [
             {
               id: "other",
@@ -453,6 +479,15 @@ describe("createHookHandlers topic switch flow", () => {
       prompt: "## Guidelines\n\n- Use git carefully.",
     },
   };
+
+  function writeSkill(root: string, name: string, description: string): void {
+    const dir = path.join(root, name);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, "SKILL.md"),
+      `---\nname: ${name}\ndescription: ${description}\n---\n\n# ${name}\n`,
+    );
+  }
 
   function createTopicFlowHarness(params: {
     historicalIntents: ReturnType<
@@ -778,8 +813,8 @@ describe("createHookHandlers topic switch flow", () => {
           phase: "intent-classification",
           state: "completed",
           intent: "version-control",
+          reason: "Topic keyword similarity match: comit -> commit",
           confidence: expect.closeTo(0.833, 0.01),
-          complexity: "low",
         }),
       }),
     );
@@ -1042,7 +1077,7 @@ describe("createHookHandlers topic switch flow", () => {
         data: expect.objectContaining({
           phase: "instruction-hint-generation",
           state: "completed",
-          result: "skipped: confidence below 0.7",
+          result: "skipped by confidence below 0.7",
         }),
       }),
     );
@@ -1205,6 +1240,74 @@ describe("createHookHandlers topic switch flow", () => {
     );
   });
 
+  it("passes referenced skill metadata to the instruction writer", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ih-hook-skills-"));
+    const workspace = path.join(tmp, "workspace");
+    const state = path.join(tmp, "state");
+    writeSkill(
+      path.join(workspace, "skills"),
+      "architecture-diagram",
+      "Draw architecture diagrams.",
+    );
+
+    const skillIntent = {
+      id: "architecture",
+      definition: {
+        triggers: ["diagram"],
+        examples: ["draw architecture"],
+        domain: "coding",
+        fastpath: { keywords: [] },
+        prompt: "## Guidelines\n\nUse skill: architecture-diagram.",
+      },
+    };
+    const classifier = vi.fn().mockResolvedValue({
+      intent: "architecture",
+      reason: "User wants a diagram",
+      keywords: ["diagram"],
+      topic: "User wants an architecture diagram.",
+      domain: "coding",
+      topicChangeReason: "initial",
+      confidence: 0.95,
+      complexity: "medium" as const,
+    });
+    const { handlers, instructionWriter } = createTopicFlowHarness({
+      historicalIntents: [],
+      intents: [skillIntent],
+      classifier,
+      api: {
+        runtime: {
+          state: { resolveStateDir: () => state },
+          agent: { resolveAgentWorkspaceDir: () => workspace },
+        },
+      } as unknown as Partial<OpenClawPluginApi>,
+    });
+
+    await handlers.onBeforePromptBuild(
+      {
+        prompt: "draw architecture",
+        messages: [{ role: "user", content: "draw architecture" }],
+      } as never,
+      ctx,
+    );
+
+    expect(instructionWriter).toHaveBeenCalledWith(
+      expect.objectContaining({
+        availableSkills: [
+          {
+            name: "architecture-diagram",
+            location: path.join(
+              workspace,
+              "skills",
+              "architecture-diagram",
+              "SKILL.md",
+            ),
+            description: "Draw architecture diagrams.",
+          },
+        ],
+      }),
+    );
+  });
+
   it("falls back to classifier-only when topic checker returns no result", async () => {
     const { handlers, classifier, topicChecker } = createTopicFlowHarness({
       historicalIntents: [
@@ -1277,8 +1380,8 @@ describe("createHookHandlers topic switch flow", () => {
           phase: "intent-classification",
           state: "completed",
           intent: "coding",
+          reason: "Topic unchanged; inherited previous intent",
           confidence: 0.85,
-          complexity: "low",
         }),
       }),
     );

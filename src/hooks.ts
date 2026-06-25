@@ -42,6 +42,7 @@ import {
   runTopicSwitchSubagent,
 } from "./subagent.js";
 import { buildPromptPrefix } from "./prompt.js";
+import { resolveAvailableSkills } from "./skill-catalog.js";
 import { FALLBACK_INTENT } from "./constants.js";
 import type {
   HistoricalIntentRecord,
@@ -63,10 +64,10 @@ type PipelineMetadata = {
   domain?: string;
   keywords?: string[];
   topic?: string;
-  topicChangeReason?: string;
-  intent?: string;
-  confidence?: number;
   complexity?: string;
+  intent?: string;
+  reason?: string;
+  confidence?: number;
   result?: string;
 };
 
@@ -495,15 +496,16 @@ export function createHookHandlers(deps: HookDeps) {
       params.ctx,
       params.resolvedSessionKey,
       "topic-continuity-check",
-      topicContext ? "completed" : "completed",
+      topicContext ? "completed" : "failed",
       topicContext
         ? {
             domain: topicContext.domain,
             keywords: topicContext.keywords,
             topic: topicContext.topic,
-            topicChangeReason: resolveTopicChangeReason(topicContext),
+            reason: resolveTopicChangeReason(topicContext),
+            complexity: topicContext.complexity,
           }
-        : { result: "skipped: no topic context" },
+        : { result: "skipped by no topic context" },
     );
 
     const latestHistoricalIntent =
@@ -525,8 +527,9 @@ export function createHookHandlers(deps: HookDeps) {
         "completed",
         {
           intent: result.intent,
-          confidence: result.confidence,
+          reason: result.reason,
           complexity: result.complexity,
+          confidence: result.confidence,
         },
       );
     } else {
@@ -564,8 +567,9 @@ export function createHookHandlers(deps: HookDeps) {
             {
               domain: result.domain,
               keywords: result.keywords,
-              topic: topicContext.topic,
-              topicChangeReason,
+              topic: result.topic,
+              reason: result.topicChangeReason,
+              complexity: result.complexity,
             },
           );
           emitPipelineEvent(
@@ -575,8 +579,9 @@ export function createHookHandlers(deps: HookDeps) {
             "completed",
             {
               intent: result.intent,
-              confidence: result.confidence,
+              reason: result.reason,
               complexity: result.complexity,
+              confidence: result.confidence,
             },
           );
         }
@@ -610,8 +615,9 @@ export function createHookHandlers(deps: HookDeps) {
           result
             ? {
                 intent: result.intent,
-                confidence: result.confidence,
+                reason: result.reason,
                 complexity: result.complexity,
+                confidence: result.confidence,
               }
             : { result: "classifier returned no result" },
         );
@@ -734,7 +740,8 @@ export function createHookHandlers(deps: HookDeps) {
             domain: result.domain,
             keywords: result.keywords,
             topic: result.topic,
-            topicChangeReason: result.topicChangeReason,
+            reason: result.topicChangeReason,
+            complexity: result.complexity,
           },
         );
         recordPromptBuildSession({
@@ -808,7 +815,7 @@ export function createHookHandlers(deps: HookDeps) {
           routing.resolvedSessionKey,
           "instruction-hint-generation",
           "completed",
-          { result: "skipped: same topic inherited previous intent" },
+          { result: "skipped by same topic inherited previous intent" },
         );
         return;
       }
@@ -832,7 +839,7 @@ export function createHookHandlers(deps: HookDeps) {
           routing.resolvedSessionKey,
           "instruction-hint-generation",
           "completed",
-          { result: "skipped: confidence below 0.7" },
+          { result: "skipped by confidence below 0.7" },
         );
         return;
       }
@@ -843,6 +850,7 @@ export function createHookHandlers(deps: HookDeps) {
         "instruction-hint-generation",
         "started",
       );
+      const intentBody = findIntentBody(availableIntents, result.intent);
       const instructionText = await instructionWriter({
         api,
         config: refreshedConfig,
@@ -852,7 +860,12 @@ export function createHookHandlers(deps: HookDeps) {
         conversation,
         latest: latestUserMessage,
         result,
-        intentBody: findIntentBody(availableIntents, result.intent),
+        intentBody,
+        availableSkills: resolveAvailableSkills({
+          api,
+          agentId: routing.effectiveAgentId,
+          intentBody,
+        }),
         messageProvider: ctx.messageProvider,
         modelRef,
       });
@@ -967,6 +980,13 @@ export function createHookHandlers(deps: HookDeps) {
             },
           }
         : undefined,
+      availableSkills: intentDefinition
+        ? resolveAvailableSkills({
+            api,
+            agentId: ctx.agentId ?? baseSnapshot.agentId ?? "main",
+            intentBody: intentDefinition.definition.prompt,
+          })
+        : [],
       intentCatalog: catalog.get().map((entry) => ({
         id: entry.id,
         triggers: [...entry.definition.triggers],

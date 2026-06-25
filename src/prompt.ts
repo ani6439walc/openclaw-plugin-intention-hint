@@ -5,6 +5,7 @@ import {
   UNTRUSTED_CONTEXT_HEADER,
 } from "./constants.js";
 import type {
+  AvailableSkill,
   HistoricalIntentRecord,
   IntentCatalogEntry,
   IntentDefinition,
@@ -316,6 +317,7 @@ export function buildIntentInstructionPrompt(params: {
   latest: string;
   result: IntentionResult;
   intentBody: string;
+  availableSkills?: AvailableSkill[];
   complexityContext: string;
   conversation?: RecentTurn[];
   currentTime?: string;
@@ -323,6 +325,7 @@ export function buildIntentInstructionPrompt(params: {
   const timeLine = params.currentTime ? `${params.currentTime} ` : "";
   const conversationMd = buildConversationMarkdown(params.conversation);
   const conversationSection = conversationMd ? `\n${conversationMd}\n` : "";
+  const availableSkillsSection = formatAvailableSkills(params.availableSkills);
 
   return `${timeLine}You are an intention-hint writer.
 Another model is preparing the final user-facing answer.
@@ -374,6 +377,7 @@ topicChangeReason: ${params.result.topicChangeReason ?? ""}
 <matched_intent_markdown>
 ${params.intentBody}
 </matched_intent_markdown>
+${availableSkillsSection}
 
 ${params.complexityContext}
 ${conversationSection}
@@ -381,6 +385,27 @@ ${conversationSection}
 <latest_message>
 ${params.latest}
 </latest_message>`;
+}
+
+function formatAvailableSkills(skills: AvailableSkill[] | undefined): string {
+  if (!skills?.length) return "";
+  const body = skills
+    .map(
+      (skill) => `  <skill>
+    <name>${escapeXmlText(skill.name)}</name>
+    <location>${escapeXmlText(skill.location)}</location>
+    <description>${escapeXmlText(skill.description)}</description>
+  </skill>`,
+    )
+    .join("\n");
+  return `\n<available_skills>\n${body}\n</available_skills>\n`;
+}
+
+function escapeXmlText(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }
 
 export function buildIntentionPrompt(params: {
