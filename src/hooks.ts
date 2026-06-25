@@ -689,6 +689,7 @@ export function createHookHandlers(deps: HookDeps) {
     event: PluginHookBeforePromptBuildEvent,
     ctx: PluginHookAgentContext,
   ): Promise<PluginHookBeforePromptBuildResult | undefined> {
+    let resolvedSessionKey = ctx.sessionKey;
     try {
       // Early return checks FIRST (before refresh calls)
       if (shouldSkipIntentAnalysis(ctx)) return;
@@ -696,6 +697,7 @@ export function createHookHandlers(deps: HookDeps) {
 
       const routing = resolvePromptBuildRouting(ctx);
       if (!routing) return;
+      resolvedSessionKey = routing.resolvedSessionKey ?? resolvedSessionKey;
 
       // THEN refresh config and intents
       refreshLiveConfigFromRuntime();
@@ -1021,7 +1023,7 @@ export function createHookHandlers(deps: HookDeps) {
       );
       return { prependContext: promptPrefix };
     } catch (err) {
-      emitPipelineEvent(ctx, ctx.sessionKey, "pipeline-failed", "failed", {
+      emitPipelineEvent(ctx, resolvedSessionKey, "pipeline-failed", "failed", {
         reason:
           err instanceof Error ? err.message : String(err) || "unknown error",
       });

@@ -455,6 +455,7 @@ describe("createHookHandlers topic switch flow", () => {
     classifier?: ReturnType<typeof vi.fn>;
     topicChecker?: ReturnType<typeof vi.fn>;
     instructionWriter?: ReturnType<typeof vi.fn>;
+    api?: Partial<OpenClawPluginApi>;
   }) {
     const intents = params.intents ?? [intent];
     const record = vi.fn();
@@ -498,6 +499,7 @@ describe("createHookHandlers topic switch flow", () => {
       api: {
         config: {},
         agent: { events: { emitAgentEvent } },
+        ...params.api,
       } as unknown as OpenClawPluginApi,
       config: () =>
         resolveConfig(params.configRaw ?? { model: "google/test-intent" }),
@@ -1277,6 +1279,42 @@ describe("createHookHandlers topic switch flow", () => {
         }),
       }),
     );
+  });
+
+  it("uses the resolved session key when emitting pipeline failures", async () => {
+    const classifier = vi.fn().mockRejectedValue("classifier string failure");
+    const resolvedSessionKey = "agent:main:discord:direct:resolved";
+    const { handlers, emitAgentEvent } = createTopicFlowHarness({
+      historicalIntents: [],
+      classifier,
+      api: {
+        runtime: {
+          agent: {
+            session: {
+              resolveStorePath: vi.fn().mockReturnValue("store-path"),
+              loadSessionStore: vi
+                .fn()
+                .mockReturnValue({
+                  data: { entries: [{ key: resolvedSessionKey }] },
+                }),
+            },
+          },
+        } as never,
+      },
+    });
+
+    const result = await handlers.onBeforePromptBuild(event, {
+      ...ctx,
+      messageProvider: "webchat",
+      sessionKey: undefined,
+    });
+
+    expect(result).toBeUndefined();
+    expect(
+      emittedPipelineEvents(emitAgentEvent).find(
+        (pipelineEvent) => pipelineEvent.data.phase === "pipeline-failed",
+      )?.sessionKey,
+    ).toBe(resolvedSessionKey);
   });
 
   it("does not require runId to preserve prompt behavior", async () => {
