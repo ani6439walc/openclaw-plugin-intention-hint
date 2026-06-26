@@ -127,7 +127,7 @@ function findIntentBody(
   );
 }
 
-function runInheritedIntentClassifier(
+function buildInheritedIntentResult(
   latest: HistoricalIntentRecord,
   topicContext: NonNullable<Awaited<ReturnType<typeof runTopicSwitchSubagent>>>,
 ): IntentionResult {
@@ -315,6 +315,10 @@ function resolveTopicChangeReason(
   return topicContext.topicChanged ? topicContext.topicChangeReason : undefined;
 }
 
+type PromptBuildClassification =
+  | { kind: "same-topic"; result: IntentionResult }
+  | { kind: "classified"; result: IntentionResult };
+
 const SESSION_END_REASONS_THAT_DELETE_FILE = new Set([
   "new",
   "reset",
@@ -469,7 +473,7 @@ export function createHookHandlers(deps: HookDeps) {
     conversation: ReturnType<typeof limitConversationTurns>;
     modelRef: { provider: string; model: string };
     availableIntents: ReturnType<typeof catalog.filterForAgent>;
-  }): Promise<IntentionResult | undefined> {
+  }): Promise<PromptBuildClassification | undefined> {
     emitPipelineEvent(
       params.ctx,
       params.resolvedSessionKey,
@@ -507,118 +511,106 @@ export function createHookHandlers(deps: HookDeps) {
 
     const latestHistoricalIntent =
       params.historicalIntents[params.historicalIntents.length - 1];
-    const useInheritedIntentClassifier =
-      topicContext?.topicChanged === false && latestHistoricalIntent;
+    if (topicContext?.topicChanged === false && latestHistoricalIntent) {
+      return {
+        kind: "same-topic",
+        result: buildInheritedIntentResult(
+          latestHistoricalIntent,
+          topicContext,
+        ),
+      };
+    }
 
     let result: IntentionResult | undefined;
     let topicKeywordSimilarityMatched = false;
-    if (useInheritedIntentClassifier) {
-      result = runInheritedIntentClassifier(
-        latestHistoricalIntent,
-        topicContext,
+    if (topicContext) {
+      const topicKeywordSimilarityMatch = findTopicKeywordSimilarityIntent(
+        params.latestUserMessage,
+        topicContext.domain,
+        topicContext.keywords,
+        params.availableIntents,
       );
+      if (topicKeywordSimilarityMatch) {
+        const topicChangeReason = resolveTopicChangeReason(topicContext);
+        topicKeywordSimilarityMatched = true;
+        result = {
+          intent: topicKeywordSimilarityMatch.intent.id,
+          reason: `Topic keyword similarity match: ${topicKeywordSimilarityMatch.topicKeyword} -> ${topicKeywordSimilarityMatch.intentKeyword}`,
+          keywords: [
+            topicKeywordSimilarityMatch.topicKeyword,
+            topicKeywordSimilarityMatch.intentKeyword,
+          ],
+          domain: topicContext.domain,
+          topic: topicContext.topic,
+          topicChangeReason,
+          previousTopic: topicChangeReason
+            ? latestHistoricalIntent?.topic
+            : undefined,
+          confidence: topicKeywordSimilarityMatch.score,
+          complexity: topicContext.complexity,
+        };
+        emitPipelineEvent(
+          params.ctx,
+          params.resolvedSessionKey,
+          "topic-triage",
+          "completed",
+          {
+            domain: result.domain,
+            keywords: result.keywords,
+            topic: result.topic,
+            reason: result.topicChangeReason,
+            complexity: result.complexity,
+          },
+        );
+        emitPipelineEvent(
+          params.ctx,
+          params.resolvedSessionKey,
+          "intent-classify",
+          "completed",
+          {
+            intent: result.intent,
+            reason: result.reason,
+            complexity: result.complexity,
+            confidence: result.confidence,
+          },
+        );
+      }
+    }
+    if (!result) {
       emitPipelineEvent(
         params.ctx,
         params.resolvedSessionKey,
         "intent-classify",
-        "completed",
-        {
-          intent: result.intent,
-          reason: result.reason,
-          complexity: result.complexity,
-          confidence: result.confidence,
-        },
+        "started",
       );
-    } else {
-      if (topicContext) {
-        const topicKeywordSimilarityMatch = findTopicKeywordSimilarityIntent(
-          params.latestUserMessage,
-          topicContext.domain,
-          topicContext.keywords,
-          params.availableIntents,
-        );
-        if (topicKeywordSimilarityMatch) {
-          const topicChangeReason = resolveTopicChangeReason(topicContext);
-          topicKeywordSimilarityMatched = true;
-          result = {
-            intent: topicKeywordSimilarityMatch.intent.id,
-            reason: `Topic keyword similarity match: ${topicKeywordSimilarityMatch.topicKeyword} -> ${topicKeywordSimilarityMatch.intentKeyword}`,
-            keywords: [
-              topicKeywordSimilarityMatch.topicKeyword,
-              topicKeywordSimilarityMatch.intentKeyword,
-            ],
-            domain: topicContext.domain,
-            topic: topicContext.topic,
-            topicChangeReason,
-            previousTopic: topicChangeReason
-              ? latestHistoricalIntent?.topic
-              : undefined,
-            confidence: topicKeywordSimilarityMatch.score,
-            complexity: topicContext.complexity,
-          };
-          emitPipelineEvent(
-            params.ctx,
-            params.resolvedSessionKey,
-            "topic-triage",
-            "completed",
-            {
-              domain: result.domain,
-              keywords: result.keywords,
-              topic: result.topic,
-              reason: result.topicChangeReason,
-              complexity: result.complexity,
-            },
-          );
-          emitPipelineEvent(
-            params.ctx,
-            params.resolvedSessionKey,
-            "intent-classify",
-            "completed",
-            {
+      result = await classifier({
+        api,
+        config: params.refreshedConfig,
+        agentId: params.effectiveAgentId,
+        sessionKey: params.resolvedSessionKey,
+        sessionId: params.ctx.sessionId,
+        conversation: params.conversation,
+        latest: params.latestUserMessage,
+        messageProvider: params.ctx.messageProvider,
+        channelId: params.ctx.channelId,
+        modelRef: params.modelRef,
+        intents: params.availableIntents,
+        topicContext: topicContext ?? undefined,
+      });
+      emitPipelineEvent(
+        params.ctx,
+        params.resolvedSessionKey,
+        "intent-classify",
+        result ? "completed" : "failed",
+        result
+          ? {
               intent: result.intent,
               reason: result.reason,
               complexity: result.complexity,
               confidence: result.confidence,
-            },
-          );
-        }
-      }
-      if (!result) {
-        emitPipelineEvent(
-          params.ctx,
-          params.resolvedSessionKey,
-          "intent-classify",
-          "started",
-        );
-        result = await classifier({
-          api,
-          config: params.refreshedConfig,
-          agentId: params.effectiveAgentId,
-          sessionKey: params.resolvedSessionKey,
-          sessionId: params.ctx.sessionId,
-          conversation: params.conversation,
-          latest: params.latestUserMessage,
-          messageProvider: params.ctx.messageProvider,
-          channelId: params.ctx.channelId,
-          modelRef: params.modelRef,
-          intents: params.availableIntents,
-          topicContext: topicContext ?? undefined,
-        });
-        emitPipelineEvent(
-          params.ctx,
-          params.resolvedSessionKey,
-          "intent-classify",
-          result ? "completed" : "failed",
-          result
-            ? {
-                intent: result.intent,
-                reason: result.reason,
-                complexity: result.complexity,
-                confidence: result.confidence,
-              }
-            : { result: "classifier returned no result" },
-        );
-      }
+            }
+          : { result: "classifier returned no result" },
+      );
     }
 
     if (result) {
@@ -631,8 +623,9 @@ export function createHookHandlers(deps: HookDeps) {
           result.intent,
         );
       }
+      return { kind: "classified", result };
     }
-    return result;
+    return;
   }
 
   function recordPromptBuildSession(params: {
@@ -774,7 +767,7 @@ export function createHookHandlers(deps: HookDeps) {
       );
       if (!modelRef) return;
 
-      const result = await classifyPromptBuild({
+      const classification = await classifyPromptBuild({
         ctx,
         refreshedConfig,
         effectiveAgentId: routing.effectiveAgentId,
@@ -786,14 +779,29 @@ export function createHookHandlers(deps: HookDeps) {
         availableIntents,
       });
 
-      if (!result) {
+      if (!classification) {
         logger.debug("intention subagent failed; skipping hint injection.");
         return;
       }
 
+      const result = classification.result;
       logger.debug(`intention subagent result: ${JSON.stringify(result)}`);
 
-      // Skip intent instruction subagent and hint injection when topic unchanged
+      if (classification.kind === "same-topic") {
+        logger.debug("topic unchanged; recording inherited intent only.");
+        recordPromptBuildSession({
+          sessionId: ctx.sessionId,
+          resolvedSessionKey: routing.resolvedSessionKey,
+          fallbackSessionKey: ctx.sessionKey,
+          effectiveAgentId: routing.effectiveAgentId,
+          latestUserMessage,
+          result,
+          conversation,
+        });
+        return;
+      }
+
+      // Safety fallback: skip intent instruction subagent and hint injection when topic unchanged
       if (!result.topicChangeReason) {
         logger.debug(
           "topic unchanged; skipping intent instruction subagent and hint injection.",

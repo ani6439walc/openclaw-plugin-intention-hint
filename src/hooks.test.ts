@@ -1353,7 +1353,7 @@ describe("createHookHandlers topic switch flow", () => {
     );
   });
 
-  it("runs inherited intent classifier without subagent and records compact state on same-topic continuation", async () => {
+  it("records same-topic continuations without classifier or hint events", async () => {
     const topicContext = {
       keywords: ["topic", "checker"],
       topic: "User is continuing work on the topic checker.",
@@ -1389,26 +1389,15 @@ describe("createHookHandlers topic switch flow", () => {
     expect(classifier).not.toHaveBeenCalled();
     expect(instructionWriter).not.toHaveBeenCalled();
     expect(result?.prependContext).toBeUndefined();
-    expect(emittedPhaseStates(emitAgentEvent)).toEqual(
-      expect.arrayContaining(["intent-classify:completed"]),
-    );
     expect(emittedPhaseStates(emitAgentEvent)).not.toEqual(
       expect.arrayContaining([
+        "intent-classify:started",
+        "intent-classify:completed",
+        "intent-classify:failed",
         "hint-generate:started",
         "hint-generate:completed",
         "hint-generate:failed",
       ]),
-    );
-    expect(emittedPipelineEvents(emitAgentEvent)).toContainEqual(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          phase: "intent-classify",
-          state: "completed",
-          intent: "coding",
-          reason: "Topic unchanged; inherited previous intent",
-          confidence: 0.85,
-        }),
-      }),
     );
     expect(emittedPhaseStates(emitAgentEvent)).not.toEqual(
       expect.arrayContaining([
@@ -1425,11 +1414,13 @@ describe("createHookHandlers topic switch flow", () => {
             result: expect.objectContaining({
               intent: "coding",
               domain: "coding",
-              topicChangeReason: undefined,
             }),
           }),
         }),
       }),
+    );
+    expect(record.mock.calls[0][1].current.intent.result).not.toHaveProperty(
+      "topicChangeReason",
     );
     expect(record.mock.calls[0][1].current.intent.input).toBeUndefined();
   });

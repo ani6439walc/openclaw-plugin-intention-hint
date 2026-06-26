@@ -212,6 +212,7 @@ describe("buildTopicSwitchPrompt", () => {
         {
           input: "規劃 topic checker",
           intent: "coding",
+          domain: "coding",
           keywords: ["topic", "checker"],
           topic: "topic / checker",
           complexity: "medium",
@@ -227,11 +228,15 @@ describe("buildTopicSwitchPrompt", () => {
       "Your job is to decide whether the user's latest message continues",
     );
     expect(prompt).not.toContain("<recent_history>");
-    expect(prompt).not.toContain("intent: coding");
-    expect(prompt).not.toContain("keywords: topic, checker");
+    expect(prompt).toContain("<latest_historical_intent>");
     expect(prompt).toContain(
-      "Historical intent annotations inside conversation context are evidence",
+      "Most recent recorded user topic before latest_message",
     );
+    expect(prompt).toContain("input: 規劃 topic checker");
+    expect(prompt).toContain("intent: coding");
+    expect(prompt).toContain("keywords: topic, checker");
+    expect(prompt).toContain("topic: topic / checker");
+    expect(prompt).toContain("Historical intent annotations are evidence");
     expect(prompt).toContain("<latest_message>");
     expect(prompt).toContain("繼續實作 topic checker");
     expect(prompt).toContain("current subject or interaction mode");
@@ -240,9 +245,11 @@ describe("buildTopicSwitchPrompt", () => {
     expect(prompt).toContain("even without an explicit transition marker");
     expect(prompt).toContain("Do not keep same-topic merely because");
     expect(prompt).toContain('topicChangeReason="shift"');
-    expect(prompt).toContain("conversation context has no prior user topic");
     expect(prompt).toContain(
-      "semantic domain, or interaction mode differ sharply from conversation context",
+      "latest_historical_intent and conversation context have no prior user topic",
+    );
+    expect(prompt).toContain(
+      "semantic subject, desired outcome, or interaction mode changes",
     );
     expect(prompt).toContain(
       "Short latest messages can still be independent topic switches",
