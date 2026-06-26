@@ -810,13 +810,6 @@ export function createHookHandlers(deps: HookDeps) {
           result,
           conversation,
         });
-        emitPipelineEvent(
-          ctx,
-          routing.resolvedSessionKey,
-          "instruction-hint-generation",
-          "completed",
-          { result: "skipped by same topic inherited previous intent" },
-        );
         return;
       }
 
@@ -834,13 +827,6 @@ export function createHookHandlers(deps: HookDeps) {
           result,
           conversation,
         });
-        emitPipelineEvent(
-          ctx,
-          routing.resolvedSessionKey,
-          "instruction-hint-generation",
-          "completed",
-          { result: "skipped by confidence below 0.7" },
-        );
         return;
       }
 
