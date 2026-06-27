@@ -196,6 +196,8 @@ describe("buildIntentionPrompt", () => {
     expect(result).toContain(
       "short noun phrase, proper name, repo/plugin name, or corrected spelling",
     );
+    expect(result).toContain("prefer the catalog's typo/correction intent");
+    expect(result).toContain('or use "other" if no such intent exists');
     expect(result).toContain(
       "Do not classify it as a full topical workflow intent merely because the phrase matches an intent keyword",
     );
@@ -211,7 +213,7 @@ describe("buildIntentionPrompt", () => {
     expect(result).toContain("topic_switch_context as routing evidence");
     expect(result).toContain("Do not copy the topic text as the intent");
     expect(result).toContain("Example when topic_switch_context is present:");
-    expect(result).toContain('"intent": "input-correction"');
+    expect(result).toContain('"intent": "other"');
     expect(result).toContain(
       "User provides a short corrected phrase for the previous ambiguous request",
     );

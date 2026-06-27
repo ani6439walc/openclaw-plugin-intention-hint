@@ -73,7 +73,7 @@ function buildIntentDomainGroups(
 ): string {
   const domainMap = new Map<string, string[]>();
   for (const intent of getIntentsWithFallback(intents)) {
-    const domain = intent.definition.domain;
+    const domain = intent.definition?.domain || FALLBACK_INTENT.domain;
     if (!domainMap.has(domain)) {
       domainMap.set(domain, []);
     }
@@ -456,7 +456,7 @@ Classification rules:
 2. Classify the latest message based on what the user is asking for now and prefer the intent that best explains WHY the user said it.
 3. **Topic switch**: If the latest message introduces an independent topic, a different subject, or a different desired outcome, classify it fresh.
 4. **Short messages**: First determine whether the message is a standalone request, a continuation, a correction, or a target clarification. Do not inherit the most recent intent merely because the message is short or contains a continuation marker.
-5. **Correction fragments**: If latest_message is only a short noun phrase, proper name, repo/plugin name, or corrected spelling after a garbled or ambiguous previous request, classify it as input-correction or as a clarification of the previous request. Do not classify it as a full topical workflow intent merely because the phrase matches an intent keyword.
+5. **Correction fragments**: If latest_message is only a short noun phrase, proper name, repo/plugin name, or corrected spelling after a garbled or ambiguous previous request, prefer the catalog's typo/correction intent when one exists, or use "other" if no such intent exists. Treat it as a clarification of the previous request when that better explains the message. Do not classify it as a full topical workflow intent merely because the phrase matches an intent keyword.
 6. If topic_switch_context is present and changed=true, classify fresh from latest_message and topic_switch_context, but treat topic_switch_context as fallible routing evidence. Do not preserve the previous workflow intent by default; however, for terse corrections or target clarifications, use the immediately previous user message to understand what is being corrected.
 7. If topic_switch_context is present, use its complexity as a starting hint, not a forced value. Choose the final complexity from latest_message scope and the selected intent. Do not output keywords.
 8. If topic_switch_context is present and changed=false, continuity with the previous topic is allowed but not mandatory.
@@ -496,7 +496,7 @@ Example output when topic_switch_context is absent:
 
 Example when topic_switch_context is present:
 {
-  "intent": "input-correction",
+  "intent": "other",
   "reason": "User provides a short corrected phrase for the previous ambiguous request.",
   "confidence": 0.75,
   "complexity": "low"
