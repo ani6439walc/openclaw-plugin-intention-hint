@@ -68,6 +68,43 @@ export function extractPayloadText(result: { payloads?: unknown[] }): string {
     .trim();
 }
 
+export interface IntentInstructionSubagentResult {
+  text?: string;
+  error?: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function formatEmbeddedError(error: unknown): string | undefined {
+  if (typeof error === "string") return error.trim() || undefined;
+  if (!isRecord(error)) return;
+
+  const message =
+    typeof error.message === "string" ? error.message.trim() : undefined;
+  const kind = typeof error.kind === "string" ? error.kind.trim() : undefined;
+  if (kind && message) return `${kind}: ${message}`;
+  return message || kind || undefined;
+}
+
+function extractEmbeddedRunError(result: {
+  payloads?: unknown[];
+  meta?: unknown;
+}): string | undefined {
+  const errorPayload = (result.payloads ?? [])
+    .filter(isRecord)
+    .find((payload) => payload.isError === true);
+  if (errorPayload) {
+    const payloadText =
+      typeof errorPayload.text === "string" ? errorPayload.text.trim() : "";
+    return payloadText || "embedded agent returned an error payload";
+  }
+
+  if (!isRecord(result.meta)) return;
+  return formatEmbeddedError(result.meta.error);
+}
+
 export function getModelRef(
   api: OpenClawPluginApi,
   agentId: string,
@@ -248,7 +285,7 @@ export async function runIntentInstructionSubagent(params: {
   availableSkills?: AvailableSkill[];
   messageProvider?: string;
   modelRef: { provider: string; model: string };
-}): Promise<string | undefined> {
+}): Promise<IntentInstructionSubagentResult> {
   const { subagentSessionId, subagentSessionKey } =
     createSubagentSessionIdentity(params, {
       runPrefix: "intention-hint",
@@ -276,6 +313,15 @@ export async function runIntentInstructionSubagent(params: {
         prompt,
       }),
     );
+    const embeddedError = extractEmbeddedRunError(result);
+    if (embeddedError) {
+      logger.warn("Intent instruction subagent returned an error", {
+        error: embeddedError,
+        intent: params.result.intent,
+      });
+      return { error: embeddedError };
+    }
+
     const rawReply = extractPayloadText(result);
     const instruction = rawReply
       .replace(/^```(?:markdown|md|text)?\s*/i, "")
@@ -286,12 +332,12 @@ export async function runIntentInstructionSubagent(params: {
       logger.warn("Intent instruction result was empty", {
         intent: params.result.intent,
       });
-      return;
+      return { error: "instruction writer produced no text" };
     }
-    return instruction;
+    return { text: instruction };
   } catch (err) {
     logger.warn("Intent instruction subagent error", { error: err });
-    return;
+    return { error: formatEmbeddedError(err) ?? "instruction writer threw" };
   }
 }
 

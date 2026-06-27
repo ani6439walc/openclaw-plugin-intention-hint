@@ -66,6 +66,7 @@ type PipelineMetadata = {
   reason?: string;
   confidence?: number;
   result?: string;
+  error?: string;
 };
 
 function cleanPipelineEventData(
@@ -842,7 +843,7 @@ export function createHookHandlers(deps: HookDeps) {
         "started",
       );
       const intentBody = findIntentBody(availableIntents, result.intent);
-      const instructionText = await instructionWriter({
+      const instructionResult = await instructionWriter({
         api,
         config: refreshedConfig,
         agentId: routing.effectiveAgentId,
@@ -860,6 +861,7 @@ export function createHookHandlers(deps: HookDeps) {
         messageProvider: ctx.messageProvider,
         modelRef,
       });
+      const instructionText = instructionResult.text;
       if (instructionText) {
         emitPipelineEvent(
           ctx,
@@ -871,13 +873,16 @@ export function createHookHandlers(deps: HookDeps) {
           },
         );
       } else {
+        const instructionError =
+          instructionResult.error ?? "instruction writer produced no text";
         emitPipelineEvent(
           ctx,
           routing.resolvedSessionKey,
           "hint-generate",
           "failed",
           {
-            reason: "instruction writer returned no text",
+            reason: instructionError,
+            error: instructionError,
           },
         );
       }

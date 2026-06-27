@@ -534,7 +534,9 @@ describe("createHookHandlers topic switch flow", () => {
     const topicChecker = params.topicChecker ?? vi.fn();
     const instructionWriter =
       params.instructionWriter ??
-      vi.fn().mockResolvedValue("Follow the generated coding instructions.");
+      vi.fn().mockResolvedValue({
+        text: "Follow the generated coding instructions.",
+      });
     const emitAgentEvent = emitHostAgentEvent;
     const handlers = createHookHandlers({
       api: {
@@ -1104,8 +1106,10 @@ describe("createHookHandlers topic switch flow", () => {
     expect(record).toHaveBeenCalled();
   });
 
-  it("reports instruction generation failure when writer returns no text", async () => {
-    const instructionWriter = vi.fn().mockResolvedValue(undefined);
+  it("reports instruction generation failure when writer reports no text", async () => {
+    const instructionWriter = vi.fn().mockResolvedValue({
+      error: "instruction writer produced no text",
+    });
     const { handlers, emitAgentEvent } = createTopicFlowHarness({
       historicalIntents: [],
       instructionWriter,
@@ -1120,7 +1124,41 @@ describe("createHookHandlers topic switch flow", () => {
         data: expect.objectContaining({
           phase: "hint-generate",
           state: "failed",
-          reason: "instruction writer returned no text",
+          reason: "instruction writer produced no text",
+          error: "instruction writer produced no text",
+        }),
+      }),
+    );
+    expect(emittedPipelineEvents(emitAgentEvent)).not.toContainEqual(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          phase: "hint-generate",
+          state: "completed",
+        }),
+      }),
+    );
+  });
+
+  it("reports instruction generation errors without emitting a completed result", async () => {
+    const instructionWriter = vi.fn().mockResolvedValue({
+      error: "Model timed out",
+    });
+    const { handlers, emitAgentEvent } = createTopicFlowHarness({
+      historicalIntents: [],
+      instructionWriter,
+    });
+
+    const result = await handlers.onBeforePromptBuild(event, ctx);
+
+    expect(instructionWriter).toHaveBeenCalledOnce();
+    expect(result?.prependContext).toContain("<intention_hint_plugin");
+    expect(emittedPipelineEvents(emitAgentEvent)).toContainEqual(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          phase: "hint-generate",
+          state: "failed",
+          reason: "Model timed out",
+          error: "Model timed out",
         }),
       }),
     );

@@ -149,7 +149,9 @@ describe("runIntentInstructionSubagent", () => {
       modelRef: { provider: "google", model: "test-intent" },
     });
 
-    expect(result).toBe("Use test-driven-development, then apply_patch.");
+    expect(result).toEqual({
+      text: "Use test-driven-development, then apply_patch.",
+    });
     expect(runEmbeddedPiAgent).toHaveBeenCalledWith(
       expect.objectContaining({
         provider: "google",
@@ -172,5 +174,67 @@ describe("runIntentInstructionSubagent", () => {
     expect(runEmbeddedPiAgent.mock.calls[0][0].prompt).toContain(
       "topic: continuation",
     );
+  });
+
+  it("reports no text when the instruction writer returns an empty payload", async () => {
+    const runEmbeddedPiAgent = vi.fn().mockResolvedValue({
+      payloads: [{ text: "   " }],
+    });
+    const api = {
+      config: {},
+      runtime: { agent: { runEmbeddedPiAgent } },
+    } as unknown as OpenClawPluginApi;
+
+    const result = await runIntentInstructionSubagent({
+      api,
+      config: resolveConfig({ model: "google/test-intent" }),
+      agentId: "main",
+      latest: "implement continuation",
+      result: {
+        intent: "coding",
+        reason: "User wants implementation",
+        keywords: ["continuation"],
+        topic: "continuation",
+        topicChangeReason: "shift",
+        confidence: 0.9,
+        complexity: "medium",
+      },
+      intentBody: "## Concrete Workflow\n\n- Use test-driven-development.",
+      modelRef: { provider: "google", model: "test-intent" },
+    });
+
+    expect(result).toEqual({
+      error: "instruction writer produced no text",
+    });
+  });
+
+  it("reports embedded agent error payloads instead of treating them as instructions", async () => {
+    const runEmbeddedPiAgent = vi.fn().mockResolvedValue({
+      payloads: [{ text: "Model timed out", isError: true }],
+    });
+    const api = {
+      config: {},
+      runtime: { agent: { runEmbeddedPiAgent } },
+    } as unknown as OpenClawPluginApi;
+
+    const result = await runIntentInstructionSubagent({
+      api,
+      config: resolveConfig({ model: "google/test-intent" }),
+      agentId: "main",
+      latest: "implement continuation",
+      result: {
+        intent: "coding",
+        reason: "User wants implementation",
+        keywords: ["continuation"],
+        topic: "continuation",
+        topicChangeReason: "shift",
+        confidence: 0.9,
+        complexity: "medium",
+      },
+      intentBody: "## Concrete Workflow\n\n- Use test-driven-development.",
+      modelRef: { provider: "google", model: "test-intent" },
+    });
+
+    expect(result).toEqual({ error: "Model timed out" });
   });
 });
