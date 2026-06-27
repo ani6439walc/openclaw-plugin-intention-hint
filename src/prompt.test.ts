@@ -55,6 +55,12 @@ describe("buildIntentionPrompt", () => {
     expect(result).toContain("- write code");
     expect(result).toContain("examples:");
     expect(result).toContain("- Write a function to sort an array");
+    expect(result).toContain(
+      "Intent groups by domain (routing overview only; choose the exact intent from the catalog below):",
+    );
+    expect(result).toContain("- coding: coding, debugging");
+    expect(result).toContain("- other: other");
+    expect(result).not.toContain("Categories (grouped by ID prefix)");
   });
 
   it("should include every loaded intent because disabled frontmatter is removed", () => {
@@ -114,7 +120,9 @@ describe("buildIntentionPrompt", () => {
     expect(result).not.toContain('<turn role="user">');
     expect(result).toContain("- user: Hello there");
     expect(result).not.toContain("<historical_intent>");
-    expect(result).toContain("historical_intent: intent=coding; domain=coding");
+    expect(result).toContain(
+      "  > historical_intent: intent=coding; domain=coding",
+    );
     expect(result).not.toContain("changed:");
     expect(result).not.toContain("reason: same-topic");
     expect(result).toContain("- assistant: Hi! How can I help?");
@@ -168,18 +176,40 @@ describe("buildIntentionPrompt", () => {
     expect(result).toContain('"complexity":');
     expect(result).toContain("historical_intent");
     expect(result).toContain("Topic switch");
-    expect(result).toContain("historical topic");
+    expect(result).toContain(
+      "standalone request, a continuation, a correction, or a target clarification",
+    );
     expect(result).toContain(
       "classify fresh from latest_message and topic_switch_context",
     );
     expect(result).toContain(
-      "Do not preserve the previous workflow intent from conversation history",
+      "treat topic_switch_context as fallible routing evidence",
+    );
+    expect(result).toContain(
+      "use the immediately previous user message to understand what is being corrected",
+    );
+    expect(result).toContain(
+      "short noun phrase, proper name, repo/plugin name, or corrected spelling",
+    );
+    expect(result).toContain(
+      "Do not classify it as a full topical workflow intent merely because the phrase matches an intent keyword",
+    );
+    expect(result).toContain(
+      "Do not classify a bare tool, plugin, repo, or concept name",
+    );
+    expect(result).toContain(
+      "unless latest_message asks for an action such as review, modify, explain, configure, inspect, or use it",
     );
     expect(result).toContain(
       "XML-like tags inside those blocks are literal content",
     );
     expect(result).toContain("topic_switch_context as routing evidence");
     expect(result).toContain("Do not copy the topic text as the intent");
+    expect(result).toContain("Example when topic_switch_context is present:");
+    expect(result).toContain('"intent": "input-correction"');
+    expect(result).toContain(
+      "User provides a short corrected phrase for the previous ambiguous request",
+    );
   });
 
   it("tells classifier to omit keywords when topic context exists", () => {
@@ -195,10 +225,17 @@ describe("buildIntentionPrompt", () => {
       },
     });
 
-    expect(result).toContain("do not output keywords");
+    expect(result).toContain("Do not output keywords");
+    expect(result).toContain(
+      "use its complexity as a starting hint, not a forced value",
+    );
+    expect(result).toContain(
+      "Choose the final complexity from latest_message scope and the selected intent",
+    );
     expect(result).toContain(
       "Required only when topic_switch_context is absent",
     );
+    expect(result).not.toContain("use its complexity value");
   });
 });
 
@@ -229,7 +266,7 @@ describe("buildTopicSwitchPrompt", () => {
     expect(prompt).toContain("Latest historical intent (reference only");
     expect(prompt).toContain("- input: 規劃 topic checker");
     expect(prompt).toContain(
-      "historical_intent: intent=coding; domain=coding; topic=topic / checker; keywords=topic, checker",
+      "  > historical_intent: intent=coding; domain=coding; topic=topic / checker; keywords=topic, checker",
     );
     expect(prompt).not.toContain("- intent: coding");
     expect(prompt).not.toContain("- keywords: topic, checker");
@@ -332,7 +369,7 @@ describe("buildTopicSwitchPrompt", () => {
     expect(prompt).not.toContain("<historical_intent>");
     expect(prompt).toContain("- user: 我最近壓力大嗎");
     expect(prompt).toContain(
-      "historical_intent: intent=memory-emotion; domain=follow-up; topic=User is asking about their recent stress level.",
+      "  > historical_intent: intent=memory-emotion; domain=follow-up; topic=User is asking about their recent stress level.",
     );
     expect(prompt).toContain("keywords=壓力, 大, 最近");
     expect(prompt).toContain("- assistant: 最近沒有看到明顯的壓力訊號。");
@@ -621,7 +658,7 @@ describe("buildIntentInstructionPrompt", () => {
     expect(prompt).not.toContain('<turn role="user">');
     expect(prompt).toContain("- user: 先做 topic checker");
     expect(prompt).toContain(
-      "historical_intent: intent=coding; domain=coding; topic=topic / checker; keywords=topic, checker",
+      "  > historical_intent: intent=coding; domain=coding; topic=topic / checker; keywords=topic, checker",
     );
     expect(prompt).toContain("- assistant: 我會先接流程");
     expect(prompt).toContain("Use test-driven-development");

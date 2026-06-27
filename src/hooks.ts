@@ -535,7 +535,7 @@ export function createHookHandlers(deps: HookDeps) {
             reason: resolveTopicChangeReason(topicContext),
             complexity: topicContext.complexity,
           }
-        : { result: "skipped by no topic context" },
+        : { error: "topic checker returned no context" },
     );
 
     const latestHistoricalIntent =

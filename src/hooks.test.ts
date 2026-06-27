@@ -673,6 +673,33 @@ describe("createHookHandlers topic switch flow", () => {
     expect(topicChecker).toHaveBeenCalledOnce();
   });
 
+  it("emits topic checker no-context failures as errors", async () => {
+    const { handlers, emitAgentEvent } = createTopicFlowHarness({
+      historicalIntents: [],
+      topicChecker: vi.fn().mockResolvedValue(undefined),
+    });
+
+    await handlers.onBeforePromptBuild(event, ctx);
+
+    expect(emittedPipelineEvents(emitAgentEvent)).toContainEqual(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          phase: "topic-triage",
+          state: "failed",
+          error: "topic checker returned no context",
+        }),
+      }),
+    );
+    expect(emittedPipelineEvents(emitAgentEvent)).not.toContainEqual(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          phase: "topic-triage",
+          result: "skipped by no topic context",
+        }),
+      }),
+    );
+  });
+
   it.each([
     {
       name: "same-topic",
