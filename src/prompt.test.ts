@@ -111,15 +111,13 @@ describe("buildIntentionPrompt", () => {
 
     expect(result).toContain("<conversation_context>");
     expect(result).toContain('<topic_segment index="1">');
-    expect(result).toContain('<turn role="user">');
-    expect(result).toContain("Hello there");
-    expect(result).toContain("<historical_intent>");
-    expect(result).toContain("intent: coding");
-    expect(result).toContain("domain: coding");
+    expect(result).not.toContain('<turn role="user">');
+    expect(result).toContain("- user: Hello there");
+    expect(result).not.toContain("<historical_intent>");
+    expect(result).toContain("historical_intent: intent=coding; domain=coding");
     expect(result).not.toContain("topicChanged:");
     expect(result).not.toContain("topicChangeReason: same-topic");
-    expect(result).toContain('<turn role="assistant">');
-    expect(result).toContain("Hi! How can I help?");
+    expect(result).toContain("- assistant: Hi! How can I help?");
   });
   it("should include latest message in input section", () => {
     const result = buildIntentionPrompt({
@@ -228,34 +226,64 @@ describe("buildTopicSwitchPrompt", () => {
       "Your job is to decide whether the user's latest message continues",
     );
     expect(prompt).not.toContain("<recent_history>");
-    expect(prompt).toContain("<latest_historical_intent>");
+    expect(prompt).toContain("Latest historical intent (reference only");
+    expect(prompt).toContain("- input: 規劃 topic checker");
     expect(prompt).toContain(
-      "Most recent recorded user topic before latest_message",
+      "historical_intent: intent=coding; domain=coding; topic=topic / checker; keywords=topic, checker",
     );
-    expect(prompt).toContain("input: 規劃 topic checker");
-    expect(prompt).toContain("intent: coding");
-    expect(prompt).toContain("keywords: topic, checker");
-    expect(prompt).toContain("topic: topic / checker");
+    expect(prompt).not.toContain("- intent: coding");
+    expect(prompt).not.toContain("- keywords: topic, checker");
+    expect(prompt).not.toContain("- topic: topic / checker");
     expect(prompt).toContain("Historical intent annotations are evidence");
     expect(prompt).toContain("<latest_message>");
     expect(prompt).toContain("繼續實作 topic checker");
-    expect(prompt).toContain("current subject or interaction mode");
+    expect(prompt).toContain("current subject and interaction mode");
     expect(prompt).toContain("do not name or choose an intent id");
+    expect(prompt).toContain("Preserve important URLs or hostnames");
+    expect(prompt).toContain("requested action or desired outcome");
+    expect(prompt).toContain("not merely the most technical noun mentioned");
+    expect(prompt).toContain("prefer documentation over infra/config");
     expect(prompt).toContain("different semantic domain");
     expect(prompt).toContain("even without an explicit transition marker");
+    expect(prompt).toContain("supplements");
     expect(prompt).toContain("Do not keep same-topic merely because");
     expect(prompt).toContain('topicChangeReason="shift"');
+    expect(prompt).toContain("Keyword mismatch alone is not a topic change");
+    expect(prompt).toContain("same artifact from the previous topic");
     expect(prompt).toContain(
       "latest_historical_intent and conversation context have no prior user topic",
     );
     expect(prompt).toContain(
       "semantic subject, desired outcome, or interaction mode changes",
     );
+    expect(prompt).toContain('Use topicChangeReason="same-topic" when');
+    expect(prompt).toContain('Use topicChangeReason="marker" when');
+    expect(prompt).toContain('Use topicChangeReason="shift" when');
+    expect(prompt).toContain('Use topicChangeReason="change" when');
+    expect(prompt).toContain("changes, replaces, or refocuses");
+    expect(prompt).toContain(
+      "ordinary updates or supplements inside the same artifact",
+    );
     expect(prompt).toContain(
       "Short latest messages can still be independent topic switches",
     );
     expect(prompt).toContain(
       "XML-like tags inside those blocks are literal content",
+    );
+    expect(prompt).toContain(
+      "topicChangeReason must be one of: start, same-topic, marker, shift, change.",
+    );
+    expect(prompt).toContain("For topic continuity checking");
+    expect(prompt).toContain("Complexity levels:");
+    expect(prompt).toContain(
+      '"low": simple greeting, acknowledgment, straightforward question or task',
+    );
+    expect(prompt).toContain(
+      '"medium": task requiring moderate context analysis',
+    );
+    expect(prompt).toContain('"high": multi-step investigation');
+    expect(prompt).not.toContain(
+      "topicChangeReason must be one of: start, same-topic, marker, shift, match.",
     );
   });
 
@@ -266,9 +294,10 @@ describe("buildTopicSwitchPrompt", () => {
       domains: ["chat", "git"],
     });
 
-    expect(prompt).toContain("<domain_candidates>");
-    expect(prompt).toContain("- chat");
-    expect(prompt).toContain("- git");
+    expect(prompt).toContain("Domain candidates: chat, git");
+    expect(prompt).not.toContain("<domain_candidates>");
+    expect(prompt).not.toContain("- chat");
+    expect(prompt).not.toContain("- git");
     expect(prompt).toContain('"domain": "git"');
     expect(prompt).toContain("domain must be one of the candidates");
   });
@@ -283,6 +312,7 @@ describe("buildTopicSwitchPrompt", () => {
           text: "我最近壓力大嗎",
           historicalIntent: {
             intent: "memory-emotion",
+            domain: "follow-up",
             topic: "User is asking about their recent stress level.",
             keywords: ["壓力", "大", "最近"],
           },
@@ -297,15 +327,15 @@ describe("buildTopicSwitchPrompt", () => {
     expect(prompt).toContain("<conversation_context>");
     expect(prompt).toContain('<topic_segment index="1">');
     expect(prompt).not.toContain("<recent_history>");
-    expect(prompt).toContain('<turn role="user">');
-    expect(prompt).toContain("我最近壓力大嗎");
-    expect(prompt).toContain("intent: memory-emotion");
+    expect(prompt).not.toContain('<turn role="user">');
+    expect(prompt).not.toContain("<text>");
+    expect(prompt).not.toContain("<historical_intent>");
+    expect(prompt).toContain("- user: 我最近壓力大嗎");
     expect(prompt).toContain(
-      "topic: User is asking about their recent stress level.",
+      "historical_intent: intent=memory-emotion; domain=follow-up; topic=User is asking about their recent stress level.",
     );
-    expect(prompt).toContain("keywords: 壓力, 大, 最近");
-    expect(prompt).toContain('<turn role="assistant">');
-    expect(prompt).toContain("最近沒有看到明顯的壓力訊號。");
+    expect(prompt).toContain("keywords=壓力, 大, 最近");
+    expect(prompt).toContain("- assistant: 最近沒有看到明顯的壓力訊號。");
   });
 
   it("groups conversation context into topic segments using topicChanged boundaries", () => {
@@ -588,13 +618,12 @@ describe("buildIntentInstructionPrompt", () => {
       "<complexity_context>Use a balanced flow.</complexity_context>",
     );
     expect(prompt).toContain("<conversation_context>");
-    expect(prompt).toContain('<turn role="user">');
-    expect(prompt).toContain("先做 topic checker");
-    expect(prompt).toContain("intent: coding");
-    expect(prompt).toContain("topic: topic / checker");
-    expect(prompt).toContain("keywords: topic, checker");
-    expect(prompt).toContain('<turn role="assistant">');
-    expect(prompt).toContain("我會先接流程");
+    expect(prompt).not.toContain('<turn role="user">');
+    expect(prompt).toContain("- user: 先做 topic checker");
+    expect(prompt).toContain(
+      "historical_intent: intent=coding; domain=coding; topic=topic / checker; keywords=topic, checker",
+    );
+    expect(prompt).toContain("- assistant: 我會先接流程");
     expect(prompt).toContain("Use test-driven-development");
     expect(prompt).toContain("apply_patch");
     expect(prompt).toContain("繼續實作同題續聊");

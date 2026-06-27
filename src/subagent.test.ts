@@ -103,7 +103,7 @@ describe("runTopicSwitchSubagent", () => {
       "<conversation_context>",
     );
     expect(runEmbeddedPiAgent.mock.calls[0][0].prompt).toContain(
-      "topic: topic checker",
+      "topic=topic checker",
     );
   });
 });
@@ -172,7 +172,7 @@ describe("runIntentInstructionSubagent", () => {
       "<conversation_context>",
     );
     expect(runEmbeddedPiAgent.mock.calls[0][0].prompt).toContain(
-      "topic: continuation",
+      "topic=continuation",
     );
   });
 
