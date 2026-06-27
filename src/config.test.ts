@@ -41,7 +41,6 @@ describe("resolveConfig", () => {
           successfulPattern: {
             enabled: true,
             toolCalls: 5,
-            keywords: expect.arrayContaining(["完成", "verified"]),
           },
           satisfactionCheck: { enabled: true, everyTurns: 10 },
           missingIntent: { enabled: true },
@@ -85,12 +84,12 @@ describe("resolveConfig", () => {
             processGap: { toolFailures: 500 },
             successfulPattern: {
               toolCalls: 0,
-              keywords: [" verified ", "", "done"],
+              keywords: ["ship it", "ship it"],
             },
             satisfactionCheck: { everyTurns: 3 },
             missingIntent: { enabled: false },
             weakIntent: { confidenceBelow: 2 },
-            behaviorFix: { keywords: [" redo ", "", "wrong"] },
+            behaviorFix: { enabled: false, keywords: [] },
           },
         },
       });
@@ -107,12 +106,12 @@ describe("resolveConfig", () => {
           successfulPattern: {
             enabled: true,
             toolCalls: 1,
-            keywords: ["verified", "done"],
+            keywords: ["ship it", "ship it"],
           },
           satisfactionCheck: { enabled: true, everyTurns: 3 },
           missingIntent: { enabled: false },
           weakIntent: { enabled: true, confidenceBelow: 1 },
-          behaviorFix: { enabled: true, keywords: ["redo", "wrong"] },
+          behaviorFix: { enabled: false, keywords: [] },
         },
       });
     });

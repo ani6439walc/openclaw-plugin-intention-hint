@@ -7,6 +7,7 @@ import {
   withFileLock,
 } from "./file-utils.js";
 import type { EvolutionFinding, EvolutionSource } from "./evolution-types.js";
+import type { EvolutionTriggerKeywords } from "./evolution-trigger-keywords.js";
 import {
   createBacklog,
   readBacklog,
@@ -14,6 +15,28 @@ import {
   EvolutionBacklogSchema,
   type EvolutionBacklog,
 } from "./evolution-backlog.js";
+
+function backlogTargetFields(finding: EvolutionFinding) {
+  if (finding.targetKind === "trigger-keywords") {
+    return {
+      targetKind: "trigger-keywords" as const,
+      operation: "adjust-trigger-keywords" as const,
+      targetIntentIds: [],
+      targetTrigger: finding.targetTrigger,
+      keywordChange: {
+        add: [...finding.addKeywords],
+        remove: [...finding.removeKeywords],
+      },
+    };
+  }
+  return {
+    targetKind: "intent-markdown" as const,
+    operation: finding.operation,
+    targetIntentIds: [...finding.targetIntentIds],
+    targetTrigger: undefined,
+    keywordChange: undefined,
+  };
+}
 
 function nextItemId(backlog: EvolutionBacklog, nowIso: string): string {
   const date = nowIso.slice(0, 10).replaceAll("-", "");
@@ -32,10 +55,22 @@ function nextItemId(backlog: EvolutionBacklog, nowIso: string): string {
 }
 
 export class BacklogWriter {
-  private constructor(private readonly pluginRoot: string) {}
+  private constructor(
+    private readonly pluginRoot: string,
+    private readonly options: {
+      triggerKeywordSeed?: () => Partial<EvolutionTriggerKeywords> | undefined;
+      onAfterWrite?: () => void;
+    } = {},
+  ) {}
 
-  static create(pluginRoot: string): BacklogWriter {
-    return new BacklogWriter(pluginRoot);
+  static create(
+    pluginRoot: string,
+    options: {
+      triggerKeywordSeed?: () => Partial<EvolutionTriggerKeywords> | undefined;
+      onAfterWrite?: () => void;
+    } = {},
+  ): BacklogWriter {
+    return new BacklogWriter(pluginRoot, options);
   }
 
   async record(
@@ -51,9 +86,10 @@ export class BacklogWriter {
     const result = await withFileLock(backlogPath, async () => {
       try {
         const nowIso = new Date(options.nowMs ?? Date.now()).toISOString();
+        const triggerKeywordSeed = this.options.triggerKeywordSeed?.();
         const backlog = fileExists(backlogPath)
-          ? readBacklog(backlogPath)
-          : createBacklog(nowIso);
+          ? readBacklog(backlogPath, triggerKeywordSeed)
+          : createBacklog(nowIso, triggerKeywordSeed);
 
         // Prune old processedEvents before any mutation
         pruneProcessedEvents(backlog, options.nowMs ?? Date.now());
@@ -61,6 +97,7 @@ export class BacklogWriter {
         if (backlog.processedEvents[eventId]) return false;
 
         for (const finding of findings) {
+          const targetFields = backlogTargetFields(finding);
           const existing = backlog.items.find(
             (item) =>
               item.status === "pending" &&
@@ -71,8 +108,11 @@ export class BacklogWriter {
             existing.frequency += 1;
             existing.sources.push(source);
             existing.updatedAt = nowIso;
-            existing.operation = finding.operation;
-            existing.targetIntentIds = [...finding.targetIntentIds];
+            existing.targetKind = targetFields.targetKind;
+            existing.operation = targetFields.operation;
+            existing.targetIntentIds = targetFields.targetIntentIds;
+            existing.targetTrigger = targetFields.targetTrigger;
+            existing.keywordChange = targetFields.keywordChange;
             existing.summary = finding.summary;
             existing.correctionGoal = finding.correctionGoal;
             existing.details = {
@@ -85,8 +125,7 @@ export class BacklogWriter {
           backlog.items.push({
             id: nextItemId(backlog, nowIso),
             type: finding.trigger,
-            operation: finding.operation,
-            targetIntentIds: [...finding.targetIntentIds],
+            ...targetFields,
             dedupeKey: finding.dedupeKey,
             summary: finding.summary,
             correctionGoal: finding.correctionGoal,
@@ -126,7 +165,7 @@ export class BacklogWriter {
       });
       return false;
     }
-
+    if (result) this.options.onAfterWrite?.();
     return result;
   }
 }

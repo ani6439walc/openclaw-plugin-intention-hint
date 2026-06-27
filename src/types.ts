@@ -60,12 +60,12 @@ export type ResolvedEvolutionConfig = {
     successfulPattern: {
       enabled: boolean;
       toolCalls: number;
-      keywords: string[];
+      keywords?: string[];
     };
     satisfactionCheck: { enabled: boolean; everyTurns: number };
     missingIntent: { enabled: boolean };
     weakIntent: { enabled: boolean; confidenceBelow: number };
-    behaviorFix: { enabled: boolean; keywords: string[] };
+    behaviorFix: { enabled: boolean; keywords?: string[] };
   };
 };
 

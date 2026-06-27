@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -14,6 +14,7 @@ describe("BacklogWriter", () => {
   };
   const finding = {
     trigger: "skill-candidate" as const,
+    targetKind: "intent-markdown" as const,
     operation: "refine" as const,
     targetIntentIds: ["productivity"],
     dedupeKey: "deploy-flow",
@@ -46,7 +47,7 @@ describe("BacklogWriter", () => {
     ).toBe(true);
 
     expect(readBacklog()).toMatchObject({
-      schemaVersion: 2,
+      schemaVersion: 3,
       updatedAt: "2026-06-11T00:01:00.000Z",
       processedEvents: {
         "session-1:turn-1": "2026-06-11T00:01:00.000Z",
@@ -66,6 +67,27 @@ describe("BacklogWriter", () => {
     });
   });
 
+  it("seeds legacy config keywords on first backlog write and refreshes cache", async () => {
+    const onAfterWrite = vi.fn();
+    writer = BacklogWriter.create(root, {
+      triggerKeywordSeed: () => ({
+        behaviorFix: [],
+        successfulPattern: ["ship it"],
+      }),
+      onAfterWrite,
+    });
+
+    expect(await writer.record("event-1", source, [finding])).toBe(true);
+
+    expect(readBacklog()).toMatchObject({
+      triggerKeywords: {
+        behaviorFix: [],
+        successfulPattern: ["ship it"],
+      },
+    });
+    expect(onAfterWrite).toHaveBeenCalledOnce();
+  });
+
   it("merges matching pending findings and is event-idempotent", async () => {
     await writer.record("event-1", source, [finding]);
     await writer.record("event-2", { ...source, sessionId: "session-2" }, [
@@ -77,6 +99,48 @@ describe("BacklogWriter", () => {
     expect(backlog.items).toHaveLength(1);
     expect(backlog.items[0].frequency).toBe(2);
     expect(backlog.items[0].sources).toHaveLength(2);
+  });
+
+  it("records trigger keyword suggestions into evolution.json without applying them", async () => {
+    expect(
+      await writer.record(
+        "session-1:turn-1",
+        source,
+        [
+          {
+            trigger: "successful-pattern",
+            targetKind: "trigger-keywords",
+            targetTrigger: "successful-pattern",
+            addKeywords: ["ship it"],
+            removeKeywords: [],
+            dedupeKey: "successful-pattern:ship-it",
+            summary: "Learn successful-pattern keyword",
+            evidence: ["User confirmed the workflow was done"],
+            correctionGoal: "Add a precise successful-pattern trigger phrase",
+            suggestedChange: "Add ship it to triggerKeywords.successfulPattern",
+          },
+        ],
+        { nowMs: Date.parse("2026-06-11T00:01:00.000Z") },
+      ),
+    ).toBe(true);
+
+    expect(readBacklog()).toMatchObject({
+      schemaVersion: 3,
+      triggerKeywords: expect.objectContaining({
+        successfulPattern: expect.arrayContaining(["verified"]),
+      }),
+      items: [
+        {
+          type: "successful-pattern",
+          targetKind: "trigger-keywords",
+          operation: "adjust-trigger-keywords",
+          targetTrigger: "successful-pattern",
+          keywordChange: { add: ["ship it"], remove: [] },
+          targetIntentIds: [],
+          status: "pending",
+        },
+      ],
+    });
   });
 
   it("migrates v1 backlogs and updates operation and targets on merge", async () => {
@@ -109,7 +173,7 @@ describe("BacklogWriter", () => {
 
     expect(await writer.record("event-2", source, [finding])).toBe(true);
     expect(readBacklog()).toMatchObject({
-      schemaVersion: 2,
+      schemaVersion: 3,
       items: [
         {
           frequency: 2,
