@@ -156,8 +156,9 @@ fastpath-specific phase names. Event failures are fail-open and never add text t
 Prompt assembly keeps static instructions, schema examples, and catalog data before
 dynamic conversation input, then closes helper prompts with a short final output
 contract after `</latest_message>`. Topic continuity and intent classifier prompts
-ask for exactly one JSON object with no surrounding prose, which helps prompt-only
-JSON parsing on compact helper models. The topic checker still provides a
+ask for exactly one raw JSON object with no Markdown code fences and no
+surrounding prose, which helps prompt-only JSON parsing on compact helper models.
+The topic checker still provides a
 complexity starting hint, but `parseIntentionResult()` lets the classifier's final
 complexity override it when the latest-message scope is simpler or broader than the
 topic hint.

@@ -137,7 +137,7 @@ describe("buildIntentionPrompt", () => {
     expect(result).toContain("I need help with code");
     expect(result).toContain("</latest_message>");
     expect(result).toMatch(
-      /<latest_message>\nI need help with code\n<\/latest_message>\n\nClassify the latest_message now\. Return exactly one JSON object and no surrounding prose\.$/,
+      /<latest_message>\nI need help with code\n<\/latest_message>\n\nClassify the latest_message now\. Return exactly one raw JSON object with no Markdown code fences and no surrounding prose\.$/,
     );
   });
 
@@ -333,7 +333,7 @@ describe("buildTopicSwitchPrompt", () => {
       "reason must be one of: start, same-topic, marker, shift, match.",
     );
     expect(prompt).toMatch(
-      /<latest_message>\n繼續實作 topic checker\n<\/latest_message>\n\nCheck topic continuity for latest_message only\. Return exactly one JSON object and no surrounding prose\.$/,
+      /<latest_message>\n繼續實作 topic checker\n<\/latest_message>\n\nCheck topic continuity for latest_message only\. Return exactly one raw JSON object with no Markdown code fences and no surrounding prose\.$/,
     );
   });
 

@@ -274,7 +274,7 @@ ${conversationSection}
 ${params.latest}
 </latest_message>
 
-Check topic continuity for latest_message only. Return exactly one JSON object and no surrounding prose.`;
+Check topic continuity for latest_message only. Return exactly one raw JSON object with no Markdown code fences and no surrounding prose.`;
 }
 
 export function parseTopicSwitchResult(
@@ -524,7 +524,7 @@ ${conversationSection}
 ${params.latest}
 </latest_message>
 
-Classify the latest_message now. Return exactly one JSON object and no surrounding prose.`;
+Classify the latest_message now. Return exactly one raw JSON object with no Markdown code fences and no surrounding prose.`;
 }
 
 export function parseIntentionResult(
