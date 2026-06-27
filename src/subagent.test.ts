@@ -36,8 +36,8 @@ describe("runTopicSwitchSubagent", () => {
             keywords: [" Topic ", "Checker"],
             topic: "User is continuing work on the topic checker.",
             domain: "coding",
-            topicChanged: false,
-            topicChangeReason: "same-topic",
+            changed: false,
+            reason: "same-topic",
             complexity: "medium",
           }),
         },
@@ -85,8 +85,8 @@ describe("runTopicSwitchSubagent", () => {
       keywords: ["topic", "checker"],
       topic: "User is continuing work on the topic checker.",
       domain: "coding",
-      topicChanged: false,
-      topicChangeReason: undefined,
+      changed: false,
+      reason: undefined,
       complexity: "medium",
     });
     expect(runEmbeddedPiAgent).toHaveBeenCalledWith(
@@ -103,7 +103,7 @@ describe("runTopicSwitchSubagent", () => {
       "<conversation_context>",
     );
     expect(runEmbeddedPiAgent.mock.calls[0][0].prompt).toContain(
-      "topic: topic checker",
+      "topic=topic checker",
     );
   });
 });
@@ -172,7 +172,7 @@ describe("runIntentInstructionSubagent", () => {
       "<conversation_context>",
     );
     expect(runEmbeddedPiAgent.mock.calls[0][0].prompt).toContain(
-      "topic: continuation",
+      "topic=continuation",
     );
   });
 
