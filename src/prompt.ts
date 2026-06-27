@@ -556,7 +556,10 @@ export function parseIntentionResult(
 
     // Validate complexity
     const parsedComplexity =
-      typeof parsed.complexity === "string" ? parsed.complexity : undefined;
+      typeof parsed.complexity === "string" &&
+      (COMPLEXITIES as readonly string[]).includes(parsed.complexity)
+        ? parsed.complexity
+        : undefined;
     const complexity = parsedComplexity ?? topicContext?.complexity;
     if (!COMPLEXITIES.includes(complexity)) {
       return undefined;

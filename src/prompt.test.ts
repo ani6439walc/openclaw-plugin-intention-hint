@@ -803,6 +803,29 @@ describe("parseIntentionResult", () => {
     });
   });
 
+  it("falls back to topic context when classifier complexity is invalid", () => {
+    const result = parseIntentionResult(
+      JSON.stringify({
+        intent: "coding",
+        reason: "User asks for a tiny follow-up",
+        confidence: 0.85,
+        complexity: "very-high",
+      }),
+      ["coding", "other"],
+      {
+        keywords: ["topic", "checker", "implementation"],
+        topic: "User is continuing implementation of the topic checker.",
+        domain: "coding",
+        changed: false,
+        complexity: "medium",
+      },
+    );
+
+    expect(result).toMatchObject({
+      complexity: "medium",
+    });
+  });
+
   it("requires classifier keywords when topic context is absent", () => {
     const raw = JSON.stringify({
       intent: "coding",
