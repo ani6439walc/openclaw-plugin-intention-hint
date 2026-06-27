@@ -171,18 +171,24 @@ export const EvolutionBacklogSchema = z.object({
   items: z.array(BacklogItemSchema),
 });
 
-export function createBacklog(nowIso: string): EvolutionBacklog {
+export function createBacklog(
+  nowIso: string,
+  triggerKeywordSeed?: Partial<EvolutionTriggerKeywords>,
+): EvolutionBacklog {
   return {
     schemaVersion: 3,
     createdAt: nowIso,
     updatedAt: nowIso,
-    triggerKeywords: normalizeEvolutionTriggerKeywords({}),
+    triggerKeywords: normalizeEvolutionTriggerKeywords(triggerKeywordSeed),
     processedEvents: {},
     items: [],
   };
 }
 
-export function parseBacklog(raw: unknown): EvolutionBacklog {
+export function parseBacklog(
+  raw: unknown,
+  triggerKeywordSeed?: Partial<EvolutionTriggerKeywords>,
+): EvolutionBacklog {
   const normalized = normalizeBacklogTriggerTypes(raw);
   const version = z.object({ schemaVersion: z.number() }).parse(normalized);
   if (version.schemaVersion === 3) {
@@ -201,7 +207,7 @@ export function parseBacklog(raw: unknown): EvolutionBacklog {
     return EvolutionBacklogSchema.parse({
       ...legacy,
       schemaVersion: 3,
-      triggerKeywords: normalizeEvolutionTriggerKeywords({}),
+      triggerKeywords: normalizeEvolutionTriggerKeywords(triggerKeywordSeed),
       items: legacy.items.map(migrateItem),
     });
   }
@@ -209,20 +215,26 @@ export function parseBacklog(raw: unknown): EvolutionBacklog {
   return EvolutionBacklogSchema.parse({
     ...legacy,
     schemaVersion: 3,
-    triggerKeywords: normalizeEvolutionTriggerKeywords({}),
+    triggerKeywords: normalizeEvolutionTriggerKeywords(triggerKeywordSeed),
     items: legacy.items.map(migrateItem),
   });
 }
 
-export function readBacklog(backlogPath: string): EvolutionBacklog {
-  return parseBacklog(readJsonFile<unknown>(backlogPath));
+export function readBacklog(
+  backlogPath: string,
+  triggerKeywordSeed?: Partial<EvolutionTriggerKeywords>,
+): EvolutionBacklog {
+  return parseBacklog(readJsonFile<unknown>(backlogPath), triggerKeywordSeed);
 }
 
 export function readEvolutionTriggerKeywords(
   backlogPath: string,
+  triggerKeywordSeed?: Partial<EvolutionTriggerKeywords>,
 ): EvolutionTriggerKeywords {
-  if (!fileExists(backlogPath)) return normalizeEvolutionTriggerKeywords({});
-  return readBacklog(backlogPath).triggerKeywords;
+  if (!fileExists(backlogPath)) {
+    return normalizeEvolutionTriggerKeywords(triggerKeywordSeed);
+  }
+  return readBacklog(backlogPath, triggerKeywordSeed).triggerKeywords;
 }
 
 export function writeBacklogAtomic(

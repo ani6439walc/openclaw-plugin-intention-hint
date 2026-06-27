@@ -12,7 +12,9 @@ import { SessionTracker } from "./session-tracker.js";
 import { StatsAggregator } from "./stats-aggregator.js";
 import { BacklogWriter } from "./backlog-writer.js";
 import { readEvolutionTriggerKeywords } from "./evolution-backlog.js";
+import type { EvolutionTriggerKeywords } from "./evolution-trigger-keywords.js";
 import { createHookHandlers, type HookDeps } from "./hooks.js";
+import type { ResolvedIntentionHintPluginConfig } from "./types.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import {
@@ -29,6 +31,20 @@ const EXAMPLE_INTENT_ASSETS_DIR = path.join(
   "intention-hint",
   "assets",
 );
+
+function legacyTriggerKeywordSeedFromConfig(
+  config: ResolvedIntentionHintPluginConfig,
+): Partial<EvolutionTriggerKeywords> | undefined {
+  const seed: Partial<EvolutionTriggerKeywords> = {};
+  if (config.evolution.triggers.successfulPattern.keywords !== undefined) {
+    seed.successfulPattern =
+      config.evolution.triggers.successfulPattern.keywords;
+  }
+  if (config.evolution.triggers.behaviorFix.keywords !== undefined) {
+    seed.behaviorFix = config.evolution.triggers.behaviorFix.keywords;
+  }
+  return Object.keys(seed).length > 0 ? seed : undefined;
+}
 
 function copyFileIfMissing(sourcePath: string, targetPath: string): void {
   if (fs.existsSync(targetPath)) return;
@@ -120,7 +136,21 @@ export function createPlugin(
       const catalog = IntentCatalog.create(dataRoot);
       const tracker = SessionTracker.create(dataRoot);
       const statsAggregator = StatsAggregator.create(dataRoot);
-      const backlogWriter = BacklogWriter.create(dataRoot);
+      const backlogPath = evolutionBacklogPath(dataRoot);
+      let triggerKeywordCache = readEvolutionTriggerKeywords(
+        backlogPath,
+        legacyTriggerKeywordSeedFromConfig(config),
+      );
+      const refreshTriggerKeywordCache = () => {
+        triggerKeywordCache = readEvolutionTriggerKeywords(
+          backlogPath,
+          legacyTriggerKeywordSeedFromConfig(config),
+        );
+      };
+      const backlogWriter = BacklogWriter.create(dataRoot, {
+        triggerKeywordSeed: () => legacyTriggerKeywordSeedFromConfig(config),
+        onAfterWrite: refreshTriggerKeywordCache,
+      });
 
       const refreshRuntimeIntents = () => {
         catalog.load("intents");
@@ -135,13 +165,13 @@ export function createPlugin(
         tracker,
         statsAggregator,
         backlogWriter,
-        triggerKeywords: () =>
-          readEvolutionTriggerKeywords(evolutionBacklogPath(dataRoot)),
+        triggerKeywords: () => triggerKeywordCache,
       };
 
       const handlers = createHookHandlers(deps);
 
       refreshLiveConfigFromRuntime();
+      refreshTriggerKeywordCache();
       refreshRuntimeIntents();
 
       api.on("before_prompt_build", handlers.onBeforePromptBuild, {

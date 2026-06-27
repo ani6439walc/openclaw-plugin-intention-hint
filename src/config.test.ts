@@ -82,11 +82,14 @@ describe("resolveConfig", () => {
           triggers: {
             skillCandidate: { enabled: false, toolCalls: 0 },
             processGap: { toolFailures: 500 },
-            successfulPattern: { toolCalls: 0 },
+            successfulPattern: {
+              toolCalls: 0,
+              keywords: ["ship it", "ship it"],
+            },
             satisfactionCheck: { everyTurns: 3 },
             missingIntent: { enabled: false },
             weakIntent: { confidenceBelow: 2 },
-            behaviorFix: { enabled: false },
+            behaviorFix: { enabled: false, keywords: [] },
           },
         },
       });
@@ -103,11 +106,12 @@ describe("resolveConfig", () => {
           successfulPattern: {
             enabled: true,
             toolCalls: 1,
+            keywords: ["ship it", "ship it"],
           },
           satisfactionCheck: { enabled: true, everyTurns: 3 },
           missingIntent: { enabled: false },
           weakIntent: { enabled: true, confidenceBelow: 1 },
-          behaviorFix: { enabled: false },
+          behaviorFix: { enabled: false, keywords: [] },
         },
       });
     });

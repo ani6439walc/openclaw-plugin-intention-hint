@@ -329,7 +329,7 @@ All matching triggers are reviewed in one background, read-only sub-agent run.
 Each trigger receives a distinct review focus and correction goal, and may return
 no finding. Valid findings are merged by pending `type + dedupeKey` into the
 atomic, event-idempotent `$OPENCLAW_STATE_DIR/plugins/intention-hint/evolution.json` backlog. Runtime trigger keyword lists live in the same root document under
-`triggerKeywords.successfulPattern` and `triggerKeywords.behaviorFix`; they are not configured in `openclaw.json`. Review failures are
+`triggerKeywords.successfulPattern` and `triggerKeywords.behaviorFix`; legacy `openclaw.json` trigger `keywords` are accepted only as first-run or v1/v2 migration seeds. Review failures are
 fail-open and never block or alter the main reply.
 
 The reviewer is intentionally scoped to improving runtime `intents/*.md`, following
@@ -358,8 +358,11 @@ plus backlog findings. Intent Markdown findings include `targetKind:
 "intent-markdown"`, `operation` (`create`, `refine`, `split`, or `merge`), and
 all affected `targetIntentIds`. Trigger keyword findings include `targetKind:
 "trigger-keywords"`, `targetTrigger`, and a pending `keywordChange`. Existing
-schema v1/v2 items migrate to v3; v1 intent items use `operation: "unknown"` and
-empty targets until they can be grounded safely.
+schema v1/v2 items migrate to v3 and preserve legacy config keyword seeds; v1
+intent items use `operation: "unknown"` and empty targets until they can be
+grounded safely. Trigger keyword state is cached at plugin startup and refreshed
+after backlog writes so hook execution does not repeatedly read and parse the
+full backlog.
 
 ### Intention-Hint Backlog Mode
 

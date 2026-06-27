@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -65,6 +65,27 @@ describe("BacklogWriter", () => {
         },
       ],
     });
+  });
+
+  it("seeds legacy config keywords on first backlog write and refreshes cache", async () => {
+    const onAfterWrite = vi.fn();
+    writer = BacklogWriter.create(root, {
+      triggerKeywordSeed: () => ({
+        behaviorFix: [],
+        successfulPattern: ["ship it"],
+      }),
+      onAfterWrite,
+    });
+
+    expect(await writer.record("event-1", source, [finding])).toBe(true);
+
+    expect(readBacklog()).toMatchObject({
+      triggerKeywords: {
+        behaviorFix: [],
+        successfulPattern: ["ship it"],
+      },
+    });
+    expect(onAfterWrite).toHaveBeenCalledOnce();
   });
 
   it("merges matching pending findings and is event-idempotent", async () => {

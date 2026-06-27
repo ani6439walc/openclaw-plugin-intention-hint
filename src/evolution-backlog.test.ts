@@ -96,6 +96,24 @@ describe("evolution backlog", () => {
     });
   });
 
+  it("seeds legacy config keywords while migrating v2 backlogs", () => {
+    const parsed = parseBacklog(
+      {
+        schemaVersion: 2,
+        createdAt: "2026-06-11T00:00:00.000Z",
+        updatedAt: "2026-06-11T00:00:00.000Z",
+        processedEvents: {},
+        items: [],
+      },
+      { behaviorFix: ["my correction"], successfulPattern: [] },
+    );
+
+    expect(parsed.triggerKeywords).toEqual({
+      behaviorFix: ["my correction"],
+      successfulPattern: [],
+    });
+  });
+
   it("parses trigger keyword backlog items and root keyword fields", () => {
     const parsed = parseBacklog({
       schemaVersion: 3,
@@ -133,6 +151,21 @@ describe("evolution backlog", () => {
     expect(createBacklog("now")).toMatchObject({
       schemaVersion: 3,
       triggerKeywords: DEFAULT_EVOLUTION_TRIGGER_KEYWORDS,
+    });
+  });
+
+  it("creates new backlogs with legacy config keyword seeds", () => {
+    expect(
+      createBacklog("now", {
+        behaviorFix: [],
+        successfulPattern: ["ship it"],
+      }),
+    ).toMatchObject({
+      schemaVersion: 3,
+      triggerKeywords: {
+        behaviorFix: [],
+        successfulPattern: ["ship it"],
+      },
     });
   });
 

@@ -7,6 +7,7 @@ import {
   withFileLock,
 } from "./file-utils.js";
 import type { EvolutionFinding, EvolutionSource } from "./evolution-types.js";
+import type { EvolutionTriggerKeywords } from "./evolution-trigger-keywords.js";
 import {
   createBacklog,
   readBacklog,
@@ -54,10 +55,22 @@ function nextItemId(backlog: EvolutionBacklog, nowIso: string): string {
 }
 
 export class BacklogWriter {
-  private constructor(private readonly pluginRoot: string) {}
+  private constructor(
+    private readonly pluginRoot: string,
+    private readonly options: {
+      triggerKeywordSeed?: () => Partial<EvolutionTriggerKeywords> | undefined;
+      onAfterWrite?: () => void;
+    } = {},
+  ) {}
 
-  static create(pluginRoot: string): BacklogWriter {
-    return new BacklogWriter(pluginRoot);
+  static create(
+    pluginRoot: string,
+    options: {
+      triggerKeywordSeed?: () => Partial<EvolutionTriggerKeywords> | undefined;
+      onAfterWrite?: () => void;
+    } = {},
+  ): BacklogWriter {
+    return new BacklogWriter(pluginRoot, options);
   }
 
   async record(
@@ -73,9 +86,10 @@ export class BacklogWriter {
     const result = await withFileLock(backlogPath, async () => {
       try {
         const nowIso = new Date(options.nowMs ?? Date.now()).toISOString();
+        const triggerKeywordSeed = this.options.triggerKeywordSeed?.();
         const backlog = fileExists(backlogPath)
-          ? readBacklog(backlogPath)
-          : createBacklog(nowIso);
+          ? readBacklog(backlogPath, triggerKeywordSeed)
+          : createBacklog(nowIso, triggerKeywordSeed);
 
         // Prune old processedEvents before any mutation
         pruneProcessedEvents(backlog, options.nowMs ?? Date.now());
@@ -151,7 +165,7 @@ export class BacklogWriter {
       });
       return false;
     }
-
+    if (result) this.options.onAfterWrite?.();
     return result;
   }
 }

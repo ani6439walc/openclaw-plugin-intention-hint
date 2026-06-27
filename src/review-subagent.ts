@@ -442,7 +442,12 @@ export function parseReviewFindings(
     const findings: EvolutionFinding[] = [];
     for (const rawFinding of parsed.findings) {
       const result = FindingSchema.safeParse(rawFinding);
-      if (!result.success) continue;
+      if (!result.success) {
+        logger.debug("dropping invalid evolution review finding", {
+          error: result.error,
+        });
+        continue;
+      }
       const finding = result.data;
       if (!finding.hasFinding || !requested.has(finding.trigger)) continue;
       if ("targetTrigger" in finding) {

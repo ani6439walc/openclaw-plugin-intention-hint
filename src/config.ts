@@ -168,6 +168,7 @@ const EvolutionSchema = z
           .object({
             enabled: enabledSchema,
             toolCalls: boundedInt(5, 1, 100),
+            keywords: StringListSchema.optional().catch(undefined),
           })
           .catch(DEFAULT_EVOLUTION.triggers.successfulPattern),
         satisfactionCheck: z
@@ -191,6 +192,7 @@ const EvolutionSchema = z
         behaviorFix: z
           .object({
             enabled: enabledSchema,
+            keywords: StringListSchema.optional().catch(undefined),
           })
           .catch(DEFAULT_EVOLUTION.triggers.behaviorFix),
       })

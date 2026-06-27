@@ -37,6 +37,9 @@ export function normalizeKeywordList(
   values: unknown,
   fallback: string[],
 ): string[] {
+  if (values === undefined || values === null) return [...fallback];
+  if (!Array.isArray(values) && typeof values !== "string")
+    return [...fallback];
   const rawValues = Array.isArray(values)
     ? values
     : typeof values === "string"
@@ -51,24 +54,43 @@ export function normalizeKeywordList(
         .map((value) => [value.toLocaleLowerCase(), value] as const),
     ).values(),
   ];
-  return normalized.length > 0 ? normalized : [...fallback];
+  return normalized;
 }
 
 export function normalizeEvolutionTriggerKeywords(
   value: unknown,
+  fallback: EvolutionTriggerKeywords = DEFAULT_EVOLUTION_TRIGGER_KEYWORDS,
 ): EvolutionTriggerKeywords {
   const record =
     value && typeof value === "object"
       ? (value as Record<string, unknown>)
       : {};
   return {
-    behaviorFix: normalizeKeywordList(
-      record.behaviorFix,
-      DEFAULT_EVOLUTION_TRIGGER_KEYWORDS.behaviorFix,
-    ),
+    behaviorFix: normalizeKeywordList(record.behaviorFix, fallback.behaviorFix),
     successfulPattern: normalizeKeywordList(
       record.successfulPattern,
-      DEFAULT_EVOLUTION_TRIGGER_KEYWORDS.successfulPattern,
+      fallback.successfulPattern,
     ),
   };
+}
+
+export function mergeEvolutionTriggerKeywordSeeds(
+  base: EvolutionTriggerKeywords,
+  seed: unknown,
+): EvolutionTriggerKeywords {
+  const seedRecord =
+    seed && typeof seed === "object" ? (seed as Record<string, unknown>) : {};
+  return normalizeEvolutionTriggerKeywords(
+    {
+      behaviorFix:
+        seedRecord.behaviorFix === undefined
+          ? base.behaviorFix
+          : seedRecord.behaviorFix,
+      successfulPattern:
+        seedRecord.successfulPattern === undefined
+          ? base.successfulPattern
+          : seedRecord.successfulPattern,
+    },
+    base,
+  );
 }

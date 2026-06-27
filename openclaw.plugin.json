@@ -243,6 +243,11 @@
                     "minimum": 1,
                     "maximum": 100,
                     "default": 5
+                  },
+                  "keywords": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Deprecated seed for triggerKeywords.successfulPattern in runtime evolution.json. Prefer editing evolution.json via the backlog workflow."
                   }
                 }
               },
@@ -283,7 +288,12 @@
                 "type": "object",
                 "additionalProperties": false,
                 "properties": {
-                  "enabled": { "type": "boolean", "default": true }
+                  "enabled": { "type": "boolean", "default": true },
+                  "keywords": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Deprecated seed for triggerKeywords.behaviorFix in runtime evolution.json. Prefer editing evolution.json via the backlog workflow."
+                  }
                 }
               }
             },
