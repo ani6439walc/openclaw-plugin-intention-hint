@@ -12,7 +12,10 @@ import { SessionTracker } from "./session-tracker.js";
 import { StatsAggregator } from "./stats-aggregator.js";
 import { BacklogWriter } from "./backlog-writer.js";
 import { readEvolutionTriggerKeywords } from "./evolution-backlog.js";
-import type { EvolutionTriggerKeywords } from "./evolution-trigger-keywords.js";
+import {
+  normalizeEvolutionTriggerKeywords,
+  type EvolutionTriggerKeywords,
+} from "./evolution-trigger-keywords.js";
 import { createHookHandlers, type HookDeps } from "./hooks.js";
 import type { ResolvedIntentionHintPluginConfig } from "./types.js";
 import * as fs from "node:fs";
@@ -44,6 +47,21 @@ function legacyTriggerKeywordSeedFromConfig(
     seed.behaviorFix = config.evolution.triggers.behaviorFix.keywords;
   }
   return Object.keys(seed).length > 0 ? seed : undefined;
+}
+
+function readEvolutionTriggerKeywordsFailOpen(
+  backlogPath: string,
+  triggerKeywordSeed?: Partial<EvolutionTriggerKeywords>,
+): EvolutionTriggerKeywords {
+  try {
+    return readEvolutionTriggerKeywords(backlogPath, triggerKeywordSeed);
+  } catch (err) {
+    logger.warn("failed to read evolution trigger keywords", {
+      error: err,
+      path: backlogPath,
+    });
+    return normalizeEvolutionTriggerKeywords(triggerKeywordSeed);
+  }
 }
 
 function copyFileIfMissing(sourcePath: string, targetPath: string): void {
@@ -137,12 +155,12 @@ export function createPlugin(
       const tracker = SessionTracker.create(dataRoot);
       const statsAggregator = StatsAggregator.create(dataRoot);
       const backlogPath = evolutionBacklogPath(dataRoot);
-      let triggerKeywordCache = readEvolutionTriggerKeywords(
+      let triggerKeywordCache = readEvolutionTriggerKeywordsFailOpen(
         backlogPath,
         legacyTriggerKeywordSeedFromConfig(config),
       );
       const refreshTriggerKeywordCache = () => {
-        triggerKeywordCache = readEvolutionTriggerKeywords(
+        triggerKeywordCache = readEvolutionTriggerKeywordsFailOpen(
           backlogPath,
           legacyTriggerKeywordSeedFromConfig(config),
         );
