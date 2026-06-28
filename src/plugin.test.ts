@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { OpenClawPluginApi } from "../api.js";
+import { logger, type OpenClawPluginApi } from "../api.js";
 import { createPlugin, initializePluginDataRoot } from "./plugin.js";
 import { IntentCatalog } from "./intent-loader.js";
 
@@ -74,6 +74,22 @@ describe("createPlugin", () => {
     createPlugin(api).register(api);
 
     expect(load).toHaveBeenCalledWith("intents");
+  });
+
+  it("registers hooks when evolution trigger keyword cache is corrupt", () => {
+    const api = createApi();
+    const dataRoot = path.join(stateDir, "plugins", "intention-hint");
+    fs.mkdirSync(dataRoot, { recursive: true });
+    fs.writeFileSync(path.join(dataRoot, "evolution.json"), "{ broken");
+    const warn = vi.spyOn(logger, "warn").mockImplementation(() => undefined);
+
+    expect(() => createPlugin(api).register(api)).not.toThrow();
+
+    expect(api.on).toHaveBeenCalledWith("agent_end", expect.any(Function));
+    expect(warn).toHaveBeenCalledWith(
+      "failed to read evolution trigger keywords",
+      expect.objectContaining({ path: path.join(dataRoot, "evolution.json") }),
+    );
   });
 
   function createPackageRootWithAssets(files: Record<string, string>): string {

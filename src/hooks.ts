@@ -990,10 +990,10 @@ export function createHookHandlers(deps: HookDeps) {
     });
   }
 
-  async function onAgentEnd(
+  function recordAgentEndResult(
     event: PluginHookAgentEndEvent,
     ctx: PluginHookAgentContext,
-  ): Promise<void> {
+  ): void {
     const turns = extractRecentTurns(
       event.messages as Array<{
         role?: string;
@@ -1012,22 +1012,26 @@ export function createHookHandlers(deps: HookDeps) {
         timestamps: { end: new Date().toISOString() },
       },
     });
+  }
 
-    if (!ctx.sessionId) return;
-    const state = tracker.getCurrentState(ctx.sessionId);
+  function recordAgentEndStats(sessionId: string) {
+    const state = tracker.getCurrentState(sessionId);
     if (!state) return;
+
     const intentDefinition = findIntentDefinition(
       catalog,
       state.intent?.result?.intent,
     );
-    statsAggregator.record(ctx.sessionId, state, intentDefinition);
+    statsAggregator.record(sessionId, state, intentDefinition);
+    return { intentDefinition };
+  }
 
-    const resolvedConfig = config();
-    const evolutionConfig = resolvedConfig.evolution;
-    if (!evolutionConfig.enabled) return;
-    const baseSnapshot = tracker.getReviewSnapshot(ctx.sessionId);
-    if (!baseSnapshot) return;
-    const snapshot = {
+  function buildEvolutionReviewSnapshot(
+    baseSnapshot: NonNullable<ReturnType<typeof tracker.getReviewSnapshot>>,
+    intentDefinition: ReturnType<typeof findIntentDefinition>,
+    agentId: string,
+  ) {
+    return {
       ...baseSnapshot,
       matchedIntent: intentDefinition
         ? {
@@ -1042,7 +1046,7 @@ export function createHookHandlers(deps: HookDeps) {
       availableSkills: intentDefinition
         ? resolveAvailableSkills({
             api,
-            agentId: ctx.agentId ?? baseSnapshot.agentId ?? "main",
+            agentId,
             intentBody: intentDefinition.definition.prompt,
           })
         : [],
@@ -1057,6 +1061,62 @@ export function createHookHandlers(deps: HookDeps) {
         },
       })),
     };
+  }
+
+  function enqueueEvolutionReview(params: {
+    ctx: PluginHookAgentContext;
+    resolvedConfig: ResolvedIntentionHintPluginConfig;
+    agentId: string;
+    modelRef: NonNullable<ReturnType<typeof getReviewModelRef>>;
+    snapshot: ReturnType<typeof buildEvolutionReviewSnapshot>;
+    triggers: ReturnType<typeof checkEvolutionTriggers>;
+  }): void {
+    reviewQueue.enqueue(async () => {
+      const findings = await reviewer({
+        api,
+        config: params.resolvedConfig,
+        agentId: params.agentId,
+        sessionKey: params.ctx.sessionKey ?? params.snapshot.sessionKey,
+        messageProvider: params.ctx.messageProvider,
+        modelRef: params.modelRef,
+        snapshot: params.snapshot,
+        triggers: params.triggers,
+      });
+      if (!findings) return;
+      await backlogWriter.record(
+        params.snapshot.eventId,
+        {
+          sessionId: params.snapshot.sessionId,
+          sessionKey: params.snapshot.sessionKey,
+          agentId: params.snapshot.agentId,
+          turnStart: params.snapshot.current.timestamps!.start!,
+        },
+        findings,
+      );
+    });
+  }
+
+  async function onAgentEnd(
+    event: PluginHookAgentEndEvent,
+    ctx: PluginHookAgentContext,
+  ): Promise<void> {
+    recordAgentEndResult(event, ctx);
+
+    if (!ctx.sessionId) return;
+    const agentEndStats = recordAgentEndStats(ctx.sessionId);
+    if (!agentEndStats) return;
+
+    const resolvedConfig = config();
+    const evolutionConfig = resolvedConfig.evolution;
+    if (!evolutionConfig.enabled) return;
+    const baseSnapshot = tracker.getReviewSnapshot(ctx.sessionId);
+    if (!baseSnapshot) return;
+    const agentId = ctx.agentId ?? baseSnapshot.agentId ?? "main";
+    const snapshot = buildEvolutionReviewSnapshot(
+      baseSnapshot,
+      agentEndStats.intentDefinition,
+      agentId,
+    );
     const triggers = checkEvolutionTriggers(
       snapshot.current,
       snapshot.turnNumber,
@@ -1065,35 +1125,19 @@ export function createHookHandlers(deps: HookDeps) {
     );
     if (triggers.length === 0) return;
 
-    const agentId = ctx.agentId ?? snapshot.agentId ?? "main";
     const modelRef = getReviewModelRef(api, agentId, resolvedConfig, {
       modelProviderId: ctx.modelProviderId,
       modelId: ctx.modelId,
     });
     if (!modelRef) return;
 
-    reviewQueue.enqueue(async () => {
-      const findings = await reviewer({
-        api,
-        config: resolvedConfig,
-        agentId,
-        sessionKey: ctx.sessionKey ?? snapshot.sessionKey,
-        messageProvider: ctx.messageProvider,
-        modelRef,
-        snapshot,
-        triggers,
-      });
-      if (!findings) return;
-      await backlogWriter.record(
-        snapshot.eventId,
-        {
-          sessionId: snapshot.sessionId,
-          sessionKey: snapshot.sessionKey,
-          agentId: snapshot.agentId,
-          turnStart: snapshot.current.timestamps!.start!,
-        },
-        findings,
-      );
+    enqueueEvolutionReview({
+      ctx,
+      resolvedConfig,
+      agentId,
+      modelRef,
+      snapshot,
+      triggers,
     });
   }
 
