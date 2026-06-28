@@ -1187,7 +1187,29 @@ describe("createHookHandlers topic switch flow", () => {
         "prompt-prefix-injection:skipped",
       ]),
     );
-    expect(record).toHaveBeenCalled();
+    expect(record).toHaveBeenCalledWith(
+      "session-1",
+      expect.objectContaining({
+        current: expect.objectContaining({
+          input: "implement topic checker",
+          intent: expect.objectContaining({
+            input: expect.arrayContaining([
+              expect.objectContaining({
+                role: "user",
+                text: "implement topic checker",
+              }),
+            ]),
+            result: expect.objectContaining({
+              intent: "coding",
+              topicChangeReason: "start",
+            }),
+          }),
+        }),
+      }),
+    );
+    expect(
+      record.mock.calls[0][1].current.intent.instructionText,
+    ).toBeUndefined();
   });
 
   it("skips hint injection when confidence is undefined (treated as 0)", async () => {
@@ -1217,7 +1239,7 @@ describe("createHookHandlers topic switch flow", () => {
     const instructionWriter = vi.fn().mockResolvedValue({
       error: "instruction writer produced no text",
     });
-    const { handlers, emitAgentEvent } = createTopicFlowHarness({
+    const { handlers, record, emitAgentEvent } = createTopicFlowHarness({
       historicalIntents: [],
       instructionWriter,
     });
@@ -1244,6 +1266,28 @@ describe("createHookHandlers topic switch flow", () => {
         }),
       }),
     );
+    expect(record).toHaveBeenCalledWith(
+      "session-1",
+      expect.objectContaining({
+        current: expect.objectContaining({
+          intent: expect.objectContaining({
+            input: expect.arrayContaining([
+              expect.objectContaining({
+                role: "user",
+                text: "implement topic checker",
+              }),
+            ]),
+            result: expect.objectContaining({
+              intent: "social-casual",
+              topicChangeReason: "start",
+            }),
+          }),
+        }),
+      }),
+    );
+    expect(
+      record.mock.calls[0][1].current.intent.instructionText,
+    ).toBeUndefined();
   });
 
   it("reports instruction generation errors without emitting a completed result", async () => {
@@ -1340,12 +1384,19 @@ describe("createHookHandlers topic switch flow", () => {
       expect.objectContaining({
         current: expect.objectContaining({
           intent: expect.objectContaining({
+            input: expect.arrayContaining([
+              expect.objectContaining({
+                role: "user",
+                text: "implement topic checker",
+              }),
+            ]),
             result: expect.objectContaining({
               keywords: ["start", "topic"],
               topic: "User is starting an initial topic.",
               domain: "chat",
               topicChangeReason: "start",
             }),
+            instructionText: "Follow the generated coding instructions.",
           }),
         }),
       }),
