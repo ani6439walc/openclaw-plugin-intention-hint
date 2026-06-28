@@ -710,6 +710,226 @@ export function createHookHandlers(deps: HookDeps) {
     tracker.write(params.sessionId);
   }
 
+  function recordPromptBuildResult(params: {
+    ctx: PluginHookAgentContext;
+    routing: NonNullable<ReturnType<typeof resolvePromptBuildRouting>>;
+    latestUserMessage: string;
+    result: IntentionResult;
+    instructionText?: string;
+    conversation: ReturnType<typeof limitConversationTurns>;
+  }): void {
+    recordPromptBuildSession({
+      sessionId: params.ctx.sessionId,
+      resolvedSessionKey: params.routing.resolvedSessionKey,
+      fallbackSessionKey: params.ctx.sessionKey,
+      effectiveAgentId: params.routing.effectiveAgentId,
+      latestUserMessage: params.latestUserMessage,
+      result: params.result,
+      instructionText: params.instructionText,
+      conversation: params.conversation,
+    });
+  }
+
+  function buildExactKeywordIntentResult(params: {
+    exactKeywordMatch: NonNullable<ReturnType<typeof findExactKeywordIntent>>;
+    latestHistoricalIntent?: HistoricalIntentRecord;
+  }): IntentionResult {
+    const sameIntent =
+      resolveIntentId(params.latestHistoricalIntent?.intent) ===
+      params.exactKeywordMatch.intent.id.toLowerCase();
+
+    return {
+      intent: params.exactKeywordMatch.intent.id,
+      reason: `Exact keyword match: ${params.exactKeywordMatch.keyword}`,
+      keywords: [params.exactKeywordMatch.keyword],
+      domain: params.exactKeywordMatch.intent.definition.domain,
+      topic: `Exact keyword match for ${params.exactKeywordMatch.intent.id}.`,
+      previousTopic:
+        params.latestHistoricalIntent && !sameIntent
+          ? params.latestHistoricalIntent.topic
+          : undefined,
+      topicChangeReason: !params.latestHistoricalIntent
+        ? "start"
+        : sameIntent
+          ? undefined
+          : "match",
+      confidence: 1,
+      complexity: "low",
+    };
+  }
+
+  function handleExactKeywordPromptBuild(params: {
+    ctx: PluginHookAgentContext;
+    routing: NonNullable<ReturnType<typeof resolvePromptBuildRouting>>;
+    refreshedConfig: ResolvedIntentionHintPluginConfig;
+    latestUserMessage: string;
+    historicalIntents: HistoricalIntentRecord[];
+    conversation: ReturnType<typeof limitConversationTurns>;
+    availableIntents: ReturnType<typeof catalog.filterForAgent>;
+    exactKeywordMatch: NonNullable<ReturnType<typeof findExactKeywordIntent>>;
+  }): PluginHookBeforePromptBuildResult | undefined {
+    const latestHistoricalIntent =
+      params.historicalIntents[params.historicalIntents.length - 1];
+    const result = buildExactKeywordIntentResult({
+      exactKeywordMatch: params.exactKeywordMatch,
+      latestHistoricalIntent,
+    });
+
+    emitPipelineEvent(
+      params.ctx,
+      params.routing.resolvedSessionKey,
+      "topic-triage",
+      "completed",
+      {
+        domain: result.domain,
+        keywords: result.keywords,
+        topic: result.topic,
+        changed: result.topicChangeReason !== undefined,
+        reason: result.topicChangeReason,
+        complexity: result.complexity,
+      },
+    );
+    recordPromptBuildResult({
+      ctx: params.ctx,
+      routing: params.routing,
+      latestUserMessage: params.latestUserMessage,
+      result,
+      instructionText: params.exactKeywordMatch.hint,
+      conversation: params.conversation,
+    });
+    const promptPrefix = buildPromptPrefix(
+      result,
+      params.availableIntents,
+      params.refreshedConfig,
+      params.exactKeywordMatch.hint,
+    );
+    return promptPrefix ? { prependContext: promptPrefix } : undefined;
+  }
+
+  async function handleClassifiedPromptBuild(params: {
+    ctx: PluginHookAgentContext;
+    routing: NonNullable<ReturnType<typeof resolvePromptBuildRouting>>;
+    refreshedConfig: ResolvedIntentionHintPluginConfig;
+    latestUserMessage: string;
+    conversation: ReturnType<typeof limitConversationTurns>;
+    availableIntents: ReturnType<typeof catalog.filterForAgent>;
+    classification: PromptBuildClassification;
+    modelRef: NonNullable<ReturnType<typeof getModelRef>>;
+  }): Promise<PluginHookBeforePromptBuildResult | undefined> {
+    const result = params.classification.result;
+    logger.debug(`intention subagent result: ${JSON.stringify(result)}`);
+
+    if (params.classification.kind === "same-topic") {
+      logger.debug("topic unchanged; recording inherited intent only.");
+      recordPromptBuildResult({
+        ctx: params.ctx,
+        routing: params.routing,
+        latestUserMessage: params.latestUserMessage,
+        result,
+        conversation: params.conversation,
+      });
+      return;
+    }
+
+    // Safety fallback: skip intent instruction subagent and hint injection when topic unchanged
+    if (!result.topicChangeReason) {
+      logger.debug(
+        "topic unchanged; skipping intent instruction subagent and hint injection.",
+      );
+      recordPromptBuildResult({
+        ctx: params.ctx,
+        routing: params.routing,
+        latestUserMessage: params.latestUserMessage,
+        result,
+        conversation: params.conversation,
+      });
+      return;
+    }
+
+    // Skip intent instruction subagent when confidence is too low
+    if ((result.confidence ?? 0) < 0.7) {
+      logger.debug(
+        `confidence ${result.confidence} below 0.7; skipping intent instruction subagent and hint injection.`,
+      );
+      recordPromptBuildResult({
+        ctx: params.ctx,
+        routing: params.routing,
+        latestUserMessage: params.latestUserMessage,
+        result,
+        conversation: params.conversation,
+      });
+      return;
+    }
+
+    emitPipelineEvent(
+      params.ctx,
+      params.routing.resolvedSessionKey,
+      "hint-generate",
+      "started",
+    );
+    const intentBody = findIntentBody(params.availableIntents, result.intent);
+    const instructionResult = await instructionWriter({
+      api,
+      config: params.refreshedConfig,
+      agentId: params.routing.effectiveAgentId,
+      sessionKey: params.routing.resolvedSessionKey,
+      sessionId: params.ctx.sessionId,
+      conversation: params.conversation,
+      latest: params.latestUserMessage,
+      result,
+      intentBody,
+      availableSkills: resolveAvailableSkills({
+        api,
+        agentId: params.routing.effectiveAgentId,
+        intentBody,
+      }),
+      messageProvider: params.ctx.messageProvider,
+      modelRef: params.modelRef,
+    });
+    const instructionText = instructionResult.text;
+    if (instructionText) {
+      emitPipelineEvent(
+        params.ctx,
+        params.routing.resolvedSessionKey,
+        "hint-generate",
+        "completed",
+        {
+          result: instructionText,
+        },
+      );
+    } else {
+      const instructionError =
+        instructionResult.error ?? "instruction writer produced no text";
+      emitPipelineEvent(
+        params.ctx,
+        params.routing.resolvedSessionKey,
+        "hint-generate",
+        "failed",
+        {
+          reason: instructionError,
+          error: instructionError,
+        },
+      );
+    }
+
+    recordPromptBuildResult({
+      ctx: params.ctx,
+      routing: params.routing,
+      latestUserMessage: params.latestUserMessage,
+      result,
+      instructionText,
+      conversation: params.conversation,
+    });
+
+    const promptPrefix = buildPromptPrefix(
+      result,
+      params.availableIntents,
+      params.refreshedConfig,
+      instructionText,
+    );
+    return promptPrefix ? { prependContext: promptPrefix } : undefined;
+  }
+
   async function onBeforePromptBuild(
     event: PluginHookBeforePromptBuildEvent,
     ctx: PluginHookAgentContext,
@@ -749,63 +969,16 @@ export function createHookHandlers(deps: HookDeps) {
         availableIntents,
       );
       if (exactKeywordMatch) {
-        const latestHistoricalIntent =
-          historicalIntents[historicalIntents.length - 1];
-        const sameIntent =
-          resolveIntentId(latestHistoricalIntent?.intent) ===
-          exactKeywordMatch.intent.id.toLowerCase();
-        const result: IntentionResult = {
-          intent: exactKeywordMatch.intent.id,
-          reason: `Exact keyword match: ${exactKeywordMatch.keyword}`,
-          keywords: [exactKeywordMatch.keyword],
-          domain: exactKeywordMatch.intent.definition.domain,
-          topic: `Exact keyword match for ${exactKeywordMatch.intent.id}.`,
-          previousTopic:
-            latestHistoricalIntent && !sameIntent
-              ? latestHistoricalIntent.topic
-              : undefined,
-          topicChangeReason: !latestHistoricalIntent
-            ? "start"
-            : sameIntent
-              ? undefined
-              : "match",
-          confidence: 1,
-          complexity: "low",
-        };
-        emitPipelineEvent(
+        return handleExactKeywordPromptBuild({
           ctx,
-          routing.resolvedSessionKey,
-          "topic-triage",
-          "completed",
-          {
-            domain: result.domain,
-            keywords: result.keywords,
-            topic: result.topic,
-            changed: result.topicChangeReason !== undefined,
-            reason: result.topicChangeReason,
-            complexity: result.complexity,
-          },
-        );
-        recordPromptBuildSession({
-          sessionId: ctx.sessionId,
-          resolvedSessionKey: routing.resolvedSessionKey,
-          fallbackSessionKey: ctx.sessionKey,
-          effectiveAgentId: routing.effectiveAgentId,
-          latestUserMessage,
-          result,
-          instructionText: exactKeywordMatch.hint,
-          conversation,
-        });
-        const promptPrefix = buildPromptPrefix(
-          result,
-          availableIntents,
+          routing,
           refreshedConfig,
-          exactKeywordMatch.hint,
-        );
-        if (!promptPrefix) {
-          return;
-        }
-        return { prependContext: promptPrefix };
+          latestUserMessage,
+          historicalIntents,
+          conversation,
+          availableIntents,
+          exactKeywordMatch,
+        });
       }
 
       const modelRef = getModelRef(
@@ -836,130 +1009,16 @@ export function createHookHandlers(deps: HookDeps) {
         return;
       }
 
-      const result = classification.result;
-      logger.debug(`intention subagent result: ${JSON.stringify(result)}`);
-
-      if (classification.kind === "same-topic") {
-        logger.debug("topic unchanged; recording inherited intent only.");
-        recordPromptBuildSession({
-          sessionId: ctx.sessionId,
-          resolvedSessionKey: routing.resolvedSessionKey,
-          fallbackSessionKey: ctx.sessionKey,
-          effectiveAgentId: routing.effectiveAgentId,
-          latestUserMessage,
-          result,
-          conversation,
-        });
-        return;
-      }
-
-      // Safety fallback: skip intent instruction subagent and hint injection when topic unchanged
-      if (!result.topicChangeReason) {
-        logger.debug(
-          "topic unchanged; skipping intent instruction subagent and hint injection.",
-        );
-        recordPromptBuildSession({
-          sessionId: ctx.sessionId,
-          resolvedSessionKey: routing.resolvedSessionKey,
-          fallbackSessionKey: ctx.sessionKey,
-          effectiveAgentId: routing.effectiveAgentId,
-          latestUserMessage,
-          result,
-          conversation,
-        });
-        return;
-      }
-
-      // Skip intent instruction subagent when confidence is too low
-      if ((result.confidence ?? 0) < 0.7) {
-        logger.debug(
-          `confidence ${result.confidence} below 0.7; skipping intent instruction subagent and hint injection.`,
-        );
-        recordPromptBuildSession({
-          sessionId: ctx.sessionId,
-          resolvedSessionKey: routing.resolvedSessionKey,
-          fallbackSessionKey: ctx.sessionKey,
-          effectiveAgentId: routing.effectiveAgentId,
-          latestUserMessage,
-          result,
-          conversation,
-        });
-        return;
-      }
-
-      emitPipelineEvent(
+      return await handleClassifiedPromptBuild({
         ctx,
-        routing.resolvedSessionKey,
-        "hint-generate",
-        "started",
-      );
-      const intentBody = findIntentBody(availableIntents, result.intent);
-      const instructionResult = await instructionWriter({
-        api,
-        config: refreshedConfig,
-        agentId: routing.effectiveAgentId,
-        sessionKey: routing.resolvedSessionKey,
-        sessionId: ctx.sessionId,
+        routing,
+        refreshedConfig,
+        latestUserMessage,
         conversation,
-        latest: latestUserMessage,
-        result,
-        intentBody,
-        availableSkills: resolveAvailableSkills({
-          api,
-          agentId: routing.effectiveAgentId,
-          intentBody,
-        }),
-        messageProvider: ctx.messageProvider,
+        availableIntents,
+        classification,
         modelRef,
       });
-      const instructionText = instructionResult.text;
-      if (instructionText) {
-        emitPipelineEvent(
-          ctx,
-          routing.resolvedSessionKey,
-          "hint-generate",
-          "completed",
-          {
-            result: instructionText,
-          },
-        );
-      } else {
-        const instructionError =
-          instructionResult.error ?? "instruction writer produced no text";
-        emitPipelineEvent(
-          ctx,
-          routing.resolvedSessionKey,
-          "hint-generate",
-          "failed",
-          {
-            reason: instructionError,
-            error: instructionError,
-          },
-        );
-      }
-
-      recordPromptBuildSession({
-        sessionId: ctx.sessionId,
-        resolvedSessionKey: routing.resolvedSessionKey,
-        fallbackSessionKey: ctx.sessionKey,
-        effectiveAgentId: routing.effectiveAgentId,
-        latestUserMessage,
-        result,
-        instructionText,
-        conversation,
-      });
-
-      const promptPrefix = buildPromptPrefix(
-        result,
-        availableIntents,
-        refreshedConfig,
-        instructionText,
-      );
-      if (!promptPrefix) {
-        return;
-      }
-
-      return { prependContext: promptPrefix };
     } catch (err) {
       logger.warn("before_prompt_build hook error", { error: err });
       return;

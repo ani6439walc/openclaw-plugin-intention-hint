@@ -147,11 +147,10 @@ graph LR
 ```
 
 `onBeforePromptBuild` emits compact pipeline events for Discord/status consumers
-only on the three visible phases: `topic-continuity-check`,
-`intent-classification`, and `instruction-hint-generation`. Exact keyword and
-domain keyword routes are reported through those semantic phases instead of
-fastpath-specific phase names. Event failures are fail-open and never add text to
-`prependContext`.
+only on the three visible phases: `topic-triage`, `intent-classify`, and
+`hint-generate`. Exact keyword and domain keyword routes are reported through
+those semantic phases instead of fastpath-specific phase names. Event failures
+are fail-open and never add text to `prependContext`.
 
 Prompt assembly keeps static instructions, schema examples, and catalog data before
 dynamic conversation input, then closes helper prompts with a short final output
