@@ -509,6 +509,14 @@ Example output when topic_switch_context is absent:
   "complexity": "medium"
 }
 
+Example when topic_switch_context is present (correction fragment):
+{
+  "intent": "other",
+  "reason": "Short corrected phrase clarifies the previous ambiguous request",
+  "confidence": 0.75,
+  "complexity": "low"
+}
+
 Example when topic_switch_context is present (with keyword override):
 {
   "intent": "deploy",

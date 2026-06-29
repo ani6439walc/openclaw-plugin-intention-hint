@@ -1457,6 +1457,52 @@ describe("createHookHandlers topic switch flow", () => {
     );
   });
 
+  it("falls back to topic context when classifier omits or malforms optional routing fields", async () => {
+    const topicContext = {
+      keywords: ["deploy", "production", "kubernetes"],
+      topic: "User is switching to a production deployment.",
+      domain: "git",
+      changed: true,
+      reason: "marker" as const,
+      complexity: "high" as const,
+    };
+    const classifier = vi.fn().mockResolvedValue({
+      intent: "version-control",
+      reason: "User wants a deployment follow-up",
+      keywords: "deploy" as unknown as string[],
+      confidence: 0.95,
+      complexity: undefined,
+    });
+    const { handlers, instructionWriter } = createTopicFlowHarness({
+      historicalIntents: [
+        {
+          input: "plan topic checker",
+          intent: "coding",
+          keywords: ["topic", "checker"],
+          topic: "topic / checker",
+          domain: "coding",
+          confidence: 0.8,
+          complexity: "medium",
+        },
+      ],
+      intents: [versionControlIntent],
+      classifier,
+      topicChecker: vi.fn().mockResolvedValue(topicContext),
+    });
+
+    await handlers.onBeforePromptBuild(event, ctx);
+
+    expect(instructionWriter).toHaveBeenCalledWith(
+      expect.objectContaining({
+        result: expect.objectContaining({
+          keywords: ["deploy", "production", "kubernetes"],
+          complexity: "high",
+          previousTopic: "topic / checker",
+        }),
+      }),
+    );
+  });
+
   it("passes referenced skill metadata to the instruction writer", async () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ih-hook-skills-"));
     const workspace = path.join(tmp, "workspace");

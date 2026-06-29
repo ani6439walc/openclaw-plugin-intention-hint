@@ -215,11 +215,18 @@ describe("buildIntentionPrompt", () => {
     );
     expect(result).toContain("topic_switch_context as routing evidence");
     expect(result).toContain("Do not copy the topic text as the intent");
-    expect(result).toContain("Example when topic_switch_context is present (with keyword override):");
-    expect(result).toContain('"intent": "deploy"');
     expect(result).toContain(
-      "User wants to deploy to production",
+      "Example when topic_switch_context is present (correction fragment):",
     );
+    expect(result).toContain('"intent": "other"');
+    expect(result).toContain(
+      "Short corrected phrase clarifies the previous ambiguous request",
+    );
+    expect(result).toContain(
+      "Example when topic_switch_context is present (with keyword override):",
+    );
+    expect(result).toContain('"intent": "deploy"');
+    expect(result).toContain("User wants to deploy to production");
   });
 
   it("tells classifier it may override keywords and complexity when topic context exists", () => {
@@ -244,7 +251,9 @@ describe("buildIntentionPrompt", () => {
     expect(result).toContain(
       "Required only when topic_switch_context is absent",
     );
-    expect(result).toContain("Optional fields (when topic_switch_context is present)");
+    expect(result).toContain(
+      "Optional fields (when topic_switch_context is present)",
+    );
   });
 });
 
