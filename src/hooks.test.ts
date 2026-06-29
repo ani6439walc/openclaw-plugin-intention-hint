@@ -1470,6 +1470,7 @@ describe("createHookHandlers topic switch flow", () => {
       intent: "version-control",
       reason: "User wants a deployment follow-up",
       keywords: "deploy" as unknown as string[],
+      domain: "infra",
       confidence: 0.95,
       complexity: undefined,
     });
@@ -1496,6 +1497,7 @@ describe("createHookHandlers topic switch flow", () => {
       expect.objectContaining({
         result: expect.objectContaining({
           keywords: ["deploy", "production", "kubernetes"],
+          domain: "infra",
           complexity: "high",
           previousTopic: "topic / checker",
         }),

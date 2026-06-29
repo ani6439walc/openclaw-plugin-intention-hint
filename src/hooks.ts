@@ -505,8 +505,10 @@ export function createHookHandlers(deps: HookDeps) {
       result.keywords = classifierKeywords?.length
         ? classifierKeywords
         : [...topicContext.keywords];
+      // Intent Classifier may override domain; only use topicContext as fallback
+      const classifierDomain = result.domain?.trim();
       result.domain =
-        topicContext.domain ?? result.domain ?? FALLBACK_INTENT.domain;
+        classifierDomain || topicContext.domain || FALLBACK_INTENT.domain;
       result.topic = topicContext.topic;
       result.topicChangeReason = topicChangeReason;
       result.previousTopic = topicChangeReason
