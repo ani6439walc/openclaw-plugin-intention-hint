@@ -496,8 +496,15 @@ export function createHookHandlers(deps: HookDeps) {
   ): void {
     if (topicContext) {
       const topicChangeReason = resolveTopicChangeReason(topicContext);
-      result.complexity = topicContext.complexity;
-      result.keywords = [...topicContext.keywords];
+      // Intent Classifier may override complexity; only use topicContext as fallback
+      result.complexity = result.complexity ?? topicContext.complexity;
+      // Intent Classifier may override keywords; only use topicContext as fallback
+      const classifierKeywords = Array.isArray(result.keywords)
+        ? result.keywords
+        : undefined;
+      result.keywords = classifierKeywords?.length
+        ? classifierKeywords
+        : [...topicContext.keywords];
       result.domain =
         topicContext.domain ?? result.domain ?? FALLBACK_INTENT.domain;
       result.topic = topicContext.topic;
