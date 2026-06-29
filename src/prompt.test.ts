@@ -243,7 +243,7 @@ describe("buildIntentionPrompt", () => {
     });
 
     expect(result).toContain(
-      "use its complexity and keywords as starting hints, not forced values",
+      "use its complexity, domain, and keywords as starting hints, not forced values",
     );
     expect(result).toContain(
       "You may override them based on the selected intent's characteristics",
@@ -253,6 +253,9 @@ describe("buildIntentionPrompt", () => {
     );
     expect(result).toContain(
       "Optional fields (when topic_switch_context is present)",
+    );
+    expect(result).toContain(
+      '"domain": string - Override topic_switch_context domain when the selected intent belongs to a different semantic domain',
     );
   });
 });
@@ -294,6 +297,8 @@ describe("buildTopicSwitchPrompt", () => {
     expect(prompt).toContain("繼續實作 topic checker");
     expect(prompt).toContain("current subject and interaction mode");
     expect(prompt).toContain("do not name or choose an intent id");
+    expect(prompt).toContain("2. Write topic as one concise");
+    expect(prompt).not.toContain("3. Write topic as one concise");
     expect(prompt).toContain("Preserve important URLs or hostnames");
     expect(prompt).toContain("requested action or desired outcome");
     expect(prompt).toContain("not merely the most technical noun mentioned");
@@ -658,7 +663,15 @@ describe("buildIntentInstructionPrompt", () => {
       prompt.indexOf("Rules:"),
     );
     expect(prompt).toContain("Skill Recommendation");
-    expect(prompt).toContain("at most 1-3 explicit skill directives");
+    expect(prompt).toContain("Default to no explicit skill directives");
+    expect(prompt).toContain("at most 1 explicit skill directive");
+    expect(prompt).toContain("Use 2-3 directives only when");
+    expect(prompt).toContain(
+      "Recommend only skills listed in available_skills",
+    );
+    expect(prompt).toContain(
+      "If no skill passes this bar, emit no explicit skill directive",
+    );
     expect(prompt).toContain("MUST read skill: <skill-name> at <path>");
     expect(prompt).toContain("REQUIRED skill: <skill-name>");
     expect(prompt).toContain("merely related or optional skills");
@@ -808,6 +821,29 @@ describe("parseIntentionResult", () => {
 
     expect(result).toMatchObject({
       complexity: "low",
+    });
+  });
+
+  it("lets classifier domain override topic context starting hint", () => {
+    const result = parseIntentionResult(
+      JSON.stringify({
+        intent: "coding",
+        reason: "User asks for infrastructure work",
+        confidence: 0.85,
+        domain: "infra",
+      }),
+      ["coding", "other"],
+      {
+        keywords: ["topic", "checker", "implementation"],
+        topic: "User is continuing implementation of the topic checker.",
+        domain: "coding",
+        changed: false,
+        complexity: "medium",
+      },
+    );
+
+    expect(result).toMatchObject({
+      domain: "infra",
     });
   });
 
