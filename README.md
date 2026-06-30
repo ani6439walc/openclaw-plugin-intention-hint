@@ -5,6 +5,18 @@
 
 An OpenClaw plugin that pre-scans user intent before main-agent replies and injects routing hints via the `before_prompt_build` hook. It also tracks session-level metrics via `after_tool_call` and `agent_end`, then cleans up tracker state and session JSON retention via `session_end`.
 
+## Current Status (verified 2026-06-30)
+
+- Package version: `2026.6.8`; OpenClaw compatibility in `package.json` targets Plugin API and Gateway `>=2026.6.8`.
+- Branch state inspected on `main` at `0e32bed` (`feat: add low thinking fastpath mode (#39)`).
+- Recent implementation work focused on low-thinking fastpath behavior, classifier override robustness, runtime Evolution trigger keywords, the deterministic `entity-context` trigger, reduced-noise skill recommendation stats, and prompt output contracts for compact helper models.
+- Current first-install bundled intent assets are `approve`, `chat`, `memory-compare`, `memory-lookup`, `reject`, and `typo`; the active writable catalog still lives only under `$OPENCLAW_STATE_DIR/plugins/intention-hint/intents`.
+- Codebase shape from `pygount` excluding dependencies/build output: 48 TypeScript files with 10,844 code lines, 15 Markdown files, 3 JSON files, and 72 counted files total.
+- TypeScript line split: 25 runtime files / 7,171 lines, 22 test files / 9,250 lines, 1 tooling file / 8 lines; test/runtime line ratio is about 1.29x.
+- Verification status: `pnpm run typecheck` passes, `pnpm run test` passes with 22 test files / 398 tests, and `pnpm pack --dry-run` succeeds.
+- Package hygiene note: current `pnpm pack --dry-run` output includes `dist/vitest.config.*` because `tsconfig.json` includes root `./*.ts`. Decide whether to keep publishing that harmless build artifact or narrow the TypeScript include/exclude list in a future cleanup.
+- Dependency audit note: `pnpm audit --audit-level moderate` currently reports transitive OpenClaw dependency findings for `undici`, `protobufjs`, and `tar`, plus `gray-matter > js-yaml`. Remediation should be coordinated with OpenClaw/gray-matter compatibility rather than patched blindly in this plugin.
+
 ## Architecture
 
 ```
@@ -223,11 +235,13 @@ Rates use `0.0–1.0`. Skill lifecycle is `active` within 30 days, `stale` after
 
 ## Installation
 
-This plugin is a workspace package inside the OpenClaw extensions directory. Build it with:
+Build the package from the plugin repository root:
 
 ```bash
-cd extensions/intention-hint
+cd openclaw-plugin-intention-hint
 pnpm install
+pnpm run typecheck
+pnpm run test
 pnpm run build
 ```
 
@@ -563,9 +577,10 @@ influenced by internal task-completion traffic.
 ### Testing
 
 ```bash
-pnpm test          # typecheck + vitest run
-pnpm run typecheck # tsc --noEmit
-pnpm run test:unit # vitest run
+pnpm run typecheck # TypeScript, no emit
+pnpm run test      # Vitest suite
+pnpm run build     # Compile to dist/
+pnpm run format    # Prettier for md/json/ts files
 ```
 
 The test suites cover:
