@@ -649,6 +649,90 @@ describe("createHookHandlers topic switch flow", () => {
     );
   });
 
+  it("keeps deterministic exact keyword hints in low thinking fastpath-only mode", async () => {
+    const fastEvent = {
+      prompt: "謝謝",
+      messages: [{ role: "user", content: "謝謝" }],
+    } as never;
+    const { handlers, classifier, topicChecker, instructionWriter } =
+      createTopicFlowHarness({ historicalIntents: [] });
+
+    const result = await handlers.onBeforePromptBuild(fastEvent, {
+      ...ctx,
+      reasoningEffort: "low",
+    } as never);
+
+    expect(result?.prependContext).toContain("Reply warmly.");
+    expect(topicChecker).not.toHaveBeenCalled();
+    expect(classifier).not.toHaveBeenCalled();
+    expect(instructionWriter).not.toHaveBeenCalled();
+  });
+
+  it("skips every LLM subagent when low thinking fastpath-only mode has no exact keyword match", async () => {
+    const { handlers, classifier, topicChecker, instructionWriter, record } =
+      createTopicFlowHarness({ historicalIntents: [] });
+
+    const result = await handlers.onBeforePromptBuild(event, {
+      ...ctx,
+      reasoningEffort: "low",
+    } as never);
+
+    expect(result).toBeUndefined();
+    expect(topicChecker).not.toHaveBeenCalled();
+    expect(classifier).not.toHaveBeenCalled();
+    expect(instructionWriter).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
+  });
+
+  it("skips exact keyword hints when low thinking mode is off", async () => {
+    const fastEvent = {
+      prompt: "謝謝",
+      messages: [{ role: "user", content: "謝謝" }],
+    } as never;
+    const { handlers, classifier, topicChecker, instructionWriter, record } =
+      createTopicFlowHarness({
+        historicalIntents: [],
+        configRaw: {
+          model: "google/test-intent",
+          lowThinkingMode: "off",
+        },
+      });
+
+    const result = await handlers.onBeforePromptBuild(fastEvent, {
+      ...ctx,
+      reasoningEffort: "minimal",
+    } as never);
+
+    expect(result).toBeUndefined();
+    expect(topicChecker).not.toHaveBeenCalled();
+    expect(classifier).not.toHaveBeenCalled();
+    expect(instructionWriter).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
+  });
+
+  it("runs the full scanner pipeline for low thinking when configured to full", async () => {
+    const { handlers, classifier, topicChecker, instructionWriter } =
+      createTopicFlowHarness({
+        historicalIntents: [],
+        configRaw: {
+          model: "google/test-intent",
+          lowThinkingMode: "full",
+        },
+      });
+
+    const result = await handlers.onBeforePromptBuild(event, {
+      ...ctx,
+      reasoningEffort: "off",
+    } as never);
+
+    expect(result?.prependContext).toContain(
+      "Follow the generated coding instructions.",
+    );
+    expect(topicChecker).toHaveBeenCalledOnce();
+    expect(classifier).toHaveBeenCalledOnce();
+    expect(instructionWriter).toHaveBeenCalledOnce();
+  });
+
   it("persists prompt-build intent data for exact keyword matches", async () => {
     const fastEvent = {
       prompt: "謝謝",

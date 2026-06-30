@@ -25,6 +25,8 @@ export type ThinkLevel =
   | "adaptive"
   | "max";
 
+export type LowThinkingMode = "fastpath-only" | "full" | "off";
+
 export type EvolutionTriggersConfig = {
   skillCandidate?: { enabled?: boolean; toolCalls?: number };
   processGap?: { enabled?: boolean; toolFailures?: number };
@@ -77,6 +79,7 @@ export type IntentionHintPluginConfig = {
   model?: string;
   modelFallback?: string;
   thinking?: ThinkLevel;
+  lowThinkingMode?: LowThinkingMode;
   allowedChatTypes?: string[];
   allowedChatIds?: string[];
   deniedChatIds?: string[];
@@ -93,6 +96,7 @@ export type ResolvedIntentionHintPluginConfig = {
   model: string | undefined;
   modelFallback: string | undefined;
   thinking: ThinkLevel;
+  lowThinkingMode: LowThinkingMode;
   allowedChatTypes: string[];
   allowedChatIds: string[];
   deniedChatIds: string[];

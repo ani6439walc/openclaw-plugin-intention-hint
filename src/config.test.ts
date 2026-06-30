@@ -129,6 +129,27 @@ describe("resolveConfig", () => {
       expect(result.thinking).toBe("medium");
       expect(result.evolution.thinking).toBe("medium");
     });
+
+    it("defaults low thinking mode to deterministic fastpath only", () => {
+      const result = resolveConfig({});
+
+      expect(result.lowThinkingMode).toBe("fastpath-only");
+    });
+
+    it("accepts low thinking mode values and falls back on invalid values", () => {
+      expect(resolveConfig({ lowThinkingMode: "full" }).lowThinkingMode).toBe(
+        "full",
+      );
+      expect(resolveConfig({ lowThinkingMode: "off" }).lowThinkingMode).toBe(
+        "off",
+      );
+      expect(
+        resolveConfig({ lowThinkingMode: "fastpath-only" }).lowThinkingMode,
+      ).toBe("fastpath-only");
+      expect(
+        resolveConfig({ lowThinkingMode: "invalid" }).lowThinkingMode,
+      ).toBe("fastpath-only");
+    });
   });
 
   describe("enum validation", () => {

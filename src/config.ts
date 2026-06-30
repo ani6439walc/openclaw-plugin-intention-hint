@@ -69,6 +69,7 @@ const DEFAULT_CONFIG = {
   model: undefined,
   modelFallback: undefined,
   thinking: "medium",
+  lowThinkingMode: "fastpath-only",
   allowedChatTypes: ["direct"],
   allowedChatIds: [],
   deniedChatIds: [],
@@ -144,6 +145,9 @@ const enabledSchema = z.boolean().catch(true);
 const ThinkLevelSchema = z
   .enum(["off", "minimal", "low", "medium", "high", "xhigh", "adaptive", "max"])
   .catch("medium");
+const LowThinkingModeSchema = z
+  .enum(["fastpath-only", "full", "off"])
+  .catch("fastpath-only");
 const EvolutionSchema = z
   .object({
     enabled: z.boolean().catch(false),
@@ -230,6 +234,7 @@ const IntentionHintConfigSchema = z
     model: z.string().optional().catch(undefined),
     modelFallback: z.string().optional().catch(undefined),
     thinking: ThinkLevelSchema,
+    lowThinkingMode: LowThinkingModeSchema,
     allowedChatTypes: stringListWithDefault(["direct"]),
     allowedChatIds: StringListSchema,
     deniedChatIds: StringListSchema,
