@@ -15,6 +15,10 @@
       "label": "Scanner Thinking",
       "help": "Thinking level for the intent classifier sub-agent."
     },
+    "lowThinkingMode": {
+      "label": "Low Thinking Mode",
+      "help": "Controls scanner behavior when the main agent uses off, minimal, or low thinking."
+    },
     "timeoutMs": {
       "label": "Scanner Timeout",
       "help": "Budget in milliseconds for each intention scanner sub-agent run."
@@ -63,6 +67,12 @@
         ],
         "description": "Thinking level for the intent classifier sub-agent.",
         "default": "medium"
+      },
+      "lowThinkingMode": {
+        "type": "string",
+        "enum": ["fastpath-only", "full", "off"],
+        "description": "Behavior when the main agent uses off, minimal, or low thinking. fastpath-only preserves deterministic exact keyword hints but skips all LLM scanner sub-agents; full keeps the full pipeline; off disables the plugin for low-thinking turns.",
+        "default": "fastpath-only"
       },
       "allowedChatTypes": {
         "type": "array",

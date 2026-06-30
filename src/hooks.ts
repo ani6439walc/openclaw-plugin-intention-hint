@@ -74,6 +74,34 @@ type PipelineMetadata = {
   error?: string;
 };
 
+const LOW_THINKING_EFFORTS = new Set(["off", "minimal", "low"]);
+
+function resolveReasoningEffort(
+  ctx: PluginHookAgentContext,
+): string | undefined {
+  const value = (ctx as Record<string, unknown>).reasoningEffort;
+  return typeof value === "string" ? value.trim().toLowerCase() : undefined;
+}
+
+function isLowThinkingEffort(ctx: PluginHookAgentContext): boolean {
+  const effort = resolveReasoningEffort(ctx);
+  return effort ? LOW_THINKING_EFFORTS.has(effort) : false;
+}
+
+function shouldSkipAllForLowThinking(
+  ctx: PluginHookAgentContext,
+  config: ResolvedIntentionHintPluginConfig,
+): boolean {
+  return config.lowThinkingMode === "off" && isLowThinkingEffort(ctx);
+}
+
+function shouldUseDeterministicLowThinkingMode(
+  ctx: PluginHookAgentContext,
+  config: ResolvedIntentionHintPluginConfig,
+): boolean {
+  return config.lowThinkingMode === "fastpath-only" && isLowThinkingEffort(ctx);
+}
+
 function cleanPipelineEventData(
   data: Record<string, unknown>,
 ): Record<string, unknown> {
@@ -956,6 +984,12 @@ export function createHookHandlers(deps: HookDeps) {
       // THEN refresh config and intents
       refreshLiveConfigFromRuntime();
       const refreshedConfig = config();
+      if (shouldSkipAllForLowThinking(ctx, refreshedConfig)) {
+        logger.debug(
+          "low thinking mode is off; skipping intention scan for low reasoning effort.",
+        );
+        return;
+      }
       const { latestUserMessage, historicalIntents, conversation } =
         buildConversationContext(event, ctx, refreshedConfig);
 
@@ -988,6 +1022,13 @@ export function createHookHandlers(deps: HookDeps) {
           availableIntents,
           exactKeywordMatch,
         });
+      }
+
+      if (shouldUseDeterministicLowThinkingMode(ctx, refreshedConfig)) {
+        logger.debug(
+          "low thinking fastpath-only mode found no exact keyword match; skipping LLM-based intent analysis.",
+        );
+        return;
       }
 
       const modelRef = getModelRef(

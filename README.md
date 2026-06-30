@@ -249,6 +249,7 @@ pnpm run build
           model: "google/gemini-3-flash", // lightweight scanner model
           modelFallback: "openai/gpt-5-mini",
           thinking: "medium", // intent classifier subagent thinking level
+          lowThinkingMode: "fastpath-only", // low main-agent thinking skips LLM scanner calls
           allowedChatTypes: ["direct"],
           allowedChatIds: [],
           deniedChatIds: [],
@@ -288,25 +289,33 @@ pnpm run build
 
 ### Configuration Reference
 
-| Option              | Type       | Default      | Description                                                                                                                                              |
-| ------------------- | ---------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `agents`            | `string[]` | `["*"]`      | Which agents trigger the plugin. Use `["*"]` for all agents.                                                                                             |
-| `intentDeny`        | `object`   | `{}`         | Per-agent deny list of intent IDs. Keys support `*` glob patterns.                                                                                       |
-| `model`             | `string`   | —            | Lightweight model for the intention scanner. Falls back to the agent's default if empty.                                                                 |
-| `modelFallback`     | `string`   | —            | Fallback model when `config.model` cannot be resolved.                                                                                                   |
-| `thinking`          | `string`   | `"medium"`   | Thinking level for the intent classifier subagent.                                                                                                       |
-| `allowedChatTypes`  | `string[]` | `["direct"]` | Chat types (direct, group, channel) that allow intent analysis.                                                                                          |
-| `allowedChatIds`    | `string[]` | `[]`         | Allowlist of chat IDs. Empty means no allowlist restriction.                                                                                             |
-| `deniedChatIds`     | `string[]` | `[]`         | Blocklist of chat IDs. Plugin skips intent analysis for listed IDs.                                                                                      |
-| `queryMode`         | `string`   | `"recent"`   | Context window mode: `recent` (recent turns), `message` (latest message only), `full` (full history).                                                    |
-| `contextWindow`     | `object`   | see below    | Turn/char limits for conversation extraction.                                                                                                            |
-| `timeoutMs`         | `number`   | `3000`       | Max wait time for each scanner sub-agent run. Clamped to 250–120000ms.                                                                                   |
-| `complexityPrompts` | `object`   | built-in     | Custom instruction-generation guidance per complexity level.                                                                                             |
-| `evolution`         | `object`   | disabled     | Post-turn trigger review configuration. Findings and runtime trigger keywords are stored in `$OPENCLAW_STATE_DIR/plugins/intention-hint/evolution.json`. |
+| Option              | Type       | Default           | Description                                                                                                                                                                   |
+| ------------------- | ---------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `agents`            | `string[]` | `["*"]`           | Which agents trigger the plugin. Use `["*"]` for all agents.                                                                                                                  |
+| `intentDeny`        | `object`   | `{}`              | Per-agent deny list of intent IDs. Keys support `*` glob patterns.                                                                                                            |
+| `model`             | `string`   | —                 | Lightweight model for the intention scanner. Falls back to the agent's default if empty.                                                                                      |
+| `modelFallback`     | `string`   | —                 | Fallback model when `config.model` cannot be resolved.                                                                                                                        |
+| `thinking`          | `string`   | `"medium"`        | Thinking level for the intent classifier subagent.                                                                                                                            |
+| `lowThinkingMode`   | `string`   | `"fastpath-only"` | Behavior when the main agent uses `off`, `minimal`, or `low` thinking: preserve deterministic exact keyword hints, run the full scanner, or disable the plugin for that turn. |
+| `allowedChatTypes`  | `string[]` | `["direct"]`      | Chat types (direct, group, channel) that allow intent analysis.                                                                                                               |
+| `allowedChatIds`    | `string[]` | `[]`              | Allowlist of chat IDs. Empty means no allowlist restriction.                                                                                                                  |
+| `deniedChatIds`     | `string[]` | `[]`              | Blocklist of chat IDs. Plugin skips intent analysis for listed IDs.                                                                                                           |
+| `queryMode`         | `string`   | `"recent"`        | Context window mode: `recent` (recent turns), `message` (latest message only), `full` (full history).                                                                         |
+| `contextWindow`     | `object`   | see below         | Turn/char limits for conversation extraction.                                                                                                                                 |
+| `timeoutMs`         | `number`   | `3000`            | Max wait time for each scanner sub-agent run. Clamped to 250–120000ms.                                                                                                        |
+| `complexityPrompts` | `object`   | built-in          | Custom instruction-generation guidance per complexity level.                                                                                                                  |
+| `evolution`         | `object`   | disabled          | Post-turn trigger review configuration. Findings and runtime trigger keywords are stored in `$OPENCLAW_STATE_DIR/plugins/intention-hint/evolution.json`.                      |
 
 `evolution.thinking` independently controls the Evolution review
 subagent's thinking level. Both thinking settings accept `off`, `minimal`,
 `low`, `medium`, `high`, `xhigh`, `adaptive`, or `max`.
+
+`lowThinkingMode` controls main-agent low-thinking turns (`off`, `minimal`, or
+`low`). The default `fastpath-only` mode keeps deterministic exact keyword hints
+but skips topic checker, intent classifier, and instruction writer LLM calls
+when no exact fastpath keyword matches. Use `full` to always run the complete
+scanner pipeline, or `off` to disable the plugin entirely for low-thinking
+turns.
 
 ### Intent Evolution
 
