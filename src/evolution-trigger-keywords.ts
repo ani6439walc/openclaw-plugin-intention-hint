@@ -1,7 +1,5 @@
 export type TriggerKeywordTarget =
-  | "successful-pattern"
-  | "behavior-fix"
-  | "entity-context";
+  "successful-pattern" | "behavior-fix" | "entity-context";
 
 export type EvolutionTriggerKeywords = {
   successfulPattern: string[];

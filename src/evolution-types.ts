@@ -66,8 +66,7 @@ export type TriggerKeywordsEvolutionFinding = BaseEvolutionFinding & {
 };
 
 export type EvolutionFinding =
-  | IntentMarkdownEvolutionFinding
-  | TriggerKeywordsEvolutionFinding;
+  IntentMarkdownEvolutionFinding | TriggerKeywordsEvolutionFinding;
 
 export type EvolutionSource = {
   sessionId: string;

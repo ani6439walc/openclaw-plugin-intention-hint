@@ -16,14 +16,7 @@ export type ContextWindow = {
 };
 
 export type ThinkLevel =
-  | "off"
-  | "minimal"
-  | "low"
-  | "medium"
-  | "high"
-  | "xhigh"
-  | "adaptive"
-  | "max";
+  "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "adaptive" | "max";
 
 export type LowThinkingMode = "fastpath-only" | "full" | "off";
 
