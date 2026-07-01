@@ -15,6 +15,7 @@ import {
   isAllowedChatType,
   isAllowedChatId,
   resolveStatusUpdateAgentId,
+  resolveCanonicalSessionKeyFromSessionId,
 } from "./src/session.js";
 import { IntentCatalog } from "./src/intent-loader.js";
 import { RecentTurn } from "./src/types.js";
@@ -151,6 +152,37 @@ describe("resolveStatusUpdateAgentId", () => {
 
   it("returns default when nothing provided", () => {
     expect(resolveStatusUpdateAgentId({})).toBe("main");
+  });
+});
+
+describe("resolveCanonicalSessionKeyFromSessionId", () => {
+  it("returns the session key for the matching row-scoped session entry", () => {
+    const api = {
+      runtime: {
+        agent: {
+          session: {
+            listSessionEntries: () => [
+              {
+                sessionKey: "agent:main:direct:first",
+                entry: { sessionId: "other-session" },
+              },
+              {
+                sessionKey: "agent:main:direct:resolved",
+                entry: { sessionId: "target-session" },
+              },
+            ],
+          },
+        },
+      },
+    } as unknown as OpenClawPluginApi;
+
+    expect(
+      resolveCanonicalSessionKeyFromSessionId({
+        api,
+        agentId: "main",
+        sessionId: "target-session",
+      }),
+    ).toBe("agent:main:direct:resolved");
   });
 });
 

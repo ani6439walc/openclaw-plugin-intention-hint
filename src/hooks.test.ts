@@ -1778,10 +1778,12 @@ describe("createHookHandlers topic switch flow", () => {
         runtime: {
           agent: {
             session: {
-              resolveStorePath: vi.fn().mockReturnValue("store-path"),
-              loadSessionStore: vi.fn().mockReturnValue({
-                data: { entries: [{ key: resolvedSessionKey }] },
-              }),
+              listSessionEntries: vi.fn().mockReturnValue([
+                {
+                  sessionKey: resolvedSessionKey,
+                  entry: { sessionId: ctx.sessionId },
+                },
+              ]),
             },
           },
         } as never,

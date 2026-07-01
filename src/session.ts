@@ -135,19 +135,13 @@ export function resolveCanonicalSessionKeyFromSessionId(params: {
 }): string | undefined {
   if (!params.sessionId) return;
   try {
-    const storePath = params.api.runtime.agent.session.resolveStorePath(
-      params.api.config.session?.store,
-      { agentId: params.agentId },
-    );
-    const store = params.api.runtime.agent.session.loadSessionStore(storePath, {
-      clone: false,
+    const entries = params.api.runtime.agent.session.listSessionEntries({
+      agentId: params.agentId,
     });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const entries: any[] = (store as any).data?.entries ?? [];
-    const keyField = entries.find(
-      (e: Record<string, unknown>) => e.key !== undefined,
+    const match = entries.find(
+      ({ entry }) => entry.sessionId === params.sessionId,
     );
-    return typeof keyField?.key === "string" ? keyField.key : undefined;
+    return match?.sessionKey;
   } catch (err) {
     logger.warn("failed to resolve canonical session key", { error: err });
     return;
